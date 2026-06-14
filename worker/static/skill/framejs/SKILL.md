@@ -46,7 +46,7 @@ Generate the code, then use the bundled helper (preferred) or the inline-node
 fallback in [references/short-url-api.md](references/short-url-api.md):
 
 ```bash
-cat << 'JSCODE' | node scripts/framejs.mjs create --title "<short title>" --description "<one-sentence summary>"
+cat << 'JSCODE' | node scripts/framejs.mjs create --title "<short title>" --description "<one-sentence summary>" --screenshot
 // your generated browser JS here — $vars, backticks, all special chars are safe inside the heredoc
 JSCODE
 ```
@@ -54,6 +54,20 @@ JSCODE
 The helper prints the `https://framejs.io/j/<sha256>` short URL and opens the
 browser (`--no-open` to skip). Re-run to create a NEW short URL on every update.
 Add `--module <url>` for classic scripts and `--input name=value` for inputs.
+
+Always pass `--screenshot`: the helper renders the finished app and stores the
+capture as the `og:image` preview. It is self-guarding — it captures ONLY when
+the app has no `og.image` yet, so it never overwrites an image a previous run
+(or the user) already set, and it silently falls back to the image-less URL if
+no renderer is available. Capture prefers **Playwright** when it can be imported
+(true network-idle waiting — best for apps that fetch inputs), and otherwise
+uses **system headless Chrome**. Playwright is optional: install it
+(`npm i -g
+playwright && npx playwright install chromium`) for the more reliable
+path, or point `$FRAMEJS_PLAYWRIGHT` at a dir whose `node_modules` has it. Tune
+with `--screenshot-wait <ms>` (default 6000 — raise it for apps that load
+slowly) and `--screenshot-size <w,h>` (default `1200,630`). Override the Chrome
+binary with `$CHROME_PATH`.
 
 `scripts/framejs.mjs` is resolved **relative to this skill's directory**, not
 your current working directory — run it from the skill folder, or use its
@@ -66,12 +80,15 @@ file.
 Always include Open Graph preview tags so the link unfurls nicely when shared —
 see the OG rules in [references/short-url-api.md](references/short-url-api.md):
 
-- **New app:** derive fresh copy with `--title` / `--description`.
+- **New app:** derive fresh copy with `--title` / `--description`, and pass
+  `--screenshot` to capture the preview image.
 - **Modifying an existing app:** the fetched app already carries `og` (the
   `fetch` command returns it). Do NOT recalculate it — pass the fetched object
   straight back through with `--og '<the fetched og JSON>'`, which preserves
   every field (including `image`). Only set new `--title`/`--description` if the
-  user explicitly asked to change the preview copy.
+  user explicitly asked to change the preview copy. You can still pass
+  `--screenshot`: if the fetched `og` already has an `image` it is left
+  untouched; if it has none, a fresh capture is added.
 
 ## Absolute rules (both modes)
 
