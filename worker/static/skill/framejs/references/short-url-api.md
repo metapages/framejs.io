@@ -36,8 +36,18 @@ short URL.
 cat app.js | node scripts/framejs.mjs create \
   --title "Bouncing ball" \
   --description "A ball bouncing around the canvas with gravity" \
+  --screenshot \
   --module https://3dmol.org/build/3Dmol-min.js
 ```
+
+`--screenshot` renders the finished app and uploads the capture as `og.image`
+(see the OG section below). It captures ONLY when the app has no `og.image` yet,
+and falls back to the image-less URL if no renderer is available — so it is
+always safe to pass. It prefers **Playwright** when importable (proper
+network-idle waiting) and otherwise uses **system headless Chrome**. Flags:
+`--screenshot-wait <ms>` (default 6000), `--screenshot-size <w,h>` (default
+`1200,630`). Env: `$CHROME_PATH` overrides the Chrome binary;
+`$FRAMEJS_PLAYWRIGHT` points at a dir whose `node_modules` contains Playwright.
 
 ### Inline fallback (no bundled script)
 
@@ -80,15 +90,19 @@ JSCODE
 
 ## Open Graph preview tags (`og`) — always set when missing
 
-The server renders `og:title` / `og:description` so the link unfurls with a
-meaningful title and summary when shared (Slack, iMessage, social media). `og`
-round-trips through the API exactly like `js` / `modules` / `inputs`.
+The server renders `og:title` / `og:description` / `og:image` so the link
+unfurls with a meaningful title, summary, and preview thumbnail when shared
+(Slack, iMessage, social media). `og` round-trips through the API exactly like
+`js` / `modules` / `inputs`.
 
 - **New app:** ALWAYS include `og`, derived from the user's request and the code
   you generated (not placeholder text).
   - `title`: concise and specific, aim for ≤ ~60 characters (avoids truncation).
   - `description`: ~110–150 characters; say what it shows and, if interactive,
     how to use it.
+  - `image`: pass `--screenshot` and the helper captures the rendered app and
+    sets `og.image` for you — no need to build one by hand. It only ever fills
+    in a MISSING image, so it can't clobber an existing one.
 - **Modifying an existing app:** the `fetch` response includes `hashParams.og`
   whenever the app already has one. If it exists, DO NOT recalculate it — pass
   the exact fetched object back through with `--og '<json>'` (or the `og` body
