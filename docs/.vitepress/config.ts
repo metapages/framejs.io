@@ -6,6 +6,10 @@ export default withMermaid(
     title: "framejs.io",
     description: "Run and edit JavaScript in the browser, embedded in the URL",
     base: "/docs/",
+    // Generate links without the .html suffix (e.g. /docs/intro instead of
+    // /docs/intro.html). Requires the server to serve `foo.html` when `/foo`
+    // is requested — see the /docs/* serveStatic rewrite in worker/server.ts.
+    cleanUrls: true,
 
     ignoreDeadLinks: [/^http:\/\/localhost/],
 

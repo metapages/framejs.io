@@ -719,7 +719,18 @@ app.get("/command-js.md", async (c) => {
 
 // Static file serving
 app.use("/editor/*", serveStatic({ root: "./" }));
-app.use("/docs/*", serveStatic({ root: "./" }));
+// Docs are built by VitePress with cleanUrls (links have no .html suffix).
+// Serve `foo.html` for a request to `/docs/foo` so those clean URLs resolve.
+// Leave paths with an extension (.html, .js, .css, …) and directory paths
+// (trailing slash → index.html) untouched.
+app.use(
+  "/docs/*",
+  serveStatic({
+    root: "./",
+    rewriteRequestPath: (path) =>
+      path.endsWith("/") || /\.[^/]+$/.test(path) ? path : `${path}.html`,
+  }),
+);
 app.use(
   "/*",
   serveStatic({
