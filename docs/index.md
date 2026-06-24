@@ -10,8 +10,8 @@ hero:
       text: Intro
       link: /intro
     - theme: brand
-      text: Get Started
-      link: /guide/overview
+      text: Quickstart
+      link: /guide/quickstart
     - theme: alt
       text: Create new
       link: https://framejs.io#?edit=true
