@@ -1,9 +1,13 @@
 # Quickstart
 
-1. [Install framejs skill](../ai/setup#install) into your AI chat (Claude, Gemini, Pi, OpenCode, etc):
+1. [Install](../ai/setup)
+
+```bash
+curl -fsSL https://framejs.io/skill/install.sh | sh
+```
 
 
-2. In your AI tool (e.g.Claude Code):
+2. New AI chat (e.g.Claude Code):
 
 > Create an interactive visualization of world population and individual country population over time
 

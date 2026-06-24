@@ -1,29 +1,18 @@
 # AI Usage
 
-Create self-contained, editable websites — each running a single chunk of
-JavaScript — using AI. Generate them from a chat interface, directly from your
-terminal coding agent, or via an LLM API.
-
-`framejs.io/#?js=< will always run this javascript, forever>`
-
 ## The `framejs` Agent Skill (recommended)
 
 framejs.io ships an [Agent Skill](https://agentskills.io) — a portable `SKILL.md`
 folder that works across ~40 agent harnesses (Claude Code, Gemini CLI, Cursor,
-opencode, Goose, OpenAI Codex, pi, and more). It auto-routes by capability:
+opencode, Goose, OpenAI Codex, pi, and more). 
 
-- **Terminal / coding agents** (can run a shell): generates the JavaScript,
-  creates a short URL, prints it, and opens it in your browser.
-- **Chat / API agents** (no shell): returns just the JavaScript to paste into the
-  editor.
+### Install skill
 
-One skill covers creating from a prompt, modifying an existing short URL, and
-visualizing local data files.
-
-- Skill: [`/skill/framejs/SKILL.md`](https://framejs.io/skill/framejs/SKILL.md)
-- Bundle: [`/skill/framejs.tar.gz`](https://framejs.io/skill/framejs.tar.gz)
-
-### Install
+```bash
+curl -fsSL https://framejs.io/skill/install.sh | sh
+# or target another harness — pass its skills directory (see the table below):
+curl -fsSL https://framejs.io/skill/install.sh | sh -s -- <SKILLS_DIR>
+```
 
 A skill is just a `framejs/` folder containing `SKILL.md`. Drop it into your
 harness's skills directory.
@@ -31,11 +20,7 @@ harness's skills directory.
 **One-liner** (installs into `~/.claude/skills` by default; pass any other
 harness's skills directory as an argument):
 
-```bash
-curl -fsSL https://framejs.io/skill/install.sh | sh
-# or target another harness — pass its skills directory (see the table below):
-curl -fsSL https://framejs.io/skill/install.sh | sh -s -- <SKILLS_DIR>
-```
+
 
 Re-run any time to update. Prefer to do it by hand? Unpack the bundle yourself:
 
@@ -152,3 +137,5 @@ at `worker/static/skill/framejs/`, so they never drift:
 | [`/command-js.md`](https://framejs.io/command-js.md) | Claude Code slash command — generates + opens a short URL |
 | [`/llms-prompt.md`](https://framejs.io/llms-prompt.md) | AI chat / API — outputs a JavaScript code block |
 | [`/llms-claude-code.txt`](https://framejs.io/llms-claude-code.txt) | CLI integration guide (short URLs, file uploads, coding guide) |
+| [`/skill/framejs.tar.gz`](https://framejs.io/skill/framejs.tar.gz) | Skill bundle |
+
