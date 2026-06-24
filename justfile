@@ -1,10 +1,6 @@
-set shell               := ["bash", "-c"]
-set dotenv-load         := true
-set export              := true
-APP_FQDN                := env_var_or_default("APP_FQDN", "server1.localhost")
-APP_PORT                := env_var_or_default("APP_PORT", "4430")
-APP_PORT_BROWSER        := env_var_or_default("APP_PORT_BROWSER", "4440")
-DENO_DEPLOY_TOKEN       := env_var_or_default("DENO_DEPLOY_TOKEN", "")
+# just docs: https://github.com/casey/just
+set shell       := ["bash", "-c"]
+set dotenv-load := true
 # minimal formatting, bold is very useful
 bold                               := '\033[1m'
 normal                             := '\033[0m'
@@ -12,107 +8,108 @@ green                              := "\\e[32m"
 yellow                             := "\\e[33m"
 blue                               := "\\e[34m"
 magenta                            := "\\e[35m"
+cyan                               := "\\e[36m"
 grey                               := "\\e[90m"
 
-@_help:
-    just --list --unsorted
+_help:
+    #!/usr/bin/env bash
+    echo ""
+    just --list --unsorted --list-heading $'🪐 framejs.io — nhost api + Deno Fresh worker. https://docs.nhost.io/:\n'
     echo -e ""
-    echo -e "    Github  URL 🔗 {{green}}https://github.com/metapages/metaframe-js{{normal}}"
-    echo -e "    Publish URL 🔗 {{green}}https://js.mtfm.io/{{normal}}"
-    echo -e "    Develop URL 🔗 {{green}}https://{{APP_FQDN}}:{{APP_PORT}}/{{normal}}"
+    echo -e "    Sub-commands: (just <sub-command> <command>)"
+    echo -e "        {{cyan}}api{{normal}}        # nhost backend (api/): auth, Hasura, storage, migrations"
+    echo -e "        {{cyan}}frontend{{normal}}   # Deno Fresh worker (frontend/worker), served at framejs.io"
+    echo -e ""
+    echo -e "    Links:"
+    echo -e "        framejs.io:        {{green}}https://framejs.io/{{normal}}"
+    echo -e "        local GraphQL:     {{green}}https://local.graphql.local.nhost.run/v1{{normal}}"
+    echo -e "        local Hasura:      {{green}}https://local.hasura.local.nhost.run{{normal}}"
     echo -e ""
 
-# open
-# Run the server in development mode
-@dev +args="": _mkcert open
-  docker compose up --build {{args}}
+# Start the local dev stack: nhost api (background) + worker dev server (foreground)
+dev:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just api/dev
+    just frontend/dev
 
-# Shut down the local server
+# Shut down the local api stack
 @down +args="":
-  docker compose down {{args}}
+    just api/down {{args}}
 
-check:
-  just editor/check
-  just worker/check
+# generate hasura graphql typescript types (needs api stack up + docker)
+@generate:
+    just frontend/generate
 
-# Format TypeScript (editor: Prettier, worker: deno fmt)
-fmt:
-  just editor/fmt
-  just worker/fmt
+# type-check everything (currently the worker; api functions have no check yet)
+@check:
+    just frontend/check
 
-# DEV: generate TLS certs for HTTPS over localhost https://blog.filippo.io/mkcert-valid-https-certificates-for-localhost/
-@_mkcert: _delete-certs
-  mkdir -p .traefik/certs
-  mkcert -cert-file .traefik/certs/local-cert.pem -key-file .traefik/certs/local-key.pem {{APP_FQDN}} s3.localhost localhost
+# format everything
+@fmt:
+    just frontend/fmt
 
-open:
-  deno run --allow-all https://deno.land/x/metapages@v0.0.17/exec/open_url.ts 'https://metapages.github.io/load-page-when-available/?url=https://{{APP_FQDN}}:{{APP_PORT}}'
+# Deletes caches, databases, certificates, etc.
+@clean:
+    just api/clean
 
-publish: _ensure_deployctl
-  #!/usr/bin/env bash
-  set -euo pipefail
-  # build the client in editor/dist
-  just editor/build
-  rm -rf deploy
-  mkdir -p deploy
-  cp -r editor/dist deploy/editor
-  cp -r worker/server.ts deploy/
-  cp -r worker/deno.json deploy/
-  cp -r worker/deno.lock deploy/
-  cp -r worker/index.html deploy/
-  cp -r worker/sw.js deploy/
-  cp -r worker/cache-test-utils.js deploy/
-  cp -r worker/static deploy/
-  cd deploy
-  deployctl deploy --project=metaframe-js --prod server.ts
+# Run all existing 'just test' commands in the repo (uses justfile introspection)
+test cwd="": check
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf "\n"
+    printf "🍓 Run ALL 'just test' commands in this repository:\n\n"
+    for file in $(find * -type f -name justfile) ; do
+        if [ "$file" = "justfile" ]; then
+            continue
+        fi
+        if [[ "$file" == *"archive"* ]]; then
+            continue
+        fi
+        justprefix="just $(echo $file | sed s/justfile//)"
+        commands=$(just --justfile $file --dump --dump-format json | jq -r '.recipes | keys[]' | grep '^[^_]')
+        commandArray=($commands)
+        for command in "${commandArray[@]}" ; do
+            COMMAND_FORMATTED=$(printf "   %$(echo $((${#file} - 7)))s $command")
+            if [ "$command" = "test" ]; then
+                fullCommand=$(printf "%s%s\n"  "$justprefix" "$command")
+                echo -e "🍓  {{green}}$fullCommand{{normal}}"
+                eval "$fullCommand"
+            fi
+        done
+    done
 
-# Checks and tests
-test:
-  just editor/test
-  just worker/test
-  just _integration-test
+# List ALL justfiles and commands in the repo
+ls:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf "\n"
+    printf "👀 ALL just commands in this repository:\n\n"
+    for file in $(find * -type f -name justfile) ; do
+        justprefix="just $(echo $file | sed s/justfile//)"
+        commands=$(just --justfile $file --dump --dump-format json | jq -r '.recipes | keys[]' | grep '^[^_]')
+        commandArray=($commands)
+        # This just gets the first element, not totally clear why
+        command="$commandArray"
+        HELP=$(just --justfile $file --dump --dump-format json | jq -r --arg key "$command" '.recipes[$key].doc')
+        justprefix="$justprefix$command"
+        printf "%-40s {{blue}}# %s{{normal}}\n" "$justprefix" "$HELP"
+        unset commandArray[0]
+        for command in "${commandArray[@]}" ; do
+            HELP=$(just --justfile $file --dump --dump-format json | jq -r --arg key "$command" '.recipes[$key].doc')
+            COMMAND_FORMATTED=$(printf "   %$(echo $((${#file} - 7)))s $command")
+            printf "%-40s {{blue}}# %s{{normal}}\n" "$COMMAND_FORMATTED" "$HELP"
+        done
+    done
 
-# Run integration tests: starts the dev stack, runs vitest unit + playwright integration tests, tears down
-_integration-test: _mkcert
-  #!/usr/bin/env bash
-  set -uo pipefail
+###################################################
+# Internal utilies
+###################################################
 
-  npm --prefix test install
-  npx --prefix test playwright install chromium
+alias api := _api
+@_api +args="":
+    just api/{{args}}
 
-  # Run unit tests (no server needed)
-  npm --prefix test run test:unit
-
-  # Start dev stack in background; use port 0 for Traefik web UI to avoid conflicts with host ports
-  TRAEFIK_WEB_UI_PORT=0 docker compose up --build -d
-
-  # On exit (success or failure), shut down the dev stack and preserve exit code
-  cleanup() {
-    local code=$?
-    docker compose down
-    exit $code
-  }
-  trap cleanup EXIT
-
-  # Wait for server to be ready
-  echo "Waiting for dev server at https://{{APP_FQDN}}:{{APP_PORT}}..."
-  timeout 90 bash -c 'until curl -skf "https://{{APP_FQDN}}:{{APP_PORT}}" >/dev/null 2>&1; do sleep 2; done'
-  echo "Dev server ready."
-
-  # Run playwright integration tests
-  (cd test && npx playwright test)
-
-# Delete all cached and generated files, and docker volumes
-clean: _delete-certs
-    just editor/clean
-    rm -rf deploy
-    docker compose down -v
-
-@_delete-certs:
-  rm -rf .traefik/certs
-
-show-metapage-lib:
-  @rg "@metapages/metapage@"
-
-@_ensure_deployctl:
-    if ! command -v deployctl &> /dev/null; then echo '‼️ deployctl is being installed ‼️'; deno install -gArf jsr:@deno/deployctl; fi
+alias frontend := _frontend
+@_frontend +args="":
+    just frontend/{{args}}

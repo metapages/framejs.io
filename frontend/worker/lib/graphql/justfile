@@ -1,0 +1,32 @@
+@_help:
+    just --list --unsorted --list-heading $'Commands:\n'
+
+# Run graphql-codegen (only valid inside the codegen docker container)
+_generate: _ensure_node_modules
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p generated
+    rm -rf generated/*
+    DEBUG=1 ../../../../api/tools/codegen/node_modules/@graphql-codegen/cli/bin.js --config codegen.yml
+    if [ ! -f generated/sdk.ts ]; then
+        echo "Types generated failed!"
+        exit 1
+    fi
+
+# generate hasura graphql typescript SDK/types from the local schema
+generate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f /.dockerenv ]; then
+        just _generate
+    else
+        just ../../../../api/tools/codegen/generate frontend/worker/lib/graphql
+    fi
+
+# regenerate on changes to query files
+watch:
+    watchexec -w queries --exts graphql -- just generate
+
+@_ensure_node_modules:
+  cd ../../../../api/tools/codegen/ && \
+    if [ ! -d node_modules ]; then npm i; fi

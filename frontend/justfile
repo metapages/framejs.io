@@ -1,0 +1,37 @@
+set shell       := ["bash", "-c"]
+set dotenv-load := true
+
+# frontend/ contains a single app: worker (Deno Fresh 2, served at framejs.io).
+# This justfile just forwards to frontend/worker. Run `just worker/<cmd>` to
+# reach any worker recipe directly.
+
+@_help:
+    just --list --unsorted
+
+# Run the worker dev server (http://127.0.0.1:5173; needs api stack up for data)
+dev:
+    just worker/dev
+
+# Build the worker for production
+build:
+    just worker/build
+
+# Start the worker production server
+serve:
+    just worker/start
+
+# Type-check the worker (deno check)
+check:
+    just worker/check
+
+# Format the worker (deno fmt)
+fmt:
+    just worker/fmt
+
+# Regenerate the typed GraphQL SDK from the local Hasura schema (needs api stack up + docker)
+generate:
+    just worker/generate
+
+# Integration test: create + delete a project as an authenticated user (needs api stack up)
+test:
+    just worker/test

@@ -1,0 +1,51 @@
+set shell := ["bash", "-c"]
+set dotenv-load := true
+
+# Run the dev server
+dev: _hostcheck
+    deno install
+    deno task dev
+
+# Verify the dev host resolves: the dev server binds to framejs.localhost, which
+# macOS does NOT resolve to loopback automatically (browsers do, the OS resolver
+# doesn't), so without an /etc/hosts entry the server fails with
+# `getaddrinfo ENOTFOUND framejs.localhost`.
+_hostcheck:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! grep -qE '^[[:space:]]*127\.0\.0\.1[[:space:]]+([^#]*[[:space:]])?framejs\.localhost([[:space:]]|$)' /etc/hosts; then
+        echo -e "\033[1m[hostcheck] Missing /etc/hosts entry for framejs.localhost\033[0m" >&2
+        echo "" >&2
+        echo "The dev server binds to 'framejs.localhost', but your OS can't resolve it," >&2
+        echo "so it will fail with: getaddrinfo ENOTFOUND framejs.localhost" >&2
+        echo "" >&2
+        echo "Fix it by adding the loopback mapping to /etc/hosts:" >&2
+        echo "" >&2
+        echo "    echo '127.0.0.1 framejs.localhost' | sudo tee -a /etc/hosts" >&2
+        echo "" >&2
+        exit 1
+    fi
+
+# Build for production
+build:
+    deno task build
+
+# Type check
+check:
+    deno check main.ts
+
+# Regenerate the typed GraphQL SDK from the local Hasura schema (needs the api stack up)
+generate:
+    just lib/graphql/generate
+
+# Integration check: create + delete a project as an authenticated user (needs the api stack up)
+test:
+    deno test -A lib/graphql/projects.test.ts
+
+# Format
+fmt:
+    deno fmt .
+
+# Start production server
+start:
+    deno task start

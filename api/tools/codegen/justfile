@@ -1,0 +1,19 @@
+# just docs: https://github.com/casey/just
+set shell       := ["bash", "-c"]
+
+_help:
+    #!/usr/bin/env bash
+    just --list --unsorted --list-heading $'🪐 codegen commands:\n'
+    echo ""
+    
+# Start lcoal development stack. fqdn [local|superslides.io]. [superslides.io] will only start the frontend
+build:
+    if [ -f /.dockerenv ]; then \
+        echo "WE ARE ALREADY IN A DOCKER CONTAINER"; \
+        exit 1; \
+    fi
+    docker build -t codegen .
+
+# Start 
+generate directory="": build
+    docker run --rm -ti --net=host -v $(pwd)/../../..:/app --workdir=/app/{{directory}} codegen just generate

@@ -1,0 +1,18 @@
+overwrite: true
+schema:
+  "https://local.graphql.local.nhost.run/v1":
+    headers:
+      - X-Hasura-Admin-Secret: nhost-admin-secret
+generates:
+  ./generated/sdk.ts:
+    documents: "./queries/*.graphql"
+    plugins:
+      - add:
+          content: /* eslint-disable */
+      - typescript
+      - typescript-operations
+      - typescript-graphql-request
+    config:
+      # Emit documents as plain strings (no graphql-tag / DocumentNode) so the
+      # SDK imports cleanly under Deno's CJS/ESM interop.
+      documentMode: string

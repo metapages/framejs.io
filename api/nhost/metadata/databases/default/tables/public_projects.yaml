@@ -1,0 +1,105 @@
+table:
+  name: projects
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    description:
+      custom_name: description
+    hash_params:
+      custom_name: hashParams
+    id:
+      custom_name: id
+    is_public:
+      custom_name: isPublic
+    key:
+      custom_name: key
+    storage_file_id:
+      custom_name: storageFileId
+    title:
+      custom_name: title
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    created_at: createdAt
+    description: description
+    hash_params: hashParams
+    id: id
+    is_public: isPublic
+    key: key
+    storage_file_id: storageFileId
+    title: title
+    updated_at: updatedAt
+    user_id: userId
+  custom_root_fields: {}
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - key
+        - title
+        - description
+        - storage_file_id
+        - hash_params
+        - is_public
+select_permissions:
+  - role: public
+    permission:
+      columns:
+        - id
+        - key
+        - title
+        - description
+        - is_public
+        - created_at
+      filter:
+        is_public:
+          _eq: true
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - key
+        - title
+        - description
+        - storage_file_id
+        - hash_params
+        - is_public
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - key
+        - title
+        - description
+        - storage_file_id
+        - hash_params
+        - is_public
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

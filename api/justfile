@@ -1,0 +1,59 @@
+set shell       := ["bash", "-c"]
+set dotenv-load := true
+
+###########################################################################
+# Formatting
+###########################################################################
+bold                               := '\033[1m'
+normal                             := '\033[0m'
+green                              := "\\e[32m"
+yellow                             := "\\e[33m"
+
+_help:
+    #!/usr/bin/env bash
+    just --list --unsorted --list-heading $'🪐 Nhost Commands:\n'
+    echo -e ""
+    echo -e "    Links:"
+    echo -e "        Nhost prod dashboard: {{green}}https://app.nhost.io/mtpg-io/cetami{{normal}}"
+    echo -e "        Nhost prod URLs:      {{green}}https://app.nhost.io/mtpg-io/cetami/settings/environment-variables{{normal}}"
+    echo -e "        Nhost local URLs:     "
+    echo -e "        Nhost local URLs:     {{green}}https://app.nhost.io/mtpg-io/cetami/settings/environment-variables{{normal}}"
+    echo -e "              - Postgres:             {{green}}postgres://postgres:postgres@localhost:5432/local{{normal}}"
+    echo -e "              - Hasura:               {{green}}https://local.hasura.local.nhost.run{{normal}}"
+    echo -e "              - GraphQL:              {{green}}https://local.graphql.local.nhost.run{{normal}}"
+    echo -e "              - Auth:                 {{green}}https://local.auth.local.nhost.run{{normal}}"
+    echo -e "              - Storage:              {{green}}https://local.storage.local.nhost.run{{normal}}"
+    echo -e "              - Functions:            {{green}}https://local.functions.local.nhost.run{{normal}}"
+    echo -e "              - Dashboard:            {{green}}https://local.dashboard.local.nhost.run{{normal}}"
+    echo -e "              - Mailhog:              {{green}}https://local.mailhog.local.nhost.run{{normal}}"
+    
+
+# Bring the nhost.io api stack up
+dev:
+    nhost up --apply-seeds --down-on-error
+
+# Stop the nhost.io api stack
+down +args="": _ensure_nhost
+    nhost down {{args}}
+
+# service=<functions|graphql> Show local nhost stack service logs
+logs service="functions":
+    nhost logs -f {{ service }}
+
+# deletes the database
+clean:
+    nhost down --volumes
+    rm -rf .nhost/data/*
+
+# NOTE: there is no api-side `check`/`fmt`/`generate` yet. api/functions has no
+# justfile, codegen, or type-check wired up. The typed GraphQL SDK is generated
+# on the worker side: `just frontend/worker/generate`. Add functions codegen by
+# mirroring frontend/worker/lib/graphql (see the framejs-nhost-dev skill).
+
+_ensure_nhost:
+    #!/usr/bin/env bash
+    if ! command -v nhost &> /dev/null
+    then
+        echo -e "nhost could not be found: {{yellow}}https://docs.nhost.io/development/cli/getting-started{{normal}}"
+        exit 1
+    fi

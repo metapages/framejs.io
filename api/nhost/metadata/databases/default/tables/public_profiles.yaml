@@ -1,0 +1,78 @@
+table:
+  name: profiles
+  schema: public
+configuration:
+  column_config:
+    avatar_url:
+      custom_name: avatarUrl
+    created_at:
+      custom_name: createdAt
+    current_period_end:
+      custom_name: currentPeriodEnd
+    display_name:
+      custom_name: displayName
+    id:
+      custom_name: id
+    plan:
+      custom_name: plan
+    stripe_customer_id:
+      custom_name: stripeCustomerId
+    subscription_status:
+      custom_name: subscriptionStatus
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    avatar_url: avatarUrl
+    created_at: createdAt
+    current_period_end: currentPeriodEnd
+    display_name: displayName
+    id: id
+    plan: plan
+    stripe_customer_id: stripeCustomerId
+    subscription_status: subscriptionStatus
+    updated_at: updatedAt
+    user_id: userId
+  custom_root_fields: {}
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - display_name
+        - avatar_url
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - display_name
+        - avatar_url
+        - subscription_status
+        - plan
+        - current_period_end
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - display_name
+        - avatar_url
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null

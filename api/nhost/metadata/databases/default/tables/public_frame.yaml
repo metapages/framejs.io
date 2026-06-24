@@ -1,0 +1,65 @@
+table:
+  name: frame
+  schema: public
+object_relationships:
+  - name: users
+    using:
+      foreign_key_constraint_on: user
+array_relationships:
+  - name: frame_versions
+    using:
+      foreign_key_constraint_on:
+        column: frame
+        table:
+          name: frame_version
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check: {}
+      set:
+        user: x-hasura-User-Id
+      columns:
+        - id
+        - public
+        - user
+    comment: ""
+select_permissions:
+  - role: public
+    permission:
+      columns:
+        - created_at
+        - id
+        - public
+      filter:
+        _and:
+          - public:
+              _eq: true
+          - deleted:
+              _eq: false
+    comment: ""
+  - role: user
+    permission:
+      columns:
+        - created_at
+        - deleted
+        - id
+        - public
+        - user
+      filter:
+        _or:
+          - public:
+              _eq: true
+          - user:
+              _eq: X-Hasura-User-Id
+    comment: ""
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - public
+        - deleted
+      filter:
+        user:
+          _eq: X-Hasura-User-Id
+      check: null

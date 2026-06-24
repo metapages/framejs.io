@@ -1,0 +1,2 @@
+CREATE TABLE "public"."frame_version" ("id" uuid NOT NULL DEFAULT uuidv7(), "frame" uuid NOT NULL, "created_at" timestamptz NOT NULL DEFAULT now(), "sha256" text, "og" jsonb, "url" text, "file" uuid, PRIMARY KEY ("id") , FOREIGN KEY ("frame") REFERENCES "public"."frame"("id") ON UPDATE restrict ON DELETE restrict, UNIQUE ("id"));COMMENT ON TABLE "public"."frame_version" IS E'Actual saved versions of a frame';
+CREATE EXTENSION IF NOT EXISTS pgcrypto;

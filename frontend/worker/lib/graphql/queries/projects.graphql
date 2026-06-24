@@ -1,0 +1,42 @@
+query GetProjects {
+  projects(order_by: { updatedAt: desc }) {
+    id
+    key
+    title
+    description
+    isPublic
+    createdAt
+    updatedAt
+  }
+}
+
+query GetProjectByKey($key: String!) {
+  projects(where: { key: { _eq: $key } }, limit: 1) {
+    id
+    key
+    title
+    description
+    userId
+    hashParams
+    storageFileId
+    isPublic
+  }
+}
+
+mutation InsertProject($object: projects_insert_input!) {
+  insert_projects_one(object: $object) {
+    id
+    key
+    title
+    description
+    isPublic
+    createdAt
+    updatedAt
+  }
+}
+
+mutation DeleteProject($id: uuid!) {
+  delete_projects_by_pk(id: $id) {
+    id
+  }
+}

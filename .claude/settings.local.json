@@ -20,7 +20,13 @@
       "Bash(curl:*)",
       "Bash(cd /Users/dion/dev/git/metapages/metaframes/metaframe-js/test && npx playwright test 2>&1)",
       "Bash(APP_PORT=4470 APP_FQDN=server1.localhost bash:*)",
-      "Bash(just test:*)"
+      "Bash(just test:*)",
+      "WebSearch",
+      "WebFetch(domain:fresh.deno.dev)",
+      "WebFetch(domain:docs.nhost.io)",
+      "WebFetch(domain:nhost.io)",
+      "Bash(mkdir -p /Users/dion/dev/git/metapages/framejs.io/frontend && cd /Users/dion/dev/git/metapages/framejs.io/frontend && DENO_NO_PROMPT=1 deno run -Ar jsr:@fresh/init . --tailwind --vscode 2>&1)",
+      "Bash(deno install:*)"
     ],
     "deny": [],
     "ask": []

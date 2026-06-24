@@ -1,0 +1,19 @@
+set shell := ["bash", "-c"]
+set dotenv-load := true
+
+@_help:
+    just --list --unsorted --list-heading $'Commands:\n'
+
+# Run the Playwright e2e suite against the worker (needs the api stack up: `just api/dev`)
+e2e *args: _ensure_node_modules
+    cd {{justfile_directory()}} && node_modules/.bin/playwright test --config=playwright.worker.config.ts {{args}}
+
+# One-time setup: install node deps + the Chromium browser Playwright drives
+setup:
+    cd {{justfile_directory()}} && npm install && node_modules/.bin/playwright install chromium
+
+_ensure_node_modules:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd {{justfile_directory()}}
+    if [ ! -d node_modules ]; then npm install; fi

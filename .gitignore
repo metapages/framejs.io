@@ -11,3 +11,5 @@ docs
 
 #dependencies
 node_modules
+
+frontend/.traefik/certs

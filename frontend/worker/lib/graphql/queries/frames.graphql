@@ -1,0 +1,117 @@
+# A "frame" is the durable document the user owns; its editable content lives in
+# appended `frame_version` rows. The newest version (created_at desc, limit 1)
+# holds the current framejs.io url hash params (`url`) and the Open Graph blob
+# (`og` = { title, description, image }) used for dashboard display.
+
+# "Your Frames": only the current user's own frames. The user-role select
+# permission also exposes public frames (so /j/:uuid sharing works), so the
+# dashboard must scope explicitly by owner or it would list everyone's public
+# frames too.
+query GetFrames($userId: uuid!) {
+  frame(
+    where: { user: { _eq: $userId }, deleted: { _eq: false } }
+    order_by: { created_at: desc }
+  ) {
+    id
+    public
+    created_at
+    frame_versions(order_by: { created_at: desc }, limit: 1) {
+      id
+      url
+      og
+      created_at
+    }
+  }
+}
+
+query GetFrameById($id: uuid!) {
+  frame_by_pk(id: $id) {
+    id
+    public
+    deleted
+    created_at
+    user
+    frame_versions(order_by: { created_at: desc }, limit: 1) {
+      id
+      url
+      og
+      sha256
+      created_at
+    }
+  }
+}
+
+# Detail view for /j/:uuid. Returns the full version history (newest first) so
+# the client can show the current version (frame_versions[0]) and "undo" to the
+# previous one (frame_versions[1]).
+query GetFrameDetail($id: uuid!) {
+  frame_by_pk(id: $id) {
+    id
+    public
+    deleted
+    created_at
+    user
+    frame_versions(order_by: { created_at: desc }) {
+      id
+      url
+      og
+      sha256
+      created_at
+    }
+  }
+}
+
+# Create a frame together with its first version in a single nested insert. The
+# owning `user` column is set server-side from the JWT by Hasura permissions.
+mutation InsertFrame($object: frame_insert_input!) {
+  insert_frame_one(object: $object) {
+    id
+    public
+    created_at
+    frame_versions(order_by: { created_at: desc }, limit: 1) {
+      id
+      url
+      og
+      created_at
+    }
+  }
+}
+
+# Editing a frame appends a new version rather than mutating an existing one.
+mutation InsertFrameVersion($object: frame_version_insert_input!) {
+  insert_frame_version_one(object: $object) {
+    id
+    frame
+    url
+    og
+    created_at
+  }
+}
+
+# Deletion is soft: the frame is flagged for later hard-deletion elsewhere.
+mutation DeleteFrame($id: uuid!) {
+  update_frame_by_pk(pk_columns: { id: $id }, _set: { deleted: true }) {
+    id
+    deleted
+  }
+}
+
+# Toggle a frame between public and private (owner only, per Hasura permission).
+mutation SetFramePublic($id: uuid!, $public: Boolean!) {
+  update_frame_by_pk(pk_columns: { id: $id }, _set: { public: $public }) {
+    id
+    public
+  }
+}
+
+# "Undo": re-stamp an existing version's created_at to now so it becomes the
+# newest (current) version again. Only created_at is updatable on frame_version.
+mutation TouchFrameVersion($id: uuid!, $created_at: timestamptz!) {
+  update_frame_version_by_pk(
+    pk_columns: { id: $id }
+    _set: { created_at: $created_at }
+  ) {
+    id
+    created_at
+  }
+}

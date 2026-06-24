@@ -1,0 +1,16 @@
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Local dev TLS certs (minted per-machine with mkcert; never commit)
+.certs/
+
+# Fresh build directory
+_fresh/
+# npm + other dependencies
+node_modules/
+vendor/
+
