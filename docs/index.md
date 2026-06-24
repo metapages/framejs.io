@@ -6,12 +6,12 @@ hero:
   text: URL with editable javascript embedded
   tagline: Interactive visualizations that live in a URL. Prompt AI to build them, embed or share anywhere, add to notebooks
   actions:
-    - theme: alt
-      text: Intro
-      link: /intro
     - theme: brand
       text: Quickstart
       link: /guide/quickstart
+    - theme: alt
+      text: Intro
+      link: /intro
     - theme: alt
       text: Create new
       link: https://framejs.io#?edit=true
