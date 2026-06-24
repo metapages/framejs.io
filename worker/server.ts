@@ -719,6 +719,8 @@ app.get("/command-js.md", async (c) => {
 
 // Static file serving
 app.use("/editor/*", serveStatic({ root: "./" }));
+// /docs (no trailing slash) → /docs/ so VitePress index.html is served
+app.get("/docs", (c) => c.redirect("/docs/", 301));
 // Docs are built by VitePress with cleanUrls (links have no .html suffix).
 // Serve `foo.html` for a request to `/docs/foo` so those clean URLs resolve.
 // Leave paths with an extension (.html, .js, .css, …) and directory paths
