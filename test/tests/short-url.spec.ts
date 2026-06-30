@@ -265,7 +265,7 @@ test("GET /api/j/:sha256 strips a default param from an already-stored URL", asy
 // Browser tests – edit button exits short URL mode
 // ---------------------------------------------------------------------------
 
-test("clicking edit on a short URL navigates to full hash URL", async ({
+test("clicking edit on a short URL hands off to the editor in a new tab", async ({
   page,
 }) => {
   const { id } = await createShortUrl(
@@ -279,20 +279,29 @@ test("clicking edit on a short URL navigates to full hash URL", async ({
   // Confirm we're on the short URL
   expect(new URL(page.url()).pathname).toBe(`/j/${id}`);
 
-  // Click the edit button
-  await page.click("#menu-button");
-
-  // Should navigate to the root path with hash params including edit=true
-  await page.waitForURL((url) => url.pathname === "/" && url.hash.includes("edit=true"), {
-    timeout: 10_000,
+  // Capture window.open: in short-URL mode the edit button hands off to
+  // framejs.app by opening the canonical short URL with #?edit=true in a new
+  // tab (it does NOT expand the hash in place). We stub window.open because the
+  // framejs.app origin is not reachable in the test stack — we only care that
+  // the app *requests* the correct handoff URL.
+  await page.evaluate(() => {
+    window.__openCalls = [];
+    window.open = (url?: string | URL) => {
+      window.__openCalls!.push(String(url ?? ""));
+      return null;
+    };
   });
 
-  const url = new URL(page.url());
-  expect(url.pathname).toBe("/");
-  expect(url.hash).toContain("js=");
-  expect(url.hash).toContain("edit=true");
+  await page.click("#menu-button");
 
-  // Should no longer be in short URL mode
+  const openCalls = await page.evaluate(() => window.__openCalls);
+  expect(openCalls).toHaveLength(1);
+  const handoffUrl = new URL(openCalls![0]);
+  expect(handoffUrl.pathname).toBe(`/j/${id}`);
+  expect(handoffUrl.hash).toContain("edit=true");
+
+  // The original page stays on the short URL and in short URL mode.
+  expect(new URL(page.url()).pathname).toBe(`/j/${id}`);
   const shortUrlId = await page.evaluate(() => window.__SHORT_URL_ID);
-  expect(shortUrlId).toBeUndefined();
+  expect(shortUrlId).toBe(id);
 });
