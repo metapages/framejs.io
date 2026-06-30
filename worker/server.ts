@@ -19,6 +19,7 @@ import {
   computeMetaframeDefinition,
   DEFAULT_METAFRAME_DEFINITION,
   getAllowedHashParams,
+  stripDefaultHashParams,
 } from "./src/metaframe-definition.ts";
 import { detectEmbed, detectSource, track } from "./src/analytics.ts";
 
@@ -111,7 +112,9 @@ function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
     }
   }
 
-  return result;
+  // Default-valued params carry no information — strip them so they never
+  // appear in JSON representations or API responses.
+  return stripDefaultHashParams(result);
 }
 
 // Canonical hash param keys — these are stored in the short URL and cleaned
@@ -351,7 +354,8 @@ app.post("/api/shorten/json", async (c) => {
   }
 
   try {
-    const body = await c.req.json();
+    // Strip default-valued params so they are never persisted into the URL.
+    const body = stripDefaultHashParams(await c.req.json());
 
     // Supported keys, sorted alphabetically for SHA256 consistency
     const supportedKeysSet = getAllowedHashParams(body["definition"]);

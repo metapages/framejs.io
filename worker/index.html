@@ -71,207 +71,207 @@
     }
     </script>
     <style>
-      body,
-      html {
-        width: 100%;
-        height: 100%;
-        margin: 0;
-        border: 0;
-        /* No floating content on sides */
-        display: block;
-        background: transparent;
-      }
+    body,
+    html {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      /* No floating content on sides */
+      display: block;
+      background: transparent;
+    }
 
-      .transparent {
-        background: transparent;
-      }
+    .transparent {
+      background: transparent;
+    }
 
-      /* apply a natural box layout model to all elements, but allowing components to change */
-      /* https://www.paulirish.com/2012/box-sizing-border-box-ftw/ */
-      html {
-        box-sizing: border-box;
-      }
+    /* apply a natural box layout model to all elements, but allowing components to change */
+    /* https://www.paulirish.com/2012/box-sizing-border-box-ftw/ */
+    html {
+      box-sizing: border-box;
+    }
 
-      *,
-      *:after,
-      *:before {
-        box-sizing: inherit;
-      }
+    *,
+    *:after,
+    *:before {
+      box-sizing: inherit;
+    }
 
+    #menu-button {
+      position: absolute;
+      top: 10px;
+      left: calc(100vw - 90px);
+      z-index: 1000;
+      background-color: #f9f9f9;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      width: 80px;
+      height: 30px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      border: 1px solid #e0e0e0;
+      border-radius: 3px;
+      color: #818382;
+      font-family: monospace;
+      font-size: 13px;
+      padding: 8px;
+    }
+
+    @media (max-width: 768px) {
       #menu-button {
-        position: absolute;
-        top: 10px;
-        left: calc(100vw - 90px);
-        z-index: 1000;
-        background-color: #f9f9f9;
-        border: 0;
-        padding: 0;
-        margin: 0;
-        width: 80px;
-        height: 30px;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        border: 1px solid #e0e0e0;
-        border-radius: 3px;
-        color: #818382;
-        font-family: monospace;
-        font-size: 13px;
-        padding: 8px;
+        width: 120px;
+        height: 52px;
+        font-size: 18px;
+        left: calc(100vw - 132px);
+        top: 8px;
+        border-radius: 8px;
+        padding: 12px;
+        gap: 8px;
       }
 
-      @media (max-width: 768px) {
-        #menu-button {
-          width: 120px;
-          height: 52px;
-          font-size: 18px;
-          left: calc(100vw - 132px);
-          top: 8px;
-          border-radius: 8px;
-          padding: 12px;
-          gap: 8px;
-        }
-
-        #menu-button svg {
-          width: 24px;
-          height: 24px;
-        }
-
-        .editor-container-shown {
-          width: 100vw !important;
-          max-width: 100vw !important;
-        }
-
-        .root-with-editor {
-          display: none !important;
-        }
-      }
-
-      .editor-container-hidden {
-        position: absolute;
-        display: flex;
-        width: 0;
-        height: 0;
+      #menu-button svg {
+        width: 24px;
+        height: 24px;
       }
 
       .editor-container-shown {
-        position: absolute;
-        display: flex;
-        width: 100vw;
-        height: 100vh;
-        z-index: 3;
-        right: 0;
-        max-width: 100vw;
-        min-width: 10ch;
-      }
-
-      .root {
-        position: absolute;
-        width: 100%;
-        max-width: 100%;
-        height: 100%;
-        overflow: auto;
+        width: 100vw !important;
+        max-width: 100vw !important;
       }
 
       .root-with-editor {
-        position: absolute;
-        top: 0;
-        height: 100vh;
-        max-height: 100vh;
-        z-index: 2;
-        overflow: hidden;
-        max-width: calc(100vw - 10ch);
-        min-width: 0;
+        display: none !important;
       }
+    }
 
-      /**
-       * Special handling of iframes for ensuring the metaframe is correctly maximized.
-       */
+    .editor-container-hidden {
+      position: absolute;
+      display: flex;
+      width: 0;
+      height: 0;
+    }
 
-      .iframe-container {
-        position: absolute;
-        width: 100%;
-        min-width: 100%;
-      }
+    .editor-container-shown {
+      position: absolute;
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      z-index: 3;
+      right: 0;
+      max-width: 100vw;
+      min-width: 10ch;
+    }
 
-      .iframe-container iframe {
-        border-width: 0;
-        overflow: hidden;
-        min-height: 100vh;
-        max-height: 100%;
-        left: 0;
-        position: absolute;
-        top: 0;
-        width: 100%;
-      }
+    .root {
+      position: absolute;
+      width: 100%;
+      max-width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
 
-      /* Base style for <pre> blocks */
-      .pre-stdout {
-        background-color: #f8f8f8;
-        /* light grey background */
-        /* border: 3px solid yellow;  */
-        border-left: 3px solid #000;
-        /* teal accent on the left */
-        /* padding: 10px; */
-        overflow: auto;
-        /* in case of overflow */
-        font-family: "Courier New", Courier, monospace;
-        /* monospaced font */
-        white-space: pre-wrap;
-        /* wrap white-space */
-        word-wrap: break-word;
-        /* break long words */
-        margin: 0;
-      }
+    .root-with-editor {
+      position: absolute;
+      top: 0;
+      height: 100vh;
+      max-height: 100vh;
+      z-index: 2;
+      overflow: hidden;
+      max-width: calc(100vw - 10ch);
+      min-width: 0;
+    }
 
-      /* Style for stderr to make it stand out */
-      .pre-stderr {
-        background-color: #fff0f0;
-        /* light red background */
-        /* border: 1px solid #ffcccc; light red border */
-        border-left: 3px solid #e53935;
-        /* darker red accent on the left */
-        color: #d32f2f;
-        /* darker red text color */
-        /* padding: 10px; */
-        overflow: auto;
-        /* in case of overflow */
-        font-family: "Courier New", Courier, monospace;
-        /* monospaced font */
-        white-space: pre-wrap;
-        /* wrap white-space */
-        word-wrap: break-word;
-        /* break long words */
-        margin: 0;
-      }
+    /**
+     * Special handling of iframes for ensuring the metaframe is correctly maximized.
+     */
 
-      /* .borderFatSolidGreen {
-        border: 5px solid green;
-      }
+    .iframe-container {
+      position: absolute;
+      width: 100%;
+      min-width: 100%;
+    }
 
-      .borderDashedPurple {
-        border: 4px dashed purple;
-      }
+    .iframe-container iframe {
+      border-width: 0;
+      overflow: hidden;
+      min-height: 100vh;
+      max-height: 100%;
+      left: 0;
+      position: absolute;
+      top: 0;
+      width: 100%;
+    }
 
-      .borderDashedRed {
-        border: 2px dashed red;
-      }
+    /* Base style for <pre> blocks */
+    .pre-stdout {
+      background-color: #f8f8f8;
+      /* light grey background */
+      /* border: 3px solid yellow;  */
+      border-left: 3px solid #000;
+      /* teal accent on the left */
+      /* padding: 10px; */
+      overflow: auto;
+      /* in case of overflow */
+      font-family: "Courier New", Courier, monospace;
+      /* monospaced font */
+      white-space: pre-wrap;
+      /* wrap white-space */
+      word-wrap: break-word;
+      /* break long words */
+      margin: 0;
+    }
 
-      .borderDashedBlue {
-        border: 2px dashed blue;
-      } */
+    /* Style for stderr to make it stand out */
+    .pre-stderr {
+      background-color: #fff0f0;
+      /* light red background */
+      /* border: 1px solid #ffcccc; light red border */
+      border-left: 3px solid #e53935;
+      /* darker red accent on the left */
+      color: #d32f2f;
+      /* darker red text color */
+      /* padding: 10px; */
+      overflow: auto;
+      /* in case of overflow */
+      font-family: "Courier New", Courier, monospace;
+      /* monospaced font */
+      white-space: pre-wrap;
+      /* wrap white-space */
+      word-wrap: break-word;
+      /* break long words */
+      margin: 0;
+    }
 
-      .invisible-until-hover {
-        opacity: 0;
-        /* Make the element fully transparent initially */
-        transition: opacity 0.3s;
-        /* Optional: Smooth transition for the opacity change */
-      }
+    /* .borderFatSolidGreen {
+      border: 5px solid green;
+    }
 
-      .invisible-until-hover:hover {
-        opacity: 1;
-        /* Make the element fully opaque (visible) when hovered */
-      }
+    .borderDashedPurple {
+      border: 4px dashed purple;
+    }
+
+    .borderDashedRed {
+      border: 2px dashed red;
+    }
+
+    .borderDashedBlue {
+      border: 2px dashed blue;
+    } */
+
+    .invisible-until-hover {
+      opacity: 0;
+      /* Make the element fully transparent initially */
+      transition: opacity 0.3s;
+      /* Optional: Smooth transition for the opacity change */
+    }
+
+    .invisible-until-hover:hover {
+      opacity: 1;
+      /* Make the element fully opaque (visible) when hovered */
+    }
     </style>
   </head>
 
@@ -288,8 +288,7 @@
       >
         <path
           d="M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"
-        >
-        </path>
+        ></path>
       </svg>
       <span>Edit</span>
     </button>
@@ -459,942 +458,981 @@ frame();</code></pre>
     </div>
     <!-- Show landing content only if no JS is pending (no short URL, no js hash param) -->
     <script>
-      (function () {
-        var hash = window.location.hash || "";
-        var hasJsParam = hash.indexOf("js=") > -1;
-        var hasShortUrl = !!window.__SHORT_URL_READY;
-        if (!hasJsParam && !hasShortUrl) {
-          var el = document.getElementById("landing-content");
-          if (el) {
-            el.style.display = "";
-          }
+    (function () {
+      var hash = window.location.hash || "";
+      var hasJsParam = hash.indexOf("js=") > -1;
+      var hasShortUrl = !!window.__SHORT_URL_READY;
+      if (!hasJsParam && !hasShortUrl) {
+        var el = document.getElementById("landing-content");
+        if (el) {
+          el.style.display = "";
         }
-      })();
+      }
+    })();
     </script>
     <div
       id="editor-root"
       class="editor-container-hidden borderDashedPurple transparent"
-    >
-    </div>
+    ></div>
 
     <!-- Service Worker Registration and Configuration -->
     <script id="service-worker-setup" type="module">
-      // Service Worker Configuration - will be set after imports are available
-      globalThis.serviceWorkerConfig = null;
+    // Service Worker Configuration - will be set after imports are available
+    globalThis.serviceWorkerConfig = null;
 
-      // Service Worker management functions
-      globalThis.serviceWorkerManager = {
-        registration: null,
+    // Service Worker management functions
+    globalThis.serviceWorkerManager = {
+      registration: null,
 
-        async register() {
-          if ("serviceWorker" in navigator) {
-            try {
-              const registration = await navigator
-                .serviceWorker
-                .register("/sw.js");
-              this.registration = registration;
+      async register() {
+        if ("serviceWorker" in navigator) {
+          try {
+            const registration = await navigator
+              .serviceWorker
+              .register("/sw.js");
+            this.registration = registration;
+            if (
+              globalThis.serviceWorkerConfig
+                ?.enableLogging
+            ) {
+              console.log(
+                "[SW Manager] Service worker registered:",
+                registration,
+              );
+            }
+
+            // Handle service worker updates
+            registration.addEventListener("updatefound", () => {
+              const newWorker = registration.installing;
               if (
                 globalThis.serviceWorkerConfig
                   ?.enableLogging
               ) {
-                console.log(
-                  "[SW Manager] Service worker registered:",
-                  registration,
-                );
+                console.log("[SW Manager] New service worker installing...");
               }
 
-              // Handle service worker updates
-              registration.addEventListener("updatefound", () => {
-                const newWorker = registration.installing;
+              newWorker.addEventListener("statechange", () => {
                 if (
-                  globalThis.serviceWorkerConfig
-                    ?.enableLogging
+                  newWorker.state === "installed" &&
+                  navigator.serviceWorker.controller
                 ) {
-                  console.log("[SW Manager] New service worker installing...");
-                }
-
-                newWorker.addEventListener("statechange", () => {
-                  if (
-                    newWorker.state === "installed" &&
-                    navigator.serviceWorker.controller
-                  ) {
-                    if (
-                      globalThis.serviceWorkerConfig
-                        ?.enableLogging
-                    ) {
-                      console.log(
-                        "[SW Manager] New service worker installed, will activate on page refresh",
-                      );
-                      console.log(
-                        "🔄 Website updated! Refresh the page to get the latest version.",
-                      );
-                    }
-                  }
-                });
-              });
-
-              // Listen for controller changes (when new SW takes control)
-              navigator
-                .serviceWorker
-                .addEventListener("controllerchange", () => {
                   if (
                     globalThis.serviceWorkerConfig
                       ?.enableLogging
                   ) {
                     console.log(
-                      "[SW Manager] Service worker updated and active",
+                      "[SW Manager] New service worker installed, will activate on page refresh",
+                    );
+                    console.log(
+                      "🔄 Website updated! Refresh the page to get the latest version.",
                     );
                   }
-                  // Send configuration to new service worker
-                  setTimeout(() => {
-                    this.updateConfig(globalThis.serviceWorkerConfig);
-                  }, 100);
-                });
+                }
+              });
+            });
 
-              // Send initial configuration
-              if (navigator.serviceWorker.controller) {
-                await this.updateConfig(globalThis.serviceWorkerConfig);
-              }
-
-              return registration;
-            } catch (error) {
-              if (
-                globalThis.serviceWorkerConfig
-                  ?.enableLogging
-              ) {
-                console.error(
-                  "[SW Manager] Service worker registration failed:",
-                  error,
-                );
-              }
-              throw error;
-            }
-          } else {
-            if (
-              globalThis.serviceWorkerConfig
-                ?.enableLogging
-            ) {
-              console.warn("[SW Manager] Service workers not supported");
-            }
-            throw new Error("Service workers not supported");
-          }
-        },
-
-        async updateConfig(config) {
-          if (!navigator.serviceWorker.controller) {
-            if (
-              globalThis.serviceWorkerConfig
-                ?.enableLogging
-            ) {
-              console.warn(
-                "[SW Manager] No active service worker to configure",
-              );
-            }
-            return;
-          }
-
-          return new Promise((resolve, reject) => {
-            const channel = new MessageChannel();
-            channel.port1.onmessage = (event) => {
-              if (event.data.success) {
+            // Listen for controller changes (when new SW takes control)
+            navigator
+              .serviceWorker
+              .addEventListener("controllerchange", () => {
                 if (
                   globalThis.serviceWorkerConfig
                     ?.enableLogging
                 ) {
-                  console.log("[SW Manager] Configuration updated");
+                  console.log(
+                    "[SW Manager] Service worker updated and active",
+                  );
                 }
-                resolve(event.data);
-              } else {
-                reject(new Error("Failed to update configuration"));
-              }
-            };
+                // Send configuration to new service worker
+                setTimeout(() => {
+                  this.updateConfig(globalThis.serviceWorkerConfig);
+                }, 100);
+              });
 
-            navigator
-              .serviceWorker
-              .controller
-              .postMessage({
-                type: "UPDATE_CONFIG",
-                payload: config,
-              }, [channel.port2]);
-          });
-        },
-
-        async getConfig() {
-          if (!navigator.serviceWorker.controller) {
-            return null;
-          }
-
-          return new Promise((resolve) => {
-            const channel = new MessageChannel();
-            channel.port1.onmessage = (event) => {
-              resolve(event.data.config);
-            };
-
-            navigator
-              .serviceWorker
-              .controller
-              .postMessage({
-                type: "GET_CONFIG",
-              }, [channel.port2]);
-          });
-        },
-
-        async clearCache() {
-          if (!navigator.serviceWorker.controller) {
-            return;
-          }
-
-          return new Promise((resolve, reject) => {
-            const channel = new MessageChannel();
-            channel.port1.onmessage = (event) => {
-              if (event.data.success) {
-                console.log("[SW Manager] Cache cleared");
-                resolve();
-              } else {
-                reject(new Error("Failed to clear cache"));
-              }
-            };
-
-            navigator
-              .serviceWorker
-              .controller
-              .postMessage({
-                type: "CLEAR_CACHE",
-              }, [channel.port2]);
-          });
-        },
-
-        async getCacheInfo() {
-          if (!navigator.serviceWorker.controller) {
-            return null;
-          }
-
-          return new Promise((resolve) => {
-            const channel = new MessageChannel();
-            channel.port1.onmessage = (event) => {
-              resolve(event.data.cacheInfo);
-            };
-
-            navigator
-              .serviceWorker
-              .controller
-              .postMessage({
-                type: "GET_CACHE_INFO",
-              }, [channel.port2]);
-          });
-        },
-
-        async checkForUpdates() {
-          if (!this.registration) {
-            return false;
-          }
-
-          if (
-            globalThis.serviceWorkerConfig
-              ?.enableLogging
-          ) {
-            console.log("[SW Manager] Checking for service worker updates...");
-          }
-          await this
-            .registration
-            .update();
-
-          return new Promise((resolve) => {
-            if (this.registration.installing) {
-              if (
-                globalThis.serviceWorkerConfig
-                  ?.enableLogging
-              ) {
-                console.log("[SW Manager] Update found, installing...");
-              }
-              resolve(true);
-            } else {
-              if (
-                globalThis.serviceWorkerConfig
-                  ?.enableLogging
-              ) {
-                console.log("[SW Manager] No updates found");
-              }
-              resolve(false);
+            // Send initial configuration
+            if (navigator.serviceWorker.controller) {
+              await this.updateConfig(globalThis.serviceWorkerConfig);
             }
-          });
-        },
 
-        async forceUpdate() {
-          if (!this.registration) {
-            return;
-          }
-
-          if (
-            globalThis.serviceWorkerConfig
-              ?.enableLogging
-          ) {
-            console.log("[SW Manager] Forcing service worker update...");
-          }
-          await this
-            .registration
-            .unregister();
-          window
-            .location
-            .reload();
-        },
-      };
-
-      // Only enable the caching service worker on production or when explicitly forced via ?sw=force.
-      // In dev, unregister any previously registered SW to avoid stale caches.
-      const PRODUCTION_HOSTS = ["framejs.io", "js.mtfm.io"];
-      const forceSW =
-        new URLSearchParams(window.location.search).get("sw") === "force";
-      const isProduction =
-        PRODUCTION_HOSTS.includes(window.location.hostname) || forceSW;
-
-      async function unregisterAllServiceWorkers() {
-        if ("serviceWorker" in navigator) {
-          const registrations = await navigator
-            .serviceWorker
-            .getRegistrations();
-          for (const reg of registrations) {
-            await reg.unregister();
-          }
-          if (registrations.length > 0) {
-            console.log(
-              "[SW Manager] Dev mode: unregistered",
-              registrations.length,
-              "service worker(s)",
-            );
-          }
-        }
-      }
-
-      async function initServiceWorker() {
-        await globalThis
-          .serviceWorkerManager
-          .register();
-
-        // Show cache info after service worker is ready
-        setTimeout(() => {
-          if (
-            globalThis.serviceWorkerConfig
-              ?.enableLogging
-          ) {
-            console.log(`
-🚀 Metaframe JS with Stale-While-Revalidate Caching (Debug Mode)
-
-Available cache utilities (loaded on-demand):
-• cacheUtils.showCacheInfo() - Show cached resources
-• cacheUtils.clearCache() - Clear all cached resources
-• cacheUtils.showConfig() - Show current configuration
-• cacheUtils.testCaching() - Test cache functionality
-• cacheUtils.testS3Caching() - Demo AWS S3 URL normalization
-• cacheUtils.checkForUpdates() - Check for website updates
-• cacheUtils.forceUpdate() - Force update and refresh
-
-✨ Features:
-- Content-Type based caching (videos, audio, etc.)
-- AWS S3 pre-signed URL normalization
-- Lightweight: test utilities load only when used
-- Debug logging enabled via options.debug hash param
-`);
-          }
-        }, 1000);
-      }
-
-      // Initialize service worker on page load
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", async () => {
-          if (!isProduction) {
-            await unregisterAllServiceWorkers();
-            return;
-          }
-          try {
-            await initServiceWorker();
+            return registration;
           } catch (error) {
             if (
               globalThis.serviceWorkerConfig
                 ?.enableLogging
             ) {
               console.error(
-                "[SW Manager] Failed to initialize service worker:",
+                "[SW Manager] Service worker registration failed:",
                 error,
               );
             }
+            throw error;
           }
-        });
-      } else {
-        if (!isProduction) {
-          unregisterAllServiceWorkers();
         } else {
-          // Document already loaded
-          initServiceWorker().catch((error) => {
-            if (
-              globalThis.serviceWorkerConfig
-                ?.enableLogging
-            ) {
-              console.error(
-                "[SW Manager] Failed to initialize service worker:",
-                error,
-              );
-            }
-          });
+          if (
+            globalThis.serviceWorkerConfig
+              ?.enableLogging
+          ) {
+            console.warn("[SW Manager] Service workers not supported");
+          }
+          throw new Error("Service workers not supported");
         }
-      }
+      },
 
-      // Add cache status logging to existing fetch monitoring
-      const originalFetch = window.fetch;
-      window.fetch = async function (...args) {
-        const response = await originalFetch.apply(this, args);
+      async updateConfig(config) {
+        if (!navigator.serviceWorker.controller) {
+          if (
+            globalThis.serviceWorkerConfig
+              ?.enableLogging
+          ) {
+            console.warn(
+              "[SW Manager] No active service worker to configure",
+            );
+          }
+          return;
+        }
+
+        return new Promise((resolve, reject) => {
+          const channel = new MessageChannel();
+          channel.port1.onmessage = (event) => {
+            if (event.data.success) {
+              if (
+                globalThis.serviceWorkerConfig
+                  ?.enableLogging
+              ) {
+                console.log("[SW Manager] Configuration updated");
+              }
+              resolve(event.data);
+            } else {
+              reject(new Error("Failed to update configuration"));
+            }
+          };
+
+          navigator
+            .serviceWorker
+            .controller
+            .postMessage({
+              type: "UPDATE_CONFIG",
+              payload: config,
+            }, [channel.port2]);
+        });
+      },
+
+      async getConfig() {
+        if (!navigator.serviceWorker.controller) {
+          return null;
+        }
+
+        return new Promise((resolve) => {
+          const channel = new MessageChannel();
+          channel.port1.onmessage = (event) => {
+            resolve(event.data.config);
+          };
+
+          navigator
+            .serviceWorker
+            .controller
+            .postMessage({
+              type: "GET_CONFIG",
+            }, [channel.port2]);
+        });
+      },
+
+      async clearCache() {
+        if (!navigator.serviceWorker.controller) {
+          return;
+        }
+
+        return new Promise((resolve, reject) => {
+          const channel = new MessageChannel();
+          channel.port1.onmessage = (event) => {
+            if (event.data.success) {
+              console.log("[SW Manager] Cache cleared");
+              resolve();
+            } else {
+              reject(new Error("Failed to clear cache"));
+            }
+          };
+
+          navigator
+            .serviceWorker
+            .controller
+            .postMessage({
+              type: "CLEAR_CACHE",
+            }, [channel.port2]);
+        });
+      },
+
+      async getCacheInfo() {
+        if (!navigator.serviceWorker.controller) {
+          return null;
+        }
+
+        return new Promise((resolve) => {
+          const channel = new MessageChannel();
+          channel.port1.onmessage = (event) => {
+            resolve(event.data.cacheInfo);
+          };
+
+          navigator
+            .serviceWorker
+            .controller
+            .postMessage({
+              type: "GET_CACHE_INFO",
+            }, [channel.port2]);
+        });
+      },
+
+      async checkForUpdates() {
+        if (!this.registration) {
+          return false;
+        }
 
         if (
           globalThis.serviceWorkerConfig
             ?.enableLogging
         ) {
-          const cacheStatus = response
-            .headers
-            .get("sw-cache-status");
-          if (cacheStatus) {
-            const url = typeof args[0] === "string" ? args[0] : args[0].url;
-            const statusEmoji = {
-              "fresh": "✅",
-              "stale": "📡",
-              "miss": "🌐",
-            };
-            console.log(
-              `${statusEmoji[cacheStatus] || "❓"} Cache ${cacheStatus}:`,
-              url,
+          console.log("[SW Manager] Checking for service worker updates...");
+        }
+        await this
+          .registration
+          .update();
+
+        return new Promise((resolve) => {
+          if (this.registration.installing) {
+            if (
+              globalThis.serviceWorkerConfig
+                ?.enableLogging
+            ) {
+              console.log("[SW Manager] Update found, installing...");
+            }
+            resolve(true);
+          } else {
+            if (
+              globalThis.serviceWorkerConfig
+                ?.enableLogging
+            ) {
+              console.log("[SW Manager] No updates found");
+            }
+            resolve(false);
+          }
+        });
+      },
+
+      async forceUpdate() {
+        if (!this.registration) {
+          return;
+        }
+
+        if (
+          globalThis.serviceWorkerConfig
+            ?.enableLogging
+        ) {
+          console.log("[SW Manager] Forcing service worker update...");
+        }
+        await this
+          .registration
+          .unregister();
+        window
+          .location
+          .reload();
+      },
+    };
+
+    // Only enable the caching service worker on production or when explicitly forced via ?sw=force.
+    // In dev, unregister any previously registered SW to avoid stale caches.
+    const PRODUCTION_HOSTS = ["framejs.io", "js.mtfm.io"];
+    const forceSW =
+      new URLSearchParams(window.location.search).get("sw") === "force";
+    const isProduction = PRODUCTION_HOSTS.includes(window.location.hostname) ||
+      forceSW;
+
+    async function unregisterAllServiceWorkers() {
+      if ("serviceWorker" in navigator) {
+        const registrations = await navigator
+          .serviceWorker
+          .getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+        if (registrations.length > 0) {
+          console.log(
+            "[SW Manager] Dev mode: unregistered",
+            registrations.length,
+            "service worker(s)",
+          );
+        }
+      }
+    }
+
+    async function initServiceWorker() {
+      await globalThis
+        .serviceWorkerManager
+        .register();
+
+      // Show cache info after service worker is ready
+      setTimeout(() => {
+        if (
+          globalThis.serviceWorkerConfig
+            ?.enableLogging
+        ) {
+          console.log(`
+    🚀 Metaframe JS with Stale-While-Revalidate Caching (Debug Mode)
+
+    Available cache utilities (loaded on-demand):
+    • cacheUtils.showCacheInfo() - Show cached resources
+    • cacheUtils.clearCache() - Clear all cached resources
+    • cacheUtils.showConfig() - Show current configuration
+    • cacheUtils.testCaching() - Test cache functionality
+    • cacheUtils.testS3Caching() - Demo AWS S3 URL normalization
+    • cacheUtils.checkForUpdates() - Check for website updates
+    • cacheUtils.forceUpdate() - Force update and refresh
+
+    ✨ Features:
+    - Content-Type based caching (videos, audio, etc.)
+    - AWS S3 pre-signed URL normalization
+    - Lightweight: test utilities load only when used
+    - Debug logging enabled via options.debug hash param
+    `);
+        }
+      }, 1000);
+    }
+
+    // Initialize service worker on page load
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", async () => {
+        if (!isProduction) {
+          await unregisterAllServiceWorkers();
+          return;
+        }
+        try {
+          await initServiceWorker();
+        } catch (error) {
+          if (
+            globalThis.serviceWorkerConfig
+              ?.enableLogging
+          ) {
+            console.error(
+              "[SW Manager] Failed to initialize service worker:",
+              error,
             );
           }
         }
+      });
+    } else {
+      if (!isProduction) {
+        unregisterAllServiceWorkers();
+      } else {
+        // Document already loaded
+        initServiceWorker().catch((error) => {
+          if (
+            globalThis.serviceWorkerConfig
+              ?.enableLogging
+          ) {
+            console.error(
+              "[SW Manager] Failed to initialize service worker:",
+              error,
+            );
+          }
+        });
+      }
+    }
 
-        return response;
-      };
+    // Add cache status logging to existing fetch monitoring
+    const originalFetch = window.fetch;
+    window.fetch = async function (...args) {
+      const response = await originalFetch.apply(this, args);
+
+      if (
+        globalThis.serviceWorkerConfig
+          ?.enableLogging
+      ) {
+        const cacheStatus = response
+          .headers
+          .get("sw-cache-status");
+        if (cacheStatus) {
+          const url = typeof args[0] === "string" ? args[0] : args[0].url;
+          const statusEmoji = {
+            "fresh": "✅",
+            "stale": "📡",
+            "miss": "🌐",
+          };
+          console.log(
+            `${statusEmoji[cacheStatus] || "❓"} Cache ${cacheStatus}:`,
+            url,
+          );
+        }
+      }
+
+      return response;
+    };
     </script>
 
     <!-- This script is only to load the import map (if any) which must be loaded before the main module script below. -->
     <script id="import-map-loader" type="module">
-      import {
-        blobFromBase64String,
-        getHashParamValue,
-        getHashParamValueBase64DecodedFromWindow,
-        getHashParamValueJsonFromWindow,
-        getUrlHashParamsFromHashString,
-        setHashParamInWindow,
-        setHashParamValueJsonInHashString,
-      } from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0";
-      import {
-        isIframe,
-        Metaframe,
-        Metapage,
-      } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.8";
+    import {
+      blobFromBase64String,
+      getHashParamValue,
+      getHashParamValueBase64DecodedFromWindow,
+      getHashParamValueJsonFromWindow,
+      getUrlHashParamsFromHashString,
+      setHashParamInWindow,
+      setHashParamValueJsonInHashString,
+    } from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0";
+    import {
+      isIframe,
+      Metaframe,
+      Metapage,
+    } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.8";
 
-      // In short URL mode, wait for the async hash-params fetch to complete
-      // and populate the URL hash before any code reads from it.
-      if (window.__SHORT_URL_READY) {
-        await window.__SHORT_URL_READY;
+    // In short URL mode, wait for the async hash-params fetch to complete
+    // and populate the URL hash before any code reads from it.
+    if (window.__SHORT_URL_READY) {
+      await window.__SHORT_URL_READY;
+    }
+
+    // Save the initial landing content so it can be restored when code is cleared
+    const __landingHtml = document.getElementById("root").innerHTML;
+
+    const MAX_LOG_ELEMENTS = 1000;
+    let logScrollRafPending = false;
+    const scheduleLogScroll = (el) => {
+      if (logScrollRafPending) return;
+      logScrollRafPending = true;
+      requestAnimationFrame(() => {
+        logScrollRafPending = false;
+        el.scrollTop = el.scrollHeight;
+      });
+    };
+
+    globalThis.logStdout = (s) => {
+      const root = document.getElementById("root");
+      const pre = document.createElement("pre");
+      pre.textContent = s;
+      pre.className = "pre-stdout";
+      root.appendChild(pre);
+      while (root.children.length > MAX_LOG_ELEMENTS) {
+        root.removeChild(root.firstChild);
       }
+      scheduleLogScroll(root);
+    };
+    globalThis.log = logStdout;
 
-      // Save the initial landing content so it can be restored when code is cleared
-      const __landingHtml = document.getElementById("root").innerHTML;
+    // Lightweight cache utilities loader for console usage
+    globalThis.cacheUtils = {
+      _loaded: false,
+      _loadPromise: null,
 
-      const MAX_LOG_ELEMENTS = 1000;
-      let logScrollRafPending = false;
-      const scheduleLogScroll = (el) => {
-        if (logScrollRafPending) return;
-        logScrollRafPending = true;
-        requestAnimationFrame(() => {
-          logScrollRafPending = false;
-          el.scrollTop = el.scrollHeight;
-        });
-      };
+      async _ensureLoaded() {
+        if (this._loaded) return;
+        if (this._loadPromise) return this._loadPromise;
 
-      globalThis.logStdout = (s) => {
-        const root = document.getElementById("root");
-        const pre = document.createElement("pre");
-        pre.textContent = s;
-        pre.className = "pre-stdout";
-        root.appendChild(pre);
-        while (root.children.length > MAX_LOG_ELEMENTS) {
-          root.removeChild(root.firstChild);
-        }
-        scheduleLogScroll(root);
-      };
-      globalThis.log = logStdout;
-
-      // Lightweight cache utilities loader for console usage
-      globalThis.cacheUtils = {
-        _loaded: false,
-        _loadPromise: null,
-
-        async _ensureLoaded() {
-          if (this._loaded) return;
-          if (this._loadPromise) return this._loadPromise;
-
-          this._loadPromise = (async () => {
-            try {
-              const module = await import("/cache-test-utils.js");
-              const testUtils = module.default;
-
-              // Replace methods with loaded ones
-              Object.assign(this, testUtils);
-              this._loaded = true;
-
-              if (globalThis.serviceWorkerConfig?.enableLogging) {
-                console.log("🧪 Cache test utilities loaded on-demand");
-              }
-            } catch (error) {
-              console.error(
-                "❌ Failed to load cache test utilities:",
-                error,
-              );
-              throw error;
-            }
-          })();
-
-          return this._loadPromise;
-        },
-
-        async showCacheInfo() {
-          await this._ensureLoaded();
-          return this.showCacheInfo();
-        },
-
-        async clearCache() {
-          await this._ensureLoaded();
-          return this.clearCache();
-        },
-
-        async showConfig() {
-          await this._ensureLoaded();
-          return this.showConfig();
-        },
-
-        async testCaching() {
-          await this._ensureLoaded();
-          return this.testCaching();
-        },
-
-        async testS3Caching() {
-          await this._ensureLoaded();
-          return this.testS3Caching();
-        },
-
-        async checkForUpdates() {
-          await this._ensureLoaded();
-          return this.checkForUpdates();
-        },
-
-        async forceUpdate() {
-          await this._ensureLoaded();
-          return this.forceUpdate();
-        },
-
-        async refreshConfig() {
-          await this._ensureLoaded();
-          return this.refreshConfig();
-        },
-      };
-
-      globalThis.logStderr = (s) => {
-        const root = document.getElementById("root");
-        const pre = document.createElement("pre");
-        pre.textContent = s;
-        pre.className = "pre-stderr";
-        root.appendChild(pre);
-        while (root.children.length > MAX_LOG_ELEMENTS) {
-          root.removeChild(root.firstChild);
-        }
-        scheduleLogScroll(root);
-      };
-
-      globalThis.foundImportMap = false;
-
-      // Static cacheable URL patterns (created once, reused across config updates)
-      const CACHEABLE_URL_PATTERNS = [
-        // Static assets by file extension
-        /^https?:\/\/.*\.(js|css|html|json|png|jpg|jpeg|gif|svg|woff|woff2|ttf|mp4|webm|ogg|mp3|wav|flac)(\?.*)?$/i,
-        // Known CDNs and package registries
-        /^https?:\/\/cdn\.jsdelivr\.net\/.*$/i,
-        /^https?:\/\/esm\.sh\/.*$/i,
-        /^https?:\/\/deno\.land\/.*$/i,
-        /^https?:\/\/unpkg\.com\/.*$/i,
-        // Metapage assets
-        /^https?:\/\/.*\.metapage\.io\/.*\.(png|jpg|jpeg|gif|svg|mp4|webm)$/i,
-      ];
-      const MAX_CACHE_AGE = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-
-      // Service Worker Configuration - based on hash params
-      const getServiceWorkerConfig = () => {
-        const options = getHashParamValueJsonFromWindow("options") ||
-          {};
-
-        return {
-          enableLogging: options.debug || false,
-          staleWhileRevalidateEnabled: !options.disableCache,
-          cacheableUrlPatterns: CACHEABLE_URL_PATTERNS,
-          maxCacheAge: MAX_CACHE_AGE,
-        };
-      };
-
-      // Update service worker config
-      globalThis.serviceWorkerConfig = getServiceWorkerConfig();
-
-      let modules = getHashParamValueJsonFromWindow("modules");
-      if (modules) {
-        for (let scriptOrCss of modules) {
+        this._loadPromise = (async () => {
           try {
-            if (scriptOrCss.startsWith("{")) {
-              if (foundImportMap) {
-                window.logStderr(
-                  "Found multiple import maps, only the first will be used",
-                );
-                continue;
-              }
-              const scriptOrCssDecoded = decodeURIComponent(
-                scriptOrCss,
-              );
-              const maybeImports = JSON.parse(scriptOrCssDecoded);
-              if (maybeImports.imports) {
-                foundImportMap = true;
-                var importMapElement = document.createElement("script");
-                importMapElement.innerHTML = scriptOrCssDecoded;
-                importMapElement.type = "importmap";
-                document
-                  .getElementById("import-map-loader")
-                  .appendChild(importMapElement);
-                // import maps do not fire onload events, so resolve here
-                // the timing of this may not be perfect, so note this here
-                // in case there are issues
-                break;
-              }
+            const module = await import("/cache-test-utils.js");
+            const testUtils = module.default;
+
+            // Replace methods with loaded ones
+            Object.assign(this, testUtils);
+            this._loaded = true;
+
+            if (globalThis.serviceWorkerConfig?.enableLogging) {
+              console.log("🧪 Cache test utilities loaded on-demand");
             }
           } catch (error) {
-            console.error(error);
+            console.error(
+              "❌ Failed to load cache test utilities:",
+              error,
+            );
+            throw error;
           }
+        })();
+
+        return this._loadPromise;
+      },
+
+      async showCacheInfo() {
+        await this._ensureLoaded();
+        return this.showCacheInfo();
+      },
+
+      async clearCache() {
+        await this._ensureLoaded();
+        return this.clearCache();
+      },
+
+      async showConfig() {
+        await this._ensureLoaded();
+        return this.showConfig();
+      },
+
+      async testCaching() {
+        await this._ensureLoaded();
+        return this.testCaching();
+      },
+
+      async testS3Caching() {
+        await this._ensureLoaded();
+        return this.testS3Caching();
+      },
+
+      async checkForUpdates() {
+        await this._ensureLoaded();
+        return this.checkForUpdates();
+      },
+
+      async forceUpdate() {
+        await this._ensureLoaded();
+        return this.forceUpdate();
+      },
+
+      async refreshConfig() {
+        await this._ensureLoaded();
+        return this.refreshConfig();
+      },
+    };
+
+    globalThis.logStderr = (s) => {
+      const root = document.getElementById("root");
+      const pre = document.createElement("pre");
+      pre.textContent = s;
+      pre.className = "pre-stderr";
+      root.appendChild(pre);
+      while (root.children.length > MAX_LOG_ELEMENTS) {
+        root.removeChild(root.firstChild);
+      }
+      scheduleLogScroll(root);
+    };
+
+    globalThis.foundImportMap = false;
+
+    // Static cacheable URL patterns (created once, reused across config updates)
+    const CACHEABLE_URL_PATTERNS = [
+      // Static assets by file extension
+      /^https?:\/\/.*\.(js|css|html|json|png|jpg|jpeg|gif|svg|woff|woff2|ttf|mp4|webm|ogg|mp3|wav|flac)(\?.*)?$/i,
+      // Known CDNs and package registries
+      /^https?:\/\/cdn\.jsdelivr\.net\/.*$/i,
+      /^https?:\/\/esm\.sh\/.*$/i,
+      /^https?:\/\/deno\.land\/.*$/i,
+      /^https?:\/\/unpkg\.com\/.*$/i,
+      // Metapage assets
+      /^https?:\/\/.*\.metapage\.io\/.*\.(png|jpg|jpeg|gif|svg|mp4|webm)$/i,
+    ];
+    const MAX_CACHE_AGE = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+    // Service Worker Configuration - based on hash params
+    const getServiceWorkerConfig = () => {
+      const options = getHashParamValueJsonFromWindow("options") ||
+        {};
+
+      return {
+        enableLogging: options.debug || false,
+        staleWhileRevalidateEnabled: !options.disableCache,
+        cacheableUrlPatterns: CACHEABLE_URL_PATTERNS,
+        maxCacheAge: MAX_CACHE_AGE,
+      };
+    };
+
+    // Update service worker config
+    globalThis.serviceWorkerConfig = getServiceWorkerConfig();
+
+    let modules = getHashParamValueJsonFromWindow("modules");
+    if (modules) {
+      for (let scriptOrCss of modules) {
+        try {
+          if (scriptOrCss.startsWith("{")) {
+            if (foundImportMap) {
+              window.logStderr(
+                "Found multiple import maps, only the first will be used",
+              );
+              continue;
+            }
+            const scriptOrCssDecoded = decodeURIComponent(
+              scriptOrCss,
+            );
+            const maybeImports = JSON.parse(scriptOrCssDecoded);
+            if (maybeImports.imports) {
+              foundImportMap = true;
+              var importMapElement = document.createElement("script");
+              importMapElement.innerHTML = scriptOrCssDecoded;
+              importMapElement.type = "importmap";
+              document
+                .getElementById("import-map-loader")
+                .appendChild(importMapElement);
+              // import maps do not fire onload events, so resolve here
+              // the timing of this may not be perfect, so note this here
+              // in case there are issues
+              break;
+            }
+          }
+        } catch (error) {
+          console.error(error);
         }
       }
+    }
 
-      // Wait one tick to ensure DOM parses the import map
-      await 0;
+    // Wait one tick to ensure DOM parses the import map
+    await 0;
 
-      // Ripped from dataref lib. Should be moved to a shared lib
-      const resolveDataRef = async (ref) => {
-        switch (ref.type) {
-          case "base64":
-            return new Blob([decodeBase64(ref.value)], {
-              type: "application/octet-stream",
+    // Ripped from dataref lib. Should be moved to a shared lib
+    const resolveDataRef = async (ref) => {
+      switch (ref.type) {
+        case "base64":
+          return new Blob([decodeBase64(ref.value)], {
+            type: "application/octet-stream",
+          });
+        case "utf8":
+          return ref.value;
+        case "json":
+          return ref.value;
+        case "url":
+          const { buffer: arrayBufferFromUrl, type } = await urlToUint8Array(
+            ref.value,
+          );
+
+          // Check content-type and return appropriate format
+          if (type === "application/json") {
+            // Parse and return JSON object
+            const text = new TextDecoder().decode(arrayBufferFromUrl);
+            return JSON.parse(text);
+          } else if (
+            type.startsWith("text/") || type.startsWith("chemical/x-pdb")
+          ) {
+            // Return as string for text content
+            return new TextDecoder().decode(arrayBufferFromUrl);
+          } else {
+            // Return Blob for binary content
+            return new Blob([new Uint8Array(arrayBufferFromUrl)], {
+              type,
             });
-          case "utf8":
-            return ref.value;
-          case "json":
-            return ref.value;
-          case "url":
-            const { buffer: arrayBufferFromUrl, type } = await urlToUint8Array(
+          }
+        case "key":
+          // hard code this for now
+          const { buffer: arrayBufferFromKey, type: keyType } =
+            await fetchBlobFromHashWithType(
               ref.value,
+              "https://container.mtfm.io",
             );
 
-            // Check content-type and return appropriate format
-            if (type === "application/json") {
-              // Parse and return JSON object
-              const text = new TextDecoder().decode(arrayBufferFromUrl);
-              return JSON.parse(text);
-            } else if (
-              type.startsWith("text/") || type.startsWith("chemical/x-pdb")
-            ) {
-              // Return as string for text content
-              return new TextDecoder().decode(arrayBufferFromUrl);
-            } else {
-              // Return Blob for binary content
-              return new Blob([new Uint8Array(arrayBufferFromUrl)], {
-                type,
-              });
-            }
-          case "key":
-            // hard code this for now
-            const { buffer: arrayBufferFromKey, type: keyType } =
-              await fetchBlobFromHashWithType(
-                ref.value,
-                "https://container.mtfm.io",
-              );
-
-            // Check content-type and return appropriate format
-            if (keyType === "application/json") {
-              const text = new TextDecoder().decode(arrayBufferFromKey);
-              return JSON.parse(text);
-            } else if (keyType.startsWith("text/")) {
-              return new TextDecoder().decode(arrayBufferFromKey);
-            } else {
-              return new Blob([new Uint8Array(arrayBufferFromKey)], {
-                type: keyType || "application/octet-stream",
-              });
-            }
-          default: // undefined assume JSON native type
-            // console.log( `Unknown or undefined DataRef.type "${ref.type || ""}"`);
-            return ref.value;
-        }
-      };
-
-      /**
-       * Decodes a base64-encoded string.
-       *
-       * @see {@link https://datatracker.ietf.org/doc/html/rfc4648#section-4}
-       *
-       * @param b64 The base64-encoded string to decode.
-       * @returns The decoded data.
-       *
-       * @example
-       * ```ts
-       * import { decodeBase64 } from "https://deno.land/std@$STD_VERSION/encoding/base64.ts";
-       *
-       * decodeBase64("Zm9vYmFy"); // Uint8Array(6) [ 102, 111, 111, 98, 97, 114 ]
-       * ```
-       */
-      function decodeBase64(b64string) {
-        //: Uint8Array
-        const binString = atob(b64string);
-        const size = binString.length;
-        const bytes = new Uint8Array(size);
-        for (let i = 0; i < size; i++) {
-          bytes[i] = binString.charCodeAt(i);
-        }
-        return bytes;
-      }
-
-      const urlToUint8Array = async (url) => {
-        //: Promise<Uint8Array>
-        const response = await fetch(url, { redirect: "follow" });
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch ${url}: ${response.statusText}`,
-          );
-        }
-        const contentType = response.headers.get("content-type") ||
-          "application/octet-stream";
-        const arrayBuffer = await response.arrayBuffer();
-        return {
-          buffer: new Uint8Array(arrayBuffer),
-          type: contentType,
-        };
-      };
-
-      const fetchBlobFromHash = async (hash, address) => {
-        //: Promise<ArrayBuffer>
-        const resp = await fetch(`${address}/download/${hash}`);
-        const json = await resp.json(); //: { url: string; ref: DataRef }
-        const { buffer } = await urlToUint8Array(json.url);
-        return buffer;
-      };
-
-      const fetchBlobFromHashWithType = async (hash, address) => {
-        //: Promise<{buffer: Uint8Array, type: string}>
-        const resp = await fetch(`${address}/download/${hash}`);
-        const json = await resp.json(); //: { url: string; ref: DataRef }
-        return await urlToUint8Array(json.url);
-      };
-
-      const DataRefTypesSet = new Set([
-        "base64",
-        "utf8",
-        "json",
-        "url",
-        "key",
-      ]);
-      const isDataRef = (ref) => {
-        //: boolean
-        return !!(
-          typeof ref === "object" &&
-          ref?.value &&
-          // in some libraries the url is the default, and not set
-          (DataRefTypesSet.has(ref?.type) ||
-            (typeof (ref?.value) === "string" &&
-              ref?.value.startsWith("http")))
-        );
-      };
-
-      // Fast check: returns true if the value tree contains any Blob instances
-      const containsBlob = (obj) => {
-        if (!obj || typeof obj !== "object") return false;
-        if (obj instanceof Blob) return true;
-        if (Array.isArray(obj)) {
-          for (let i = 0; i < obj.length; i++) {
-            if (containsBlob(obj[i])) return true;
+          // Check content-type and return appropriate format
+          if (keyType === "application/json") {
+            const text = new TextDecoder().decode(arrayBufferFromKey);
+            return JSON.parse(text);
+          } else if (keyType.startsWith("text/")) {
+            return new TextDecoder().decode(arrayBufferFromKey);
+          } else {
+            return new Blob([new Uint8Array(arrayBufferFromKey)], {
+              type: keyType || "application/octet-stream",
+            });
           }
-          return false;
-        }
-        for (const key of Object.keys(obj)) {
-          if (containsBlob(obj[key])) return true;
+        default: // undefined assume JSON native type
+          // console.log( `Unknown or undefined DataRef.type "${ref.type || ""}"`);
+          return ref.value;
+      }
+    };
+
+    /**
+     * Decodes a base64-encoded string.
+     *
+     * @see {@link https://datatracker.ietf.org/doc/html/rfc4648#section-4}
+     *
+     * @param b64 The base64-encoded string to decode.
+     * @returns The decoded data.
+     *
+     * @example
+     * ```ts
+     * import { decodeBase64 } from "https://deno.land/std@$STD_VERSION/encoding/base64.ts";
+     *
+     * decodeBase64("Zm9vYmFy"); // Uint8Array(6) [ 102, 111, 111, 98, 97, 114 ]
+     * ```
+     */
+    function decodeBase64(b64string) {
+      //: Uint8Array
+      const binString = atob(b64string);
+      const size = binString.length;
+      const bytes = new Uint8Array(size);
+      for (let i = 0; i < size; i++) {
+        bytes[i] = binString.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    const urlToUint8Array = async (url) => {
+      //: Promise<Uint8Array>
+      const response = await fetch(url, { redirect: "follow" });
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch ${url}: ${response.statusText}`,
+        );
+      }
+      const contentType = response.headers.get("content-type") ||
+        "application/octet-stream";
+      const arrayBuffer = await response.arrayBuffer();
+      return {
+        buffer: new Uint8Array(arrayBuffer),
+        type: contentType,
+      };
+    };
+
+    const fetchBlobFromHash = async (hash, address) => {
+      //: Promise<ArrayBuffer>
+      const resp = await fetch(`${address}/download/${hash}`);
+      const json = await resp.json(); //: { url: string; ref: DataRef }
+      const { buffer } = await urlToUint8Array(json.url);
+      return buffer;
+    };
+
+    const fetchBlobFromHashWithType = async (hash, address) => {
+      //: Promise<{buffer: Uint8Array, type: string}>
+      const resp = await fetch(`${address}/download/${hash}`);
+      const json = await resp.json(); //: { url: string; ref: DataRef }
+      return await urlToUint8Array(json.url);
+    };
+
+    const DataRefTypesSet = new Set([
+      "base64",
+      "utf8",
+      "json",
+      "url",
+      "key",
+    ]);
+    const isDataRef = (ref) => {
+      //: boolean
+      return !!(
+        typeof ref === "object" &&
+        ref?.value &&
+        // in some libraries the url is the default, and not set
+        (DataRefTypesSet.has(ref?.type) ||
+          (typeof (ref?.value) === "string" &&
+            ref?.value.startsWith("http")))
+      );
+    };
+
+    // Fast check: returns true if the value tree contains any Blob instances
+    const containsBlob = (obj) => {
+      if (!obj || typeof obj !== "object") return false;
+      if (obj instanceof Blob) return true;
+      if (Array.isArray(obj)) {
+        for (let i = 0; i < obj.length; i++) {
+          if (containsBlob(obj[i])) return true;
         }
         return false;
-      };
+      }
+      for (const key of Object.keys(obj)) {
+        if (containsBlob(obj[key])) return true;
+      }
+      return false;
+    };
 
-      /**
-       * Smart input unpacking: converts Blobs with content-type: application/json to JSON objects.
-       * Recursively walks through an object and converts Blob leaves to JSON
-       * if the blob type is application/json or the key name ends with .json
-       */
-      const smartUnpackInputs = async (inputs, parentKey = "") => {
-        if (!inputs || typeof inputs !== "object") {
-          return inputs;
+    /**
+     * Smart input unpacking: converts Blobs with content-type: application/json to JSON objects.
+     * Recursively walks through an object and converts Blob leaves to JSON
+     * if the blob type is application/json or the key name ends with .json
+     */
+    const smartUnpackInputs = async (inputs, parentKey = "") => {
+      if (!inputs || typeof inputs !== "object") {
+        return inputs;
+      }
+
+      // Fast path: if no Blobs anywhere in the tree, return as-is (no deep copy)
+      if (!parentKey && !containsBlob(inputs)) {
+        return inputs;
+      }
+
+      // Handle Blob directly
+      if (inputs instanceof Blob) {
+        const isJsonByType = inputs.type === "application/json" ||
+          inputs.type.startsWith("application/json");
+        const isJsonByName = parentKey.toLowerCase().endsWith(
+          ".json",
+        );
+
+        if (isJsonByType || isJsonByName) {
+          try {
+            const text = await inputs.text();
+            return JSON.parse(text);
+          } catch (err) {
+            console.warn(
+              `Failed to parse JSON from blob (key: ${parentKey}):`,
+              err,
+            );
+            return inputs;
+          }
         }
+        return inputs;
+      }
 
-        // Fast path: if no Blobs anywhere in the tree, return as-is (no deep copy)
-        if (!parentKey && !containsBlob(inputs)) {
-          return inputs;
-        }
-
-        // Handle Blob directly
-        if (inputs instanceof Blob) {
-          const isJsonByType = inputs.type === "application/json" ||
-            inputs.type.startsWith("application/json");
-          const isJsonByName = parentKey.toLowerCase().endsWith(
-            ".json",
+      // Handle arrays
+      if (Array.isArray(inputs)) {
+        const result = [];
+        for (let i = 0; i < inputs.length; i++) {
+          result[i] = await smartUnpackInputs(
+            inputs[i],
+            `${parentKey}[${i}]`,
           );
+        }
+        return result;
+      }
+
+      // Handle plain objects
+      const result = {};
+      for (const key of Object.keys(inputs)) {
+        const value = inputs[key];
+        const fullKey = parentKey ? `${parentKey}.${key}` : key;
+
+        if (value instanceof Blob) {
+          const isJsonByType = value.type === "application/json" ||
+            value.type.startsWith("application/json");
+          const isJsonByName = key.toLowerCase().endsWith(".json");
 
           if (isJsonByType || isJsonByName) {
             try {
-              const text = await inputs.text();
-              return JSON.parse(text);
+              const text = await value.text();
+              result[key] = JSON.parse(text);
             } catch (err) {
               console.warn(
-                `Failed to parse JSON from blob (key: ${parentKey}):`,
+                `Failed to parse JSON from blob (key: ${fullKey}):`,
                 err,
               );
-              return inputs;
-            }
-          }
-          return inputs;
-        }
-
-        // Handle arrays
-        if (Array.isArray(inputs)) {
-          const result = [];
-          for (let i = 0; i < inputs.length; i++) {
-            result[i] = await smartUnpackInputs(
-              inputs[i],
-              `${parentKey}[${i}]`,
-            );
-          }
-          return result;
-        }
-
-        // Handle plain objects
-        const result = {};
-        for (const key of Object.keys(inputs)) {
-          const value = inputs[key];
-          const fullKey = parentKey ? `${parentKey}.${key}` : key;
-
-          if (value instanceof Blob) {
-            const isJsonByType = value.type === "application/json" ||
-              value.type.startsWith("application/json");
-            const isJsonByName = key.toLowerCase().endsWith(".json");
-
-            if (isJsonByType || isJsonByName) {
-              try {
-                const text = await value.text();
-                result[key] = JSON.parse(text);
-              } catch (err) {
-                console.warn(
-                  `Failed to parse JSON from blob (key: ${fullKey}):`,
-                  err,
-                );
-                result[key] = value;
-              }
-            } else {
               result[key] = value;
             }
-          } else if (
-            value && typeof value === "object" &&
-            !(value instanceof Blob)
-          ) {
-            result[key] = await smartUnpackInputs(value, fullKey);
           } else {
             result[key] = value;
           }
-        }
-        return result;
-      };
-
-      const getInputsSmartUnpacked = async () => {
-        const inputs = metaframe.getInputs();
-        return await smartUnpackInputs(inputs);
-      };
-
-      const refreshUpdateSvgButton = () => {
-        // only show the edit button if we are NOT in an iframe
-        // or explicitly edit=true is in the hash params
-        // this will be turned into a configurable option later, but no time rn
-        const [_, hashParams] = getUrlHashParamsFromHashString(
-          window.location.hash,
-        );
-        const inEditMode = hashParams["edit"] === "true";
-        if (inEditMode) {
-          // do NOT change the visibility of the edit buttons
-          return;
-        }
-        const menuButton = document.getElementById("menu-button");
-        if (hashParams["hm"] === "disabled") {
-          menuButton.style.display = "none";
+        } else if (
+          value && typeof value === "object" &&
+          !(value instanceof Blob)
+        ) {
+          result[key] = await smartUnpackInputs(value, fullKey);
         } else {
-          menuButton.style.display = "flex";
-          if (hashParams["hm"] === "invisible") {
-            menuButton.classList.add("invisible-until-hover");
-          } else if (hashParams["hm"] === "visible") {
-            menuButton.classList.remove("invisible-until-hover");
-          } else {
-            // default is invisible but clickable for iframe apps, and visible for non-iframe apps
-            // NOTE: changing this so that the experience is consistent across contexts 10/21/24 CW
-            menuButton.classList.add("invisible-until-hover");
-          }
+          result[key] = value;
         }
-      };
+      }
+      return result;
+    };
 
-      // global object to store loading state
-      window.__metaframejs = { awaiting: [] };
+    const getInputsSmartUnpacked = async () => {
+      const inputs = metaframe.getInputs();
+      return await smartUnpackInputs(inputs);
+    };
 
-      // Dynamically add <script> and <link> tags to the document.head
-      // and listen to the load events
-      const ensureModulesLoaded = async () => {
-        let modules = getHashParamValueJsonFromWindow("modules");
-        // Load a single script, module, or css, awaiting until done
-        const loadModuleOrCss = async (s) => {
-          return new Promise((resolve, reject) => {
-            // import maps are handled in the import-map-loader script
-            if (s.startsWith("{")) {
+    const refreshUpdateSvgButton = () => {
+      // only show the edit button if we are NOT in an iframe
+      // or explicitly edit=true is in the hash params
+      // this will be turned into a configurable option later, but no time rn
+      const [_, hashParams] = getUrlHashParamsFromHashString(
+        window.location.hash,
+      );
+      const inEditMode = hashParams["edit"] === "true";
+      if (inEditMode) {
+        // do NOT change the visibility of the edit buttons
+        return;
+      }
+      const menuButton = document.getElementById("menu-button");
+      if (hashParams["hm"] === "disabled") {
+        menuButton.style.display = "none";
+      } else {
+        menuButton.style.display = "flex";
+        if (hashParams["hm"] === "invisible") {
+          menuButton.classList.add("invisible-until-hover");
+        } else if (hashParams["hm"] === "visible") {
+          menuButton.classList.remove("invisible-until-hover");
+        } else {
+          // default is invisible but clickable for iframe apps, and visible for non-iframe apps
+          // NOTE: changing this so that the experience is consistent across contexts 10/21/24 CW
+          menuButton.classList.add("invisible-until-hover");
+        }
+      }
+    };
+
+    // global object to store loading state
+    window.__metaframejs = { awaiting: [] };
+
+    // Dynamically add <script> and <link> tags to the document.head
+    // and listen to the load events
+    const ensureModulesLoaded = async () => {
+      let modules = getHashParamValueJsonFromWindow("modules");
+      // Load a single script, module, or css, awaiting until done
+      const loadModuleOrCss = async (s) => {
+        return new Promise((resolve, reject) => {
+          // import maps are handled in the import-map-loader script
+          if (s.startsWith("{")) {
+            resolve();
+            return;
+          }
+          // if (!foundImportMap && s.startsWith("{")) {
+          //   try {
+          //     if (foundImportMap) {
+          //       window.logStderr(
+          //         "Found multiple import maps, only the first will be used"
+          //       );
+          //       return;
+          //     }
+          //     const maybeImports = JSON.parse(decodeURIComponent(s));
+          //     if (maybeImports.imports) {
+          //       foundImportMap = true;
+          //       var importMapElement = document.createElement("script");
+          //       importMapElement.innerHTML = decodeURIComponent(s);
+          //       importMapElement.type = "importmap";
+          //       document
+          //         .getElementsByTagName("head")[0]
+          //         .appendChild(importMapElement);
+          //       // import maps do not fire onload events, so resolve here
+          //       // the timing of this may not be perfect, so note this here
+          //       // in case there are issues
+          //       resolve();
+          //       return;
+          //     }
+          //   } catch (e) {
+          //     console.log("Error loading module", s);
+          //     window.logStderr(`error loading module: ${s}`);
+          //     return;
+          //   }
+          // } else {
+          let elementTrimmed = s.trim();
+          if (elementTrimmed.endsWith(".css")) {
+            const linkImport = document.createElement("link");
+            linkImport.href = elementTrimmed;
+            linkImport.rel = "stylesheet";
+            linkImport.addEventListener("load", () => {
               resolve();
-              return;
-            }
-            // if (!foundImportMap && s.startsWith("{")) {
-            //   try {
-            //     if (foundImportMap) {
-            //       window.logStderr(
-            //         "Found multiple import maps, only the first will be used"
-            //       );
-            //       return;
-            //     }
-            //     const maybeImports = JSON.parse(decodeURIComponent(s));
-            //     if (maybeImports.imports) {
-            //       foundImportMap = true;
-            //       var importMapElement = document.createElement("script");
-            //       importMapElement.innerHTML = decodeURIComponent(s);
-            //       importMapElement.type = "importmap";
-            //       document
-            //         .getElementsByTagName("head")[0]
-            //         .appendChild(importMapElement);
-            //       // import maps do not fire onload events, so resolve here
-            //       // the timing of this may not be perfect, so note this here
-            //       // in case there are issues
-            //       resolve();
-            //       return;
-            //     }
-            //   } catch (e) {
-            //     console.log("Error loading module", s);
-            //     window.logStderr(`error loading module: ${s}`);
-            //     return;
-            //   }
-            // } else {
-            let elementTrimmed = s.trim();
-            if (elementTrimmed.endsWith(".css")) {
+            });
+            linkImport.addEventListener("error", (err) => {
+              console.log("Error loading link", elementTrimmed);
+              window.logStderr(
+                `error loading script: ${elementTrimmed} error: ${err}`,
+              );
+              reject(err);
+            });
+            document
+              .getElementsByTagName("head")[0]
+              .appendChild(linkImport);
+          } else if (elementTrimmed.startsWith("<link")) {
+            const href = /<link\s+.*href="([^"]*)"/.exec(
+              elementTrimmed,
+            )?.[1];
+            if (href) {
               const linkImport = document.createElement("link");
-              linkImport.href = elementTrimmed;
-              linkImport.rel = "stylesheet";
+              linkImport.href = href;
+              const linkRel = /<link\s+.*rel="([^"]*)"/.exec(
+                elementTrimmed,
+              )?.[1];
+              if (linkRel) {
+                linkImport.rel = linkRel;
+              }
+              const linkType = /<link\s+.*type="([^"]*)"/.exec(
+                elementTrimmed,
+              )?.[1];
+              if (linkType) {
+                linkImport.type = linkType;
+              }
+
+              const linkCrossorigin = /<link\s+.*crossorigin="([^"]*)"/.exec(
+                elementTrimmed,
+              )?.[1];
+              if (linkCrossorigin) {
+                linkImport.crossorigin = linkCrossorigin;
+              }
+
               linkImport.addEventListener("load", () => {
                 resolve();
               });
@@ -1405,92 +1443,32 @@ Available cache utilities (loaded on-demand):
                 );
                 reject(err);
               });
+
               document
                 .getElementsByTagName("head")[0]
                 .appendChild(linkImport);
-            } else if (elementTrimmed.startsWith("<link")) {
-              const href = /<link\s+.*href="([^"]*)"/.exec(
-                elementTrimmed,
-              )?.[1];
-              if (href) {
-                const linkImport = document.createElement("link");
-                linkImport.href = href;
-                const linkRel = /<link\s+.*rel="([^"]*)"/.exec(
-                  elementTrimmed,
-                )?.[1];
-                if (linkRel) {
-                  linkImport.rel = linkRel;
-                }
-                const linkType = /<link\s+.*type="([^"]*)"/.exec(
-                  elementTrimmed,
-                )?.[1];
-                if (linkType) {
-                  linkImport.type = linkType;
-                }
-
-                const linkCrossorigin = /<link\s+.*crossorigin="([^"]*)"/.exec(
-                  elementTrimmed,
-                )?.[1];
-                if (linkCrossorigin) {
-                  linkImport.crossorigin = linkCrossorigin;
-                }
-
-                linkImport.addEventListener("load", () => {
-                  resolve();
-                });
-                linkImport.addEventListener("error", (err) => {
-                  console.log("Error loading link", elementTrimmed);
-                  window.logStderr(
-                    `error loading script: ${elementTrimmed} error: ${err}`,
-                  );
-                  reject(err);
-                });
-
-                document
-                  .getElementsByTagName("head")[0]
-                  .appendChild(linkImport);
-              }
-            } else if (elementTrimmed.startsWith("<script")) {
-              const src = /<script\s+.*src="([^"]*)"/.exec(
-                elementTrimmed,
-              )?.[1];
-              if (src) {
-                const scriptImport = document.createElement("script");
-                scriptImport.async = true;
-                scriptImport.src = src;
-                const scriptType = /<script\s+.*type="([^"]*)"/.exec(
-                  elementTrimmed,
-                )?.[1];
-                if (scriptType) {
-                  scriptImport.type = scriptType;
-                }
-                const scriptCrossorigin = /<script\s+.*crossorigin="([^"]*)"/
-                  .exec(
-                    elementTrimmed,
-                  )?.[1];
-                if (scriptCrossorigin) {
-                  scriptImport.crossorigin = scriptCrossorigin;
-                }
-                scriptImport.addEventListener("load", () => {
-                  resolve();
-                });
-                scriptImport.addEventListener("error", (err) => {
-                  console.log("Error loading script", elementTrimmed);
-                  window.logStderr(
-                    `error loading script: ${elementTrimmed} error: ${err}`,
-                  );
-                  reject(err);
-                });
-
-                document
-                  .getElementsByTagName("head")[0]
-                  .appendChild(scriptImport);
-              }
-            } else {
-              // Assume it's a script
+            }
+          } else if (elementTrimmed.startsWith("<script")) {
+            const src = /<script\s+.*src="([^"]*)"/.exec(
+              elementTrimmed,
+            )?.[1];
+            if (src) {
               const scriptImport = document.createElement("script");
-              scriptImport.src = s;
               scriptImport.async = true;
+              scriptImport.src = src;
+              const scriptType = /<script\s+.*type="([^"]*)"/.exec(
+                elementTrimmed,
+              )?.[1];
+              if (scriptType) {
+                scriptImport.type = scriptType;
+              }
+              const scriptCrossorigin = /<script\s+.*crossorigin="([^"]*)"/
+                .exec(
+                  elementTrimmed,
+                )?.[1];
+              if (scriptCrossorigin) {
+                scriptImport.crossorigin = scriptCrossorigin;
+              }
               scriptImport.addEventListener("load", () => {
                 resolve();
               });
@@ -1506,626 +1484,644 @@ Available cache utilities (loaded on-demand):
                 .getElementsByTagName("head")[0]
                 .appendChild(scriptImport);
             }
-          });
-
-          // if (s.endsWith(".css")) {
-          //   return new Promise((resolve, reject) => {
-          //       const script = document.createElement('script');
-          //       script.type = 'module';
-          //       script.src = url;
-
-          //       script.onload = () => resolve(`Script loaded: ${url}`);
-          //       script.onerror = () => reject(`Error loading script: ${url}`);
-
-          //       document.head.appendChild(script);
-          //   });
-        };
-
-        if (modules) {
-          const results = await Promise.allSettled(
-            modules.map((scriptOrCss) => loadModuleOrCss(scriptOrCss)),
-          );
-          for (const result of results) {
-            if (result.status === "rejected") {
-              console.error(result.reason);
-            }
-          }
-        }
-      };
-
-      const modulesLoadingPromise = ensureModulesLoaded();
-
-      window.__metaframejs.awaiting = [modulesLoadingPromise];
-
-      const getJsFromUrl = () => {
-        let jsFromUrl = getHashParamValueBase64DecodedFromWindow("js");
-        // deal with bad double encoded data from old version of hash-query
-        if (
-          jsFromUrl &&
-          (jsFromUrl.startsWith("%") ||
-            (jsFromUrl.indexOf("\n") === -1 &&
-              jsFromUrl.indexOf("%") > -1))
-        ) {
-          jsFromUrl = decodeURIComponent(jsFromUrl);
-        }
-
-        return jsFromUrl;
-      };
-
-      // TODO: do same as above (modules in hash params) for config
-
-      // The id used to tag the injected <style>/<link> so we can find/replace/
-      // remove it when the `css` hash param changes.
-      const CSS_HASH_PARAM_ELEMENT_ID = "mtfm-css-hash-param";
-
-      // A decoded value is treated as a stylesheet URL (injected as <link>) when
-      // it is a single-line http(s) URL; otherwise it is raw CSS text (<style>).
-      const isCssStylesheetUrl = (value) => {
-        const trimmed = value.trim();
-        return /^https?:\/\/\S+$/.test(trimmed) && !/\s/.test(trimmed);
-      };
-
-      // Loads a global stylesheet from the transient `css` hash param. The value
-      // is base64-encoded and is either raw CSS text or a URL to a stylesheet.
-      //
-      // This param is intentionally NOT in the canonical/allowed hash param
-      // lists, so it is never persisted into the metaframe definition, copied
-      // external links, or shortened URLs. It is appended at runtime to apply a
-      // global style across the rendered output without modifying its content
-      // (so the underlying short URLs stay valid).
-      const applyCssFromUrl = () => {
-        // Always remove any previously injected element first so changing or
-        // clearing the param fully replaces the prior stylesheet.
-        document.getElementById(CSS_HASH_PARAM_ELEMENT_ID)?.remove();
-
-        const css = getHashParamValueBase64DecodedFromWindow("css");
-        if (!css) return;
-
-        let element;
-        if (isCssStylesheetUrl(css)) {
-          element = document.createElement("link");
-          element.rel = "stylesheet";
-          element.href = css.trim();
-        } else {
-          element = document.createElement("style");
-          element.textContent = css;
-        }
-        element.id = CSS_HASH_PARAM_ELEMENT_ID;
-        document.head.appendChild(element);
-      };
-
-      const runJsFromUrl = async () => {
-        // if there is a scriptUnload function, run it
-        // The previous script has the option to put a cleanup function on the window
-        if (globalThis.scriptUnload) {
-          try {
-            globalThis.scriptUnload();
-          } catch (err) {
-            console.error(
-              "Error running globalThis.scriptUnload()",
-              err,
-            );
-          }
-        }
-
-        // Older user scripts set this themselves. To handle those old metaframes
-        // make sure we clear it out here to detect if the user set it
-        globalThis.scriptUnload = null;
-
-        let js = getJsFromUrl();
-
-        // ensure all modules are loaded
-        await Promise.all(window.__metaframejs.awaiting);
-
-        const [_, hashParams] = getUrlHashParamsFromHashString(
-          window.location.hash,
-        );
-        let editorWidth = hashParams["editorWidth"] || "80ch";
-        // Check if last character is a number
-        if (/\d$/.test(editorWidth)) {
-          editorWidth = `${editorWidth}ch`;
-        }
-
-        const inEditMode = hashParams["edit"] === "true";
-        const defaultBgColor = hashParams["bgColor"];
-        if (!inEditMode) {
-          removeEditor();
-        }
-
-        // set up (maybe re-override globals)
-        const root = document.getElementById("root");
-        root.style.width = inEditMode ? `calc(100% - ${editorWidth})` : "100%";
-        if (defaultBgColor) {
-          root.style.background = defaultBgColor;
-        }
-
-        const editor = document.getElementById("editor-root");
-        editor.style.width = inEditMode ? `${editorWidth}` : "0%";
-
-        if (js) {
-          // clear all children of root (landing content or previous user code)
-          root.textContent = "";
-          try {
-            globalThis.root = root;
-            globalThis.setOutput = (key, value) => {
-              metaframe.setOutput(key, value);
-            };
-            globalThis.setOutputs = (outputs) => {
-              metaframe.setOutputs(outputs);
-            };
-
-            js = `"use strict"\n${js}`;
-
-            // Create a Blob with the user code
-            const blob = new Blob([js], {
-              type: "application/javascript",
+          } else {
+            // Assume it's a script
+            const scriptImport = document.createElement("script");
+            scriptImport.src = s;
+            scriptImport.async = true;
+            scriptImport.addEventListener("load", () => {
+              resolve();
             });
-            // Create an object URL for the Blob
-            const url = URL.createObjectURL(blob);
-            let module = null;
-            try {
-              // Dynamically import the module using the Blob URL
-              module = await import(url);
-            } catch (error) {
-              globalThis.logStderr(
-                `Error importing module: ${error.message}`,
+            scriptImport.addEventListener("error", (err) => {
+              console.log("Error loading script", elementTrimmed);
+              window.logStderr(
+                `error loading script: ${elementTrimmed} error: ${err}`,
               );
-            } finally {
-              // Clean up by revoking the object URL
-              URL.revokeObjectURL(url);
-            }
-
-            if (!module) {
-              return;
-            }
-
-            // Move the user scriptUnload from global to local since we create our own
-            const userCleanup = globalThis.scriptUnload;
-            globalThis.scriptUnload = null;
-
-            const ourHandleResize = (width, height) => {
-              if (module.onResize) {
-                try {
-                  module.onResize(width, height);
-                } catch (err) {
-                  console.error("Error running onResize", err);
-                }
-              }
-
-              if (module.handleResize) {
-                try {
-                  module.handleResize(width, height);
-                } catch (err) {
-                  console.error("Error running handleResize", err);
-                }
-              }
-            };
-
-            const resizeObserver = new ResizeObserver((entries) => {
-              const entry = entries[entries.length - 1];
-              const { width, height } = entry.contentRect;
-              ourHandleResize(width, height);
+              reject(err);
             });
-            resizeObserver.observe(root);
 
-            const options = getHashParamValueJsonFromWindow("options");
-
-            const disableDatarefs = options?.disableDatarefs;
-            const disableSmartInputUnpacking = options
-              ?.disableSmartInputUnpacking;
-
-            const handleInputs = async (inputs) => {
-              if (module.onInputs) {
-                try {
-                  // Check if dataref conversion is disabled
-                  if (!disableDatarefs) {
-                    const datarefKeys = inputs
-                      ? Object.keys(inputs).filter((key) =>
-                        isDataRef(inputs[key])
-                      )
-                      : null;
-                    if (datarefKeys && datarefKeys.length > 0) {
-                      const resolved = await Promise.all(
-                        datarefKeys.map((key) => resolveDataRef(inputs[key])),
-                      );
-                      for (let i = 0; i < datarefKeys.length; i++) {
-                        inputs[datarefKeys[i]] = resolved[i];
-                      }
-                    }
-                  }
-
-                  // Smart input unpacking: convert JSON blobs to objects
-                  // This inspects leaves of the input JSON, and if there are blobs
-                  // with type json or input name ending with .json, converts them to objects
-                  if (!disableSmartInputUnpacking) {
-                    inputs = await smartUnpackInputs(inputs);
-                  }
-
-                  module.onInputs(inputs);
-                } catch (err) {
-                  console.error("Error running onInputs", err);
-                }
-              }
-              try {
-                if (
-                  globalThis.metapageEditor &&
-                  !globalThis.metapageEditor.isDisposed()
-                ) {
-                  // If user disabled smart unpacking, unpack just for the editor
-                  const editorInputs = disableSmartInputUnpacking
-                    ? await smartUnpackInputs(inputs)
-                    : inputs;
-                  globalThis.metapageEditor.setInputs({
-                    editor: editorInputs,
-                  });
-                }
-              } catch (err) {
-                console.error(
-                  "Error setting metapage editor inputs",
-                  err,
-                );
-              }
-            };
-
-            const disposeInputsListener = metaframe.onInputs(
-              handleInputs,
-            );
-
-            handleInputs(metaframe.getInputs());
-
-            // Handle inputs from hash parameter
-            const hashInputs = getHashParamValueJsonFromWindow(
-              "inputs",
-            );
-            if (hashInputs && module.onInputs) {
-              await handleInputs(hashInputs);
-            }
-
-            const cleanupHandler = () => {
-              try {
-                if (typeof userCleanup === "function") {
-                  userCleanup();
-                }
-              } catch (err) {
-                console.error("Error running user cleanup", err);
-              }
-              resizeObserver.disconnect();
-              disposeInputsListener();
-              globalThis.removeEventListener("resize", ourHandleResize);
-              if (typeof module.cleanup === "function") {
-                try {
-                  module.cleanup();
-                } catch (err) {
-                  console.error("Error running cleanup", err);
-                }
-              }
-              if (typeof module.dispose === "function") {
-                try {
-                  module.dispose();
-                } catch (err) {
-                  console.error("Error running dispose", err);
-                }
-              }
-              if (typeof module.unload === "function") {
-                try {
-                  module.unload();
-                } catch (err) {
-                  console.error("Error running unload", err);
-                }
-              }
-            };
-
-            globalThis.scriptUnload = cleanupHandler;
-          } catch (err) {
-            console.error(err);
+            document
+              .getElementsByTagName("head")[0]
+              .appendChild(scriptImport);
           }
-        } else {
-          // No code — restore and show the landing content
-          root.innerHTML = __landingHtml;
-          const landing = document.getElementById("landing-content");
-          if (landing) landing.style.display = "";
-        }
-      };
-
-      // Examine URL, and add modules
-      globalThis.metapage = {
-        Metapage,
-        Metaframe,
-      };
-
-      if (!globalThis.metaframe) {
-        globalThis.metaframe = new Metaframe();
-      }
-      var metaframe = globalThis.metaframe;
-
-      metaframe.connected().then(() => metaframe.log("connected"));
-
-      // Apply the transient `css` hash param stylesheet on initial load.
-      applyCssFromUrl();
-
-      // Handle Safari timing issue: check if page is already loaded.
-      // We capture the promise so that short-URL cleanup can wait for it.
-      var initialRunPromise;
-      if (document.readyState === "complete") {
-        initialRunPromise = runJsFromUrl();
-      } else {
-        initialRunPromise = new Promise(function (resolve) {
-          globalThis.addEventListener("load", function () {
-            runJsFromUrl().then(resolve, resolve);
-          });
         });
+
+        // if (s.endsWith(".css")) {
+        //   return new Promise((resolve, reject) => {
+        //       const script = document.createElement('script');
+        //       script.type = 'module';
+        //       script.src = url;
+
+        //       script.onload = () => resolve(`Script loaded: ${url}`);
+        //       script.onerror = () => reject(`Error loading script: ${url}`);
+
+        //       document.head.appendChild(script);
+        //   });
+      };
+
+      if (modules) {
+        const results = await Promise.allSettled(
+          modules.map((scriptOrCss) => loadModuleOrCss(scriptOrCss)),
+        );
+        for (const result of results) {
+          if (result.status === "rejected") {
+            console.error(result.reason);
+          }
+        }
+      }
+    };
+
+    const modulesLoadingPromise = ensureModulesLoaded();
+
+    window.__metaframejs.awaiting = [modulesLoadingPromise];
+
+    const getJsFromUrl = () => {
+      let jsFromUrl = getHashParamValueBase64DecodedFromWindow("js");
+      // deal with bad double encoded data from old version of hash-query
+      if (
+        jsFromUrl &&
+        (jsFromUrl.startsWith("%") ||
+          (jsFromUrl.indexOf("\n") === -1 &&
+            jsFromUrl.indexOf("%") > -1))
+      ) {
+        jsFromUrl = decodeURIComponent(jsFromUrl);
       }
 
-      // Hash params that do NOT require JS re-execution (metadata-only).
-      // `css` is applied separately via applyCssFromUrl() on hashchange, so it
-      // must not trigger a full re-run of the user's JS.
-      const NON_EXECUTION_PARAMS = new Set(["og", "css"]);
+      return jsFromUrl;
+    };
 
-      // Build a lightweight snapshot from the raw hash string by filtering
-      // out non-execution params. Avoids full parse + JSON.stringify of
-      // potentially large base64-encoded values on every hashchange.
-      const getExecutionParamSnapshot = () => {
-        let raw = window.location.hash;
-        if (!raw) return "";
-        if (raw.charAt(0) === "#") raw = raw.slice(1);
-        if (raw.charAt(0) === "?") raw = raw.slice(1);
-        if (!raw) return "";
-        const pairs = raw.split("&");
-        let result = "";
-        for (let i = 0; i < pairs.length; i++) {
-          const eqIdx = pairs[i].indexOf("=");
-          const key = eqIdx === -1 ? pairs[i] : pairs[i].substring(0, eqIdx);
-          if (key && !NON_EXECUTION_PARAMS.has(key)) {
-            if (result) result += "&";
-            result += pairs[i];
-          }
-        }
-        return result;
-      };
+    // TODO: do same as above (modules in hash params) for config
 
-      let lastExecutionSnapshot = getExecutionParamSnapshot();
+    // The id used to tag the injected <style>/<link> so we can find/replace/
+    // remove it when the `css` hash param changes.
+    const CSS_HASH_PARAM_ELEMENT_ID = "mtfm-css-hash-param";
 
-      // Returns true (and updates snapshot) when execution-relevant params changed
-      const hasExecutionParamsChanged = () => {
-        const current = getExecutionParamSnapshot();
-        if (current === lastExecutionSnapshot) return false;
-        lastExecutionSnapshot = current;
-        return true;
-      };
+    // A decoded value is treated as a stylesheet URL (injected as <link>) when
+    // it is a single-line http(s) URL; otherwise it is raw CSS text (<style>).
+    const isCssStylesheetUrl = (value) => {
+      const trimmed = value.trim();
+      return /^https?:\/\/\S+$/.test(trimmed) && !/\s/.test(trimmed);
+    };
 
-      // reload on hash changes and refresh service worker config
-      globalThis.addEventListener("hashchange", () => {
-        // Refresh service worker config when hash changes
-        const newConfig = getServiceWorkerConfig();
-        globalThis.serviceWorkerConfig = newConfig;
-        if (globalThis.serviceWorkerManager.registration) {
-          globalThis.serviceWorkerManager.updateConfig(newConfig);
-        }
-        // Apply the transient `css` param on every hash change (it is excluded
-        // from the execution snapshot above, so it never re-runs the user JS).
-        applyCssFromUrl();
-        if (hasExecutionParamsChanged()) {
-          runJsFromUrl();
-        }
-      }, false);
+    // Loads a global stylesheet from the transient `css` hash param. The value
+    // is base64-encoded and is either raw CSS text or a URL to a stylesheet.
+    //
+    // This param is intentionally NOT in the canonical/allowed hash param
+    // lists, so it is never persisted into the metaframe definition, copied
+    // external links, or shortened URLs. It is appended at runtime to apply a
+    // global style across the rendered output without modifying its content
+    // (so the underlying short URLs stay valid).
+    const applyCssFromUrl = () => {
+      // Always remove any previously injected element first so changing or
+      // clearing the param fully replaces the prior stylesheet.
+      document.getElementById(CSS_HASH_PARAM_ELEMENT_ID)?.remove();
 
-      const metapageDef = {
-        metaframes: {
-          editor: {
-            url: `${window.location.origin}/editor/#?c=eyJtb2R1bGVzIjpbXX0=`,
-          },
-        },
-        version: "0.3",
-      };
+      const css = getHashParamValueBase64DecodedFromWindow("css");
+      if (!css) return;
 
-      const removeEditor = () => {
-        if (globalThis.metapageEditor) {
-          globalThis.metapageEditor.dispose();
-          globalThis.metapageEditor = null;
-        }
-        const previousContainer = document.getElementById(
-          "iframe-container",
-        );
-        if (previousContainer) {
-          previousContainer.parentElement.removeChild(
-            previousContainer,
-          );
-        }
-        refreshUpdateSvgButton();
+      let element;
+      if (isCssStylesheetUrl(css)) {
+        element = document.createElement("link");
+        element.rel = "stylesheet";
+        element.href = css.trim();
+      } else {
+        element = document.createElement("style");
+        element.textContent = css;
+      }
+      element.id = CSS_HASH_PARAM_ELEMENT_ID;
+      document.head.appendChild(element);
+    };
 
-        setHashParamInWindow("edit", undefined);
-        document.getElementById("root").className = "root borderFatSolidGreen";
-        document.getElementById("editor-root").className =
-          "editor-container-hidden borderDashedBlue";
-      };
-
-      const onMenuClick = async () => {
-        // In short URL mode, navigate to the full hash URL with edit mode.
-        // This exits the short URL path entirely so the editor works normally.
-        if (window.__SHORT_URL_ID && window.__SHORT_URL_HASH_PARAMS) {
-          // Build full URL from stored params, overriding with any changed
-          // user-defined params from the current URL, plus edit=true.
-          var canonicalKeys = window.__SHORT_URL_CANONICAL_KEYS || new Set();
-          var storedStr = window.__SHORT_URL_HASH_PARAMS;
-          var ss = storedStr.charAt(0) === "?" ? storedStr.slice(1) : storedStr;
-          var sp = ss.split("&");
-          var pm = {};
-          var po = [];
-          for (var si = 0; si < sp.length; si++) {
-            var sei = sp[si].indexOf("=");
-            var ski = sei === -1 ? sp[si] : sp[si].substring(0, sei);
-            if (ski) {
-              pm[ski] = sp[si];
-              po.push(ski);
-            }
-          }
-          var currentHash = window.location.hash;
-          if (currentHash) {
-            var s = currentHash.charAt(0) === "#"
-              ? currentHash.slice(1)
-              : currentHash;
-            if (s.charAt(0) === "?") s = s.slice(1);
-            if (s) {
-              var up = s.split("&");
-              for (var j = 0; j < up.length; j++) {
-                var ej = up[j].indexOf("=");
-                var kj = ej === -1 ? up[j] : up[j].substring(0, ej);
-                if (kj && !canonicalKeys.has(kj)) {
-                  if (!(kj in pm)) po.push(kj);
-                  pm[kj] = up[j];
-                }
-              }
-            }
-          }
-          if (!("edit" in pm)) po.push("edit");
-          pm["edit"] = "edit=true";
-          var merged = "?";
-          for (var x = 0; x < po.length; x++) {
-            if (x > 0) merged += "&";
-            merged += pm[po[x]];
-          }
-          window.location.href = window.location.origin + "/#" + merged;
-          return;
-        }
-
-        // if there is an existing editor, remove it, then exit
-        if (document.getElementById("iframe-container")) {
-          removeEditor();
-          runJsFromUrl();
-          return;
-        }
-        setHashParamInWindow("edit", true);
-
-        document.getElementById("menu-button").style.display = "none";
-
-        // no previous editor detected, add the editor metapage
-        // listen to the editor metapage for changes to the editor url hash
-        // and make that our own url hash
-        document.getElementById("root").className =
-          "root-with-editor borderFatSolidGreen";
-
-        document.getElementById("editor-root").className =
-          "editor-container-shown borderDashedBlue";
-
-        // Modify the metapage editor url hash to our own
-        const editorUrl = new URL(metapageDef.metaframes.editor.url);
-        editorUrl.hash = window.location.hash;
-        metapageDef.metaframes.editor.url = editorUrl.href;
-
-        const mp = await globalThis.metapage.Metapage.from(metapageDef);
-        globalThis.metapageEditor = mp;
-        const editorMetaframe = mp.getMetaframe("editor");
-        const iframe = await editorMetaframe.iframe;
-
+    const runJsFromUrl = async () => {
+      // if there is a scriptUnload function, run it
+      // The previous script has the option to put a cleanup function on the window
+      if (globalThis.scriptUnload) {
         try {
-          const inputsUnpacked = await getInputsSmartUnpacked();
-          globalThis.metapageEditor.setInputs({
-            editor: inputsUnpacked,
-          });
+          globalThis.scriptUnload();
         } catch (err) {
           console.error(
-            "Error setting metapage editor inputs on creation",
+            "Error running globalThis.scriptUnload()",
             err,
           );
         }
+      }
 
-        var iframeDivContainer = document.createElement("div");
-        iframeDivContainer.id = "iframe-container";
-        iframeDivContainer.className = "iframe-container";
-        iframeDivContainer.appendChild(iframe);
+      // Older user scripts set this themselves. To handle those old metaframes
+      // make sure we clear it out here to detect if the user set it
+      globalThis.scriptUnload = null;
 
-        document.getElementById("editor-root").append(
-          iframeDivContainer,
-        );
-        runJsFromUrl();
+      let js = getJsFromUrl();
 
-        let pending;
-        const updateCode = (hash) => {
-          if (pending) {
-            clearTimeout(pending);
-          }
-          pending = setTimeout(() => {
-            pending = null;
-            window.location.hash = hash;
-          }, 400);
-        };
-        mp.addListener(
-          globalThis.metapage.Metapage.DEFINITION,
-          (event) => {
-            const url = event?.definition?.metaframes?.editor?.url;
-            if (url) {
-              const urlBlob = new URL(url);
-              updateCode(urlBlob.hash);
-            }
-          },
-        );
-      };
-
-      document
-        .getElementById("menu-button")
-        .addEventListener("click", onMenuClick);
-
-      refreshUpdateSvgButton();
+      // ensure all modules are loaded
+      await Promise.all(window.__metaframejs.awaiting);
 
       const [_, hashParams] = getUrlHashParamsFromHashString(
         window.location.hash,
       );
-      const inEditMode = hashParams["edit"] === "true";
-      // Show editor if the hash param is set to edit=true
-      // or if the page is not in an iframe AND there is no js in the hash params
-      if (inEditMode || (!getJsFromUrl() && !isIframe())) {
-        // if editing, force showing the menu
-        window.addEventListener("load", () => {
-          onMenuClick();
-        });
+      let editorWidth = hashParams["editorWidth"] || "80ch";
+      // Check if last character is a number
+      if (/\d$/.test(editorWidth)) {
+        editorWidth = `${editorWidth}ch`;
       }
 
-      // In short URL mode, clean the hash params from the URL AFTER
-      // runJsFromUrl has finished.  Previously this was a separate "load"
-      // handler that raced with the async runJsFromUrl — the cleanup could
-      // fire while runJsFromUrl was still awaiting module import, wiping
-      // the hash before getHashParamValueJsonFromWindow("inputs") ran.
-      if (window.__SHORT_URL_ID && window.__SHORT_URL_HASH_PARAMS) {
-        initialRunPromise.then(function () {
-          // Remove canonical params AND user-defined params that match stored
-          // values (they're loaded from the API, no need to duplicate in URL).
-          // Only keep user-defined params whose value has changed.
-          var canonicalKeys = window.__SHORT_URL_CANONICAL_KEYS || new Set();
-          var storedStr = window.__SHORT_URL_HASH_PARAMS || "";
-          var ss = storedStr.charAt(0) === "?" ? storedStr.slice(1) : storedStr;
-          var sp = ss.split("&");
-          var storedMap = {};
-          for (var si = 0; si < sp.length; si++) {
-            var sei = sp[si].indexOf("=");
-            var ski = sei === -1 ? sp[si] : sp[si].substring(0, sei);
-            if (ski) storedMap[ski] = sp[si];
+      const inEditMode = hashParams["edit"] === "true";
+      const defaultBgColor = hashParams["bgColor"];
+      if (!inEditMode) {
+        removeEditor();
+      }
+
+      // set up (maybe re-override globals)
+      const root = document.getElementById("root");
+      root.style.width = inEditMode ? `calc(100% - ${editorWidth})` : "100%";
+      if (defaultBgColor) {
+        root.style.background = defaultBgColor;
+      }
+
+      const editor = document.getElementById("editor-root");
+      editor.style.width = inEditMode ? `${editorWidth}` : "0%";
+
+      if (js) {
+        // clear all children of root (landing content or previous user code)
+        root.textContent = "";
+        try {
+          globalThis.root = root;
+          globalThis.setOutput = (key, value) => {
+            metaframe.setOutput(key, value);
+          };
+          globalThis.setOutputs = (outputs) => {
+            metaframe.setOutputs(outputs);
+          };
+
+          js = `"use strict"\n${js}`;
+
+          // Create a Blob with the user code
+          const blob = new Blob([js], {
+            type: "application/javascript",
+          });
+          // Create an object URL for the Blob
+          const url = URL.createObjectURL(blob);
+          let module = null;
+          try {
+            // Dynamically import the module using the Blob URL
+            module = await import(url);
+          } catch (error) {
+            globalThis.logStderr(
+              `Error importing module: ${error.message}`,
+            );
+          } finally {
+            // Clean up by revoking the object URL
+            URL.revokeObjectURL(url);
           }
-          var hash = window.location.hash;
-          var newHash = "";
-          if (hash) {
-            var s = hash.charAt(0) === "#" ? hash.slice(1) : hash;
-            if (s.charAt(0) === "?") s = s.slice(1);
-            if (s) {
-              var pairs = s.split("&");
-              var changedPairs = [];
-              for (var i = 0; i < pairs.length; i++) {
-                var k = pairs[i].split("=")[0];
-                if (k && !canonicalKeys.has(k) && storedMap[k] !== pairs[i]) {
-                  changedPairs.push(pairs[i]);
-                }
+
+          if (!module) {
+            return;
+          }
+
+          // Move the user scriptUnload from global to local since we create our own
+          const userCleanup = globalThis.scriptUnload;
+          globalThis.scriptUnload = null;
+
+          const ourHandleResize = (width, height) => {
+            if (module.onResize) {
+              try {
+                module.onResize(width, height);
+              } catch (err) {
+                console.error("Error running onResize", err);
               }
-              if (changedPairs.length > 0) {
-                newHash = "#?" + changedPairs.join("&");
+            }
+
+            if (module.handleResize) {
+              try {
+                module.handleResize(width, height);
+              } catch (err) {
+                console.error("Error running handleResize", err);
+              }
+            }
+          };
+
+          const resizeObserver = new ResizeObserver((entries) => {
+            const entry = entries[entries.length - 1];
+            const { width, height } = entry.contentRect;
+            ourHandleResize(width, height);
+          });
+          resizeObserver.observe(root);
+
+          const options = getHashParamValueJsonFromWindow("options");
+
+          const disableDatarefs = options?.disableDatarefs;
+          const disableSmartInputUnpacking = options
+            ?.disableSmartInputUnpacking;
+
+          const handleInputs = async (inputs) => {
+            if (module.onInputs) {
+              try {
+                // Check if dataref conversion is disabled
+                if (!disableDatarefs) {
+                  const datarefKeys = inputs
+                    ? Object.keys(inputs).filter((key) => isDataRef(inputs[key]))
+                    : null;
+                  if (datarefKeys && datarefKeys.length > 0) {
+                    const resolved = await Promise.all(
+                      datarefKeys.map((key) => resolveDataRef(inputs[key])),
+                    );
+                    for (let i = 0; i < datarefKeys.length; i++) {
+                      inputs[datarefKeys[i]] = resolved[i];
+                    }
+                  }
+                }
+
+                // Smart input unpacking: convert JSON blobs to objects
+                // This inspects leaves of the input JSON, and if there are blobs
+                // with type json or input name ending with .json, converts them to objects
+                if (!disableSmartInputUnpacking) {
+                  inputs = await smartUnpackInputs(inputs);
+                }
+
+                module.onInputs(inputs);
+              } catch (err) {
+                console.error("Error running onInputs", err);
+              }
+            }
+            try {
+              if (
+                globalThis.metapageEditor &&
+                !globalThis.metapageEditor.isDisposed()
+              ) {
+                // If user disabled smart unpacking, unpack just for the editor
+                const editorInputs = disableSmartInputUnpacking
+                  ? await smartUnpackInputs(inputs)
+                  : inputs;
+                globalThis.metapageEditor.setInputs({
+                  editor: editorInputs,
+                });
+              }
+            } catch (err) {
+              console.error(
+                "Error setting metapage editor inputs",
+                err,
+              );
+            }
+          };
+
+          const disposeInputsListener = metaframe.onInputs(
+            handleInputs,
+          );
+
+          handleInputs(metaframe.getInputs());
+
+          // Handle inputs from hash parameter
+          const hashInputs = getHashParamValueJsonFromWindow(
+            "inputs",
+          );
+          if (hashInputs && module.onInputs) {
+            await handleInputs(hashInputs);
+          }
+
+          const cleanupHandler = () => {
+            try {
+              if (typeof userCleanup === "function") {
+                userCleanup();
+              }
+            } catch (err) {
+              console.error("Error running user cleanup", err);
+            }
+            resizeObserver.disconnect();
+            disposeInputsListener();
+            globalThis.removeEventListener("resize", ourHandleResize);
+            if (typeof module.cleanup === "function") {
+              try {
+                module.cleanup();
+              } catch (err) {
+                console.error("Error running cleanup", err);
+              }
+            }
+            if (typeof module.dispose === "function") {
+              try {
+                module.dispose();
+              } catch (err) {
+                console.error("Error running dispose", err);
+              }
+            }
+            if (typeof module.unload === "function") {
+              try {
+                module.unload();
+              } catch (err) {
+                console.error("Error running unload", err);
+              }
+            }
+          };
+
+          globalThis.scriptUnload = cleanupHandler;
+        } catch (err) {
+          console.error(err);
+        }
+      } else {
+        // No code — restore and show the landing content
+        root.innerHTML = __landingHtml;
+        const landing = document.getElementById("landing-content");
+        if (landing) landing.style.display = "";
+      }
+    };
+
+    // Examine URL, and add modules
+    globalThis.metapage = {
+      Metapage,
+      Metaframe,
+    };
+
+    if (!globalThis.metaframe) {
+      globalThis.metaframe = new Metaframe();
+    }
+    var metaframe = globalThis.metaframe;
+
+    metaframe.connected().then(() => metaframe.log("connected"));
+
+    // Apply the transient `css` hash param stylesheet on initial load.
+    applyCssFromUrl();
+
+    // Handle Safari timing issue: check if page is already loaded.
+    // We capture the promise so that short-URL cleanup can wait for it.
+    var initialRunPromise;
+    if (document.readyState === "complete") {
+      initialRunPromise = runJsFromUrl();
+    } else {
+      initialRunPromise = new Promise(function (resolve) {
+        globalThis.addEventListener("load", function () {
+          runJsFromUrl().then(resolve, resolve);
+        });
+      });
+    }
+
+    // Hash params that do NOT require JS re-execution (metadata-only).
+    // `css` is applied separately via applyCssFromUrl() on hashchange, so it
+    // must not trigger a full re-run of the user's JS.
+    const NON_EXECUTION_PARAMS = new Set(["og", "css"]);
+
+    // Build a lightweight snapshot from the raw hash string by filtering
+    // out non-execution params. Avoids full parse + JSON.stringify of
+    // potentially large base64-encoded values on every hashchange.
+    const getExecutionParamSnapshot = () => {
+      let raw = window.location.hash;
+      if (!raw) return "";
+      if (raw.charAt(0) === "#") raw = raw.slice(1);
+      if (raw.charAt(0) === "?") raw = raw.slice(1);
+      if (!raw) return "";
+      const pairs = raw.split("&");
+      let result = "";
+      for (let i = 0; i < pairs.length; i++) {
+        const eqIdx = pairs[i].indexOf("=");
+        const key = eqIdx === -1 ? pairs[i] : pairs[i].substring(0, eqIdx);
+        if (key && !NON_EXECUTION_PARAMS.has(key)) {
+          if (result) result += "&";
+          result += pairs[i];
+        }
+      }
+      return result;
+    };
+
+    let lastExecutionSnapshot = getExecutionParamSnapshot();
+
+    // Returns true (and updates snapshot) when execution-relevant params changed
+    const hasExecutionParamsChanged = () => {
+      const current = getExecutionParamSnapshot();
+      if (current === lastExecutionSnapshot) return false;
+      lastExecutionSnapshot = current;
+      return true;
+    };
+
+    // reload on hash changes and refresh service worker config
+    globalThis.addEventListener("hashchange", () => {
+      // Refresh service worker config when hash changes
+      const newConfig = getServiceWorkerConfig();
+      globalThis.serviceWorkerConfig = newConfig;
+      if (globalThis.serviceWorkerManager.registration) {
+        globalThis.serviceWorkerManager.updateConfig(newConfig);
+      }
+      // Apply the transient `css` param on every hash change (it is excluded
+      // from the execution snapshot above, so it never re-runs the user JS).
+      applyCssFromUrl();
+      if (hasExecutionParamsChanged()) {
+        runJsFromUrl();
+      }
+    }, false);
+
+    const metapageDef = {
+      metaframes: {
+        editor: {
+          url: `${window.location.origin}/editor/#?c=eyJtb2R1bGVzIjpbXX0=`,
+        },
+      },
+      version: "0.3",
+    };
+
+    const removeEditor = () => {
+      if (globalThis.metapageEditor) {
+        globalThis.metapageEditor.dispose();
+        globalThis.metapageEditor = null;
+      }
+      const previousContainer = document.getElementById(
+        "iframe-container",
+      );
+      if (previousContainer) {
+        previousContainer.parentElement.removeChild(
+          previousContainer,
+        );
+      }
+      refreshUpdateSvgButton();
+
+      setHashParamInWindow("edit", undefined);
+      document.getElementById("root").className = "root borderFatSolidGreen";
+      document.getElementById("editor-root").className =
+        "editor-container-hidden borderDashedBlue";
+    };
+
+    const onMenuClick = async () => {
+      // In short URL mode, navigate to the full hash URL with edit mode.
+      // This exits the short URL path entirely so the editor works normally.
+      if (window.__SHORT_URL_ID && window.__SHORT_URL_HASH_PARAMS) {
+        // Build full URL from stored params, overriding with any changed
+        // user-defined params from the current URL, plus edit=true.
+        var canonicalKeys = window.__SHORT_URL_CANONICAL_KEYS || new Set();
+        var storedStr = window.__SHORT_URL_HASH_PARAMS;
+        var ss = storedStr.charAt(0) === "?" ? storedStr.slice(1) : storedStr;
+        var sp = ss.split("&");
+        var pm = {};
+        var po = [];
+        for (var si = 0; si < sp.length; si++) {
+          var sei = sp[si].indexOf("=");
+          var ski = sei === -1 ? sp[si] : sp[si].substring(0, sei);
+          if (ski) {
+            pm[ski] = sp[si];
+            po.push(ski);
+          }
+        }
+        var currentHash = window.location.hash;
+        if (currentHash) {
+          var s = currentHash.charAt(0) === "#"
+            ? currentHash.slice(1)
+            : currentHash;
+          if (s.charAt(0) === "?") s = s.slice(1);
+          if (s) {
+            var up = s.split("&");
+            for (var j = 0; j < up.length; j++) {
+              var ej = up[j].indexOf("=");
+              var kj = ej === -1 ? up[j] : up[j].substring(0, ej);
+              if (kj && !canonicalKeys.has(kj)) {
+                if (!(kj in pm)) po.push(kj);
+                pm[kj] = up[j];
               }
             }
           }
-          history.replaceState(
-            null,
-            "",
-            window.location.pathname + window.location.search + newHash,
-          );
-        });
+        }
+        if (!("edit" in pm)) po.push("edit");
+        pm["edit"] = "edit=true";
+        var merged = "?";
+        for (var x = 0; x < po.length; x++) {
+          if (x > 0) merged += "&";
+          merged += pm[po[x]];
+        }
+        window.location.href = window.location.origin + "/#" + merged;
+        return;
       }
+
+      // if there is an existing editor, remove it, then exit
+      if (document.getElementById("iframe-container")) {
+        removeEditor();
+        runJsFromUrl();
+        return;
+      }
+      setHashParamInWindow("edit", true);
+
+      document.getElementById("menu-button").style.display = "none";
+
+      // no previous editor detected, add the editor metapage
+      // listen to the editor metapage for changes to the editor url hash
+      // and make that our own url hash
+      document.getElementById("root").className =
+        "root-with-editor borderFatSolidGreen";
+
+      document.getElementById("editor-root").className =
+        "editor-container-shown borderDashedBlue";
+
+      // Modify the metapage editor url hash to our own
+      const editorUrl = new URL(metapageDef.metaframes.editor.url);
+      editorUrl.hash = window.location.hash;
+      metapageDef.metaframes.editor.url = editorUrl.href;
+
+      const mp = await globalThis.metapage.Metapage.from(metapageDef);
+      globalThis.metapageEditor = mp;
+      const editorMetaframe = mp.getMetaframe("editor");
+      const iframe = await editorMetaframe.iframe;
+
+      try {
+        const inputsUnpacked = await getInputsSmartUnpacked();
+        globalThis.metapageEditor.setInputs({
+          editor: inputsUnpacked,
+        });
+      } catch (err) {
+        console.error(
+          "Error setting metapage editor inputs on creation",
+          err,
+        );
+      }
+
+      var iframeDivContainer = document.createElement("div");
+      iframeDivContainer.id = "iframe-container";
+      iframeDivContainer.className = "iframe-container";
+      iframeDivContainer.appendChild(iframe);
+
+      document.getElementById("editor-root").append(
+        iframeDivContainer,
+      );
+      runJsFromUrl();
+
+      let pending;
+      const updateCode = (hash) => {
+        if (pending) {
+          clearTimeout(pending);
+        }
+        pending = setTimeout(() => {
+          pending = null;
+          window.location.hash = hash;
+        }, 400);
+      };
+      mp.addListener(
+        globalThis.metapage.Metapage.DEFINITION,
+        (event) => {
+          const url = event?.definition?.metaframes?.editor?.url;
+          if (url) {
+            const urlBlob = new URL(url);
+            updateCode(urlBlob.hash);
+          }
+        },
+      );
+    };
+
+    document
+      .getElementById("menu-button")
+      .addEventListener("click", onMenuClick);
+
+    refreshUpdateSvgButton();
+
+    const [_, hashParams] = getUrlHashParamsFromHashString(
+      window.location.hash,
+    );
+    const inEditMode = hashParams["edit"] === "true";
+    // Show editor if the hash param is set to edit=true
+    // or if the page is not in an iframe AND there is no js in the hash params
+    if (inEditMode || (!getJsFromUrl() && !isIframe())) {
+      // if editing, force showing the menu
+      window.addEventListener("load", () => {
+        onMenuClick();
+      });
+    }
+
+    // In short URL mode, clean the hash params from the URL AFTER
+    // runJsFromUrl has finished.  Previously this was a separate "load"
+    // handler that raced with the async runJsFromUrl — the cleanup could
+    // fire while runJsFromUrl was still awaiting module import, wiping
+    // the hash before getHashParamValueJsonFromWindow("inputs") ran.
+    if (window.__SHORT_URL_ID && window.__SHORT_URL_HASH_PARAMS) {
+      initialRunPromise.then(function () {
+        // Remove canonical params AND user-defined params that match stored
+        // values (they're loaded from the API, no need to duplicate in URL).
+        // Only keep user-defined params whose value has changed.
+        var canonicalKeys = window.__SHORT_URL_CANONICAL_KEYS || new Set();
+        var storedStr = window.__SHORT_URL_HASH_PARAMS || "";
+        var ss = storedStr.charAt(0) === "?" ? storedStr.slice(1) : storedStr;
+        var sp = ss.split("&");
+        var storedMap = {};
+        for (var si = 0; si < sp.length; si++) {
+          var sei = sp[si].indexOf("=");
+          var ski = sei === -1 ? sp[si] : sp[si].substring(0, sei);
+          if (ski) storedMap[ski] = sp[si];
+        }
+        var hash = window.location.hash;
+        var newHash = "";
+        if (hash) {
+          var s = hash.charAt(0) === "#" ? hash.slice(1) : hash;
+          if (s.charAt(0) === "?") s = s.slice(1);
+          if (s) {
+            var pairs = s.split("&");
+            var changedPairs = [];
+            for (var i = 0; i < pairs.length; i++) {
+              var k = pairs[i].split("=")[0];
+              if (k && !canonicalKeys.has(k) && storedMap[k] !== pairs[i]) {
+                changedPairs.push(pairs[i]);
+              }
+            }
+            if (changedPairs.length > 0) {
+              newHash = "#?" + changedPairs.join("&");
+            }
+          }
+        }
+        history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search + newHash,
+        );
+      });
+    }
     </script>
   </body>
 </html>
