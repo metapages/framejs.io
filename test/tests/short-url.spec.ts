@@ -206,6 +206,62 @@ test("short URL with inputs delivers them to onInputs handler", async ({
 });
 
 // ---------------------------------------------------------------------------
+// API tests – default-valued hash params must NOT be stored or returned
+// ---------------------------------------------------------------------------
+
+test("POST /api/shorten/json drops a default-valued param (editorWidth=80ch)", async ({
+  request,
+}) => {
+  const body = await createShortUrl(request, "console.log(1)", {
+    editorWidth: "80ch", // 80ch is the default for editorWidth
+  });
+
+  // The default must not be persisted into the stored/returned hash params.
+  expect(body.hashParams).not.toContain("editorWidth");
+  expect(body.fullUrl).not.toContain("editorWidth");
+
+  // And it must not come back in the decoded JSON representation.
+  const response = await request.get(`/api/j/${body.id}`);
+  expect(response.ok()).toBeTruthy();
+  const data = await response.json();
+  expect(data.hashParams).not.toHaveProperty("editorWidth");
+});
+
+test("POST /api/shorten/json keeps a non-default editorWidth value", async ({
+  request,
+}) => {
+  const body = await createShortUrl(request, "console.log(1)", {
+    editorWidth: "50%", // not the default → must be preserved
+  });
+
+  expect(body.hashParams).toContain("editorWidth");
+
+  const response = await request.get(`/api/j/${body.id}`);
+  expect(response.ok()).toBeTruthy();
+  const data = await response.json();
+  expect(data.hashParams.editorWidth).toBe("50%");
+});
+
+test("GET /api/j/:sha256 strips a default param from an already-stored URL", async ({
+  request,
+}) => {
+  // Store a raw hash string that already contains the default (simulates URLs
+  // saved before defaults were stripped at write time).
+  const rawHashParams = "js=console.log(1)&editorWidth=80ch";
+  const shortenResponse = await request.post("/api/shorten", {
+    data: { hashParams: rawHashParams },
+  });
+  expect(shortenResponse.ok()).toBeTruthy();
+  const { id } = await shortenResponse.json();
+
+  // The decode endpoint must strip the default on the way out.
+  const response = await request.get(`/api/j/${id}`);
+  expect(response.ok()).toBeTruthy();
+  const data = await response.json();
+  expect(data.hashParams).not.toHaveProperty("editorWidth");
+});
+
+// ---------------------------------------------------------------------------
 // Browser tests – edit button exits short URL mode
 // ---------------------------------------------------------------------------
 

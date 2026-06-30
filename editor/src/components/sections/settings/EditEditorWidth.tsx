@@ -12,7 +12,12 @@ const validationSchema = yup.object({
 interface FormType extends yup.InferType<typeof validationSchema> {}
 
 export const EditEditorWidth: React.FC = () => {
-  const [editorWidth, setEditorWidth] = useHashParam("editorWidth", "80ch");
+  // NOTE: do NOT pass a default value to useHashParam — when a default is
+  // supplied, the hook eagerly writes it into the URL hash if the param is
+  // absent, which pollutes computed/saved URLs with the default (editorWidth=80ch).
+  // "80ch" is the conceptual default, applied downstream and shown here only as
+  // a placeholder hint.
+  const [editorWidth, setEditorWidth] = useHashParam("editorWidth");
 
   const onSubmit = useCallback(
     (values: FormType) => {
@@ -41,6 +46,7 @@ export const EditEditorWidth: React.FC = () => {
           id="editorWidth"
           name="editorWidth"
           type="text"
+          placeholder="80ch"
           onChange={formik.handleChange}
           value={formik.values.editorWidth}
         />

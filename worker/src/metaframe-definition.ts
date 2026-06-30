@@ -82,6 +82,33 @@ export const DEFAULT_METAFRAME_DEFINITION: MetaframeDefinition = {
 };
 
 /**
+ * Default values for canonical hash params. A param whose value equals its
+ * default carries no information: it must NOT be persisted into computed/saved
+ * URLs, and must be removed from any JSON representation or API response that
+ * returns the hash params.
+ */
+export const DEFAULT_HASH_PARAM_VALUES: Record<string, unknown> = {
+  editorWidth: "80ch",
+};
+
+/**
+ * Returns a shallow copy of a decoded hash-param object with any param whose
+ * value equals its registered default removed. Keeps explicit (non-default)
+ * values untouched.
+ */
+export function stripDefaultHashParams<T extends Record<string, unknown>>(
+  params: T,
+): T {
+  const result = { ...params };
+  for (const [key, defaultValue] of Object.entries(DEFAULT_HASH_PARAM_VALUES)) {
+    if (key in result && result[key] === defaultValue) {
+      delete result[key];
+    }
+  }
+  return result;
+}
+
+/**
  * Returns the union of the default allowed hash params and any hash params
  * declared in the user-provided metaframe definition. The definition's
  * hashParams field is either a string[] or an object keyed by param name.
