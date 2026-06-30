@@ -1,5 +1,15 @@
-import { getHashParamValueJsonFromHashString } from "@metapages/hash-query";
-import { MetaframeDefinition } from "@metapages/metapage";
+import {
+  getHashParamValueJsonFromHashString,
+  setHashParamValueBase64EncodedInUrl,
+  setHashParamValueBooleanInUrl,
+  setHashParamValueInUrl,
+  setHashParamValueJsonInUrl,
+} from "@metapages/hash-query";
+import {
+  HashParamsObject,
+  HashParamType,
+  MetaframeDefinition,
+} from "@metapages/metapage";
 
 export const DEFAULT_METAFRAME_DEFINITION: MetaframeDefinition = {
   metadata: {
@@ -135,6 +145,46 @@ export const getAllowedHashParams = (
   }
   return allowed;
 };
+
+/**
+ * Converts a JSON object of hash-param values (e.g. {js, modules, inputs, og})
+ * into a hash-param string (e.g. "?js=...&inputs=...", with a leading "?" per
+ * the metapage hash-query convention and no leading "#"; an empty input yields
+ * ""). Each field is encoded according to its declared type in the metaframe
+ * definition (json / stringBase64 / string / boolean / number). Keys not
+ * recognised as allowed hash params are ignored, and keys are emitted in sorted
+ * order for deterministic output.
+ *
+ * This is the shared encoder used by both POST /api/shorten/json and the
+ * GET /j/:uuid route (which fetches this JSON from FRAMEJS_APP_ORIGIN).
+ */
+export function jsonToHashParams(json: Record<string, unknown>): string {
+  const supportedKeys = Array.from(
+    getAllowedHashParams(json["definition"] as MetaframeDefinition | undefined),
+  );
+  supportedKeys.sort();
+
+  const defaultHP = DEFAULT_METAFRAME_DEFINITION.hashParams as HashParamsObject;
+  let url = new URL("https://framejs.io/");
+
+  for (const key of supportedKeys) {
+    if (json[key] === undefined) continue;
+    const type: HashParamType = defaultHP?.[key]?.type || "json";
+
+    if (type === "json") {
+      url = setHashParamValueJsonInUrl(url, key, json[key]);
+    } else if (type === "stringBase64") {
+      url = setHashParamValueBase64EncodedInUrl(url, key, json[key] as string);
+    } else if (type === "boolean") {
+      url = setHashParamValueBooleanInUrl(url, key, json[key] as boolean);
+    } else {
+      // "string", "number", or unknown type
+      url = setHashParamValueInUrl(url, key, json[key] as string);
+    }
+  }
+
+  return url.hash.slice(1);
+}
 
 /**
  * Computes the effective metaframe definition by starting with the default

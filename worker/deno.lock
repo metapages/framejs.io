@@ -1175,6 +1175,8 @@
     }
   },
   "remote": {
+    "https://esm.sh/@metapages/hash-query@0.10.0": "a54442e5ec5b377c633cd17587828b3ce51a9a4c8bfaa598272cf555b6cbda4a",
+    "https://esm.sh/@metapages/hash-query@0.10.0/denonext/hash-query.mjs": "046d88b49bbff832151dd8eede6cde18c71b1db717889fcf3b254f749d1d3408",
     "https://esm.sh/@metapages/hash-query@0.9.12": "7989f751255566f00c64b60ad208393f2fc9a5f559952384eff062b56f7b3bff",
     "https://esm.sh/@metapages/hash-query@0.9.12/denonext/hash-query.mjs": "8c655b3d93cfd2b94e1ef95cf3053f447fb315a1420dcd78ed35c2bf421ed85a",
     "https://esm.sh/@metapages/metapage@1.10.8": "25fad8c53180129a718c5ac630b87fbdc14cdc8bde653673d1e47335da6f593e",

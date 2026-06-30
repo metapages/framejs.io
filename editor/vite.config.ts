@@ -7,7 +7,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import react from "@vitejs/plugin-react";
 
 const APP_PORT: number = parseInt(process.env.APP_PORT || "443");
-const HOST: string = process.env.HOST || "server1.localhost";
+const HOST: string = process.env.HOST || "framejs-io.localhost";
 const PORT: string = process.env.PORT || "4440";
 const CERT_FILE: string | undefined = process.env.CERT_FILE;
 const CERT_KEY_FILE: string | undefined = process.env.CERT_KEY_FILE;

@@ -2,23 +2,18 @@ import { Hono } from "@hono/hono";
 import { cors } from "@hono/hono/cors";
 import { serveStatic } from "@hono/hono/deno";
 import {
-  setHashParamValueBase64EncodedInUrl,
-  setHashParamValueBooleanInUrl,
-  setHashParamValueInUrl,
-  setHashParamValueJsonInUrl,
-} from "@metapages/hash-query";
-import { HashParamsObject, HashParamType } from "@metapages/metapage";
-import {
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "npm:@aws-sdk/client-s3";
 import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner";
+import { HashParamType } from "@metapages/metapage";
 import QRCode from "qrcode";
 import {
   computeMetaframeDefinition,
   DEFAULT_METAFRAME_DEFINITION,
   getAllowedHashParams,
+  jsonToHashParams,
   stripDefaultHashParams,
 } from "./src/metaframe-definition.ts";
 import { detectEmbed, detectSource, track } from "./src/analytics.ts";
@@ -30,6 +25,75 @@ function escapeHtmlAttr(s: string): string {
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+/** Matches a canonical UUID (8-4-4-4-12 hex, e.g. from gen_random_uuid()). */
+const UUID_REGEX =
+  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+
+const normalizeUuid = (id: string): string => id.replaceAll("-", "");
+
+/**
+ * Builds the Open Graph <meta> tags for a short-URL page from the decoded
+ * hash-param values (the `og` field). Falls back to a default title when no
+ * og metadata is present.
+ */
+function buildOgMetaTags(decoded: Record<string, unknown>): string {
+  const og = decoded.og as
+    | { title?: string; description?: string; image?: string }
+    | undefined;
+  if (!og || !(og.title || og.description || og.image)) {
+    return `<meta property="og:title" content="framejs.io" />\n<meta property="og:description" content="" />\n`;
+  }
+  let tags = "";
+  if (og.title) {
+    tags += `<meta property="og:title" content="${
+      escapeHtmlAttr(
+        og.title,
+      )
+    }" />\n`;
+  }
+  if (og.description) {
+    tags += `<meta property="og:description" content="${
+      escapeHtmlAttr(
+        og.description,
+      )
+    }" />\n`;
+  }
+  if (og.image) {
+    tags += `<meta property="og:image" content="${
+      escapeHtmlAttr(
+        og.image,
+      )
+    }" />\n`;
+  }
+  return tags;
+}
+
+/**
+ * Reads index.html, strips its default OG block, and injects the given OG meta
+ * tags plus a bootstrap <script> just before </head>. Returns the HTML Response
+ * used to serve a short-URL page.
+ */
+async function serveShortUrlHtml(
+  ogMetaTags: string,
+  injectedScript: string,
+): Promise<Response> {
+  const indexHtml = await Deno.readTextFile("./index.html");
+  const ogStripped = indexHtml.replace(
+    /<!-- OG_START -->[\s\S]*?<!-- OG_END -->/,
+    "",
+  );
+  const modifiedHtml = ogStripped.replace(
+    "</head>",
+    ogMetaTags + injectedScript + "\n</head>",
+  );
+  return new Response(modifiedHtml, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache",
+    },
+  });
 }
 
 /**
@@ -145,11 +209,18 @@ const S3_BUCKET_NAME = Deno.env.get("S3_BUCKET_NAME") || "uploads";
 const S3_PUBLIC_URL = Deno.env.get("S3_PUBLIC_URL");
 // Canonical public origin, used for durable artifacts like QR codes so the
 // encoded URL is stable regardless of which host the request arrived on.
-const PUBLIC_ORIGIN = (Deno.env.get("PUBLIC_ORIGIN") || "https://framejs.io")
-  .replace(/\/$/, "");
+const PUBLIC_ORIGIN = (
+  Deno.env.get("PUBLIC_ORIGIN") || "https://framejs.io"
+).replace(/\/$/, "");
 const S3_UPLOAD_MAX_SIZE_MB = parseInt(
   Deno.env.get("S3_UPLOAD_MAX_SIZE_MB") || "500",
 );
+// Backend that resolves a frame UUID to its hash-param values. The /j/:uuid
+// route fetches `${FRAMEJS_APP_ORIGIN}/<uuid>` and expects a JSON object of hash
+// param values (e.g. {js, modules, inputs, og}) on a 200 response.
+const FRAMEJS_APP_ORIGIN = (
+  Deno.env.get("FRAMEJS_APP_ORIGIN") || "http://framejs.app"
+).replace(/\/$/, "");
 
 const getPublicUrl = (id: string) => {
   return `${S3_PUBLIC_URL}/${id}`;
@@ -357,34 +428,9 @@ app.post("/api/shorten/json", async (c) => {
     // Strip default-valued params so they are never persisted into the URL.
     const body = stripDefaultHashParams(await c.req.json());
 
-    // Supported keys, sorted alphabetically for SHA256 consistency
-    const supportedKeysSet = getAllowedHashParams(body["definition"]);
-    const supportedKeys = Array.from(supportedKeysSet);
-    supportedKeys.sort();
-
-    let url = new URL("https://framejs.io/");
-
-    for (const key of supportedKeys) {
-      if (body[key] === undefined) continue;
-      const type: HashParamType =
-        (DEFAULT_METAFRAME_DEFINITION?.hashParams as HashParamsObject)?.[key]
-          ?.type || "json";
-
-      if (type === "json") {
-        url = setHashParamValueJsonInUrl(url, key, body[key]);
-      } else if (type === "stringBase64") {
-        url = setHashParamValueBase64EncodedInUrl(url, key, body[key]);
-      } else if (type === "string") {
-        url = setHashParamValueInUrl(url, key, body[key]);
-      } else if (type === "boolean") {
-        url = setHashParamValueBooleanInUrl(url, key, body[key]);
-      } else if (type === "number") {
-        url = setHashParamValueInUrl(url, key, body[key]);
-      }
-      // File|Blob ignored for now
-    }
-
-    const hashParams = url.hash.slice(1);
+    // Encode each recognised field into a hash-param string (sorted for
+    // SHA256 consistency).
+    const hashParams = jsonToHashParams(body);
 
     if (!hashParams) {
       return c.json({ error: "No recognised fields provided" }, 400);
@@ -426,14 +472,93 @@ app.post("/api/shorten/json", async (c) => {
   }
 });
 
-// Shortened URL — fetches hash params from S3 and serves index.html with injected init script
+// Builds the hash-param string a /j/:uuid page should resolve to. Fetches
+// `${FRAMEJS_APP_ORIGIN}/<uuid>`, expecting a 200 JSON object of hash-param values
+// (e.g. {js, modules, inputs, og}), and encodes it to a hash-param string.
+// Returns null when the backend has no frame for that uuid (non-200 response).
+async function fetchUuidHashParams(uuid: string): Promise<string | null> {
+  console.log(
+    "uuid fetch url",
+    `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json`,
+  );
+  const response = await fetch(
+    `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json`,
+  );
+  console.log("response", response.status);
+  if (response.status !== 200) {
+    // Drain the body so the connection can be reused.
+    await response.body?.cancel();
+    return null;
+  }
+  const json = await response.json();
+  return jsonToHashParams(json as Record<string, unknown>);
+}
+
+// Shortened URL — fetches hash params and serves index.html with injected init
+// script. Accepts either a sha256 (S3-backed blob) or a uuid (resolved via
+// FRAMEJS_APP_ORIGIN).
 app.get("/j/:sha256", async (c) => {
+  const id = c.req.param("sha256");
+
+  // uuid form: resolve via FRAMEJS_APP_ORIGIN, then rewrite the URL to the base
+  // /#?hash-params (dropping the /j/:uuid path entirely).
+  if (id && UUID_REGEX.test(id)) {
+    try {
+      track(c); // pageview — short URL opened (shared app load)
+      const embedOrigin = detectEmbed(c);
+      if (embedOrigin) {
+        track(c, { name: "embed", source: "browser", embedOrigin });
+      }
+
+      const hashParams = await fetchUuidHashParams(id);
+      if (hashParams === null) {
+        return c.json({ error: "Shortened URL not found" }, 404);
+      }
+
+      const decoded = decodeHashParamsToJson(hashParams);
+      const ogMetaTags = buildOgMetaTags(decoded);
+      const canonicalKeysJson = JSON.stringify(CANONICAL_HASH_PARAM_KEYS);
+
+      // Strip edit=true so the app doesn't immediately exit short-URL mode on load.
+      const s = hashParams.startsWith("?") ? hashParams.slice(1) : hashParams;
+      const cleanedParams = s
+        .split("&")
+        .filter((p) => p.split("=")[0] !== "edit");
+      const cleanedHashParams = cleanedParams.length
+        ? "?" + cleanedParams.join("&")
+        : "";
+
+      // Set the same __SHORT_URL_* globals as the sha256 handler so:
+      //  - module scripts await __SHORT_URL_READY before reading window.location.hash
+      //  - the cleanup code removes canonical params from the URL after the code runs
+      //  - useShortUrlMode keeps the /j/:uuid path until the user edits
+      // The IIFE computes merged params and installs a Location.prototype.hash
+      // shadow so module scripts can read the full params without the URL bar
+      // ever showing the expanded hash. Falls back to history.replaceState on
+      // browsers where Location.prototype.hash is not configurable.
+      const injectedScript =
+        `<script id="short-url-init">window.__SHORT_URL_ID=${
+          JSON.stringify(id)
+        };window.__FRAMEJS_APP_ORIGIN=${
+          JSON.stringify(FRAMEJS_APP_ORIGIN)
+        };window.__SHORT_URL_CANONICAL_KEYS=new Set(${canonicalKeysJson});window.__SHORT_URL_HASH_PARAMS=${
+          JSON.stringify(cleanedHashParams)
+        };window.__SHORT_URL_READY=Promise.resolve();(function(){var stored=window.__SHORT_URL_HASH_PARAMS;var C=window.__SHORT_URL_CANONICAL_KEYS;var ss=stored.charAt(0)==="?"?stored.slice(1):stored;var sp=ss.split("&");var pm={},po=[];for(var i=0;i<sp.length;i++){var ei=sp[i].indexOf("=");var ki=ei===-1?sp[i]:sp[i].substring(0,ei);if(ki){pm[ki]=sp[i];po.push(ki);}}var h=window.location.hash;if(h){var s=h.charAt(0)==="#"?h.slice(1):h;if(s.charAt(0)==="?")s=s.slice(1);if(s){var up=s.split("&");for(var j=0;j<up.length;j++){var ej=up[j].indexOf("=");var kj=ej===-1?up[j]:up[j].substring(0,ej);if(kj&&!C.has(kj)){if(!(kj in pm))po.push(kj);pm[kj]=up[j];}}}}var m="?";for(var x=0;x<po.length;x++){if(x>0)m+="&";m+=pm[po[x]];}(function(od){try{if(od&&od.configurable){window.__sfhod=od;window.__sfhs=m;Object.defineProperty(Location.prototype,'hash',{get:function(){return window.__sfhs!==undefined?'#'+window.__sfhs:od.get.call(this)},set:function(v){od.set.call(this,v)},configurable:true})}else{history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}}catch(e){history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}})(Object.getOwnPropertyDescriptor(Location.prototype,'hash'));})();</script>`;
+
+      return await serveShortUrlHtml(ogMetaTags, injectedScript);
+    } catch (error) {
+      console.error("UUID shortened URL error:", error);
+      return c.json({ error: "Failed to retrieve shortened URL" }, 500);
+    }
+  }
+
+  // sha256 form: resolve via S3.
   if (!s3Client) {
     return c.json({ error: "URL shortening not configured" }, 503);
   }
 
   try {
-    const sha256 = c.req.param("sha256");
+    const sha256 = id;
 
     // Validate sha256 format (64 hex characters)
     if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256)) {
@@ -458,41 +583,11 @@ app.get("/j/:sha256", async (c) => {
     if (!response.Body) throw new Error("S3 response body is empty");
     const hashParams = await response.Body.transformToString();
 
-    const indexHtml = await Deno.readTextFile("./index.html");
     const canonicalKeysJson = JSON.stringify(CANONICAL_HASH_PARAM_KEYS);
 
     // Extract OG metadata from hash params and inject meta tags
     const decoded = decodeHashParamsToJson(hashParams);
-    const og = decoded.og as
-      | { title?: string; description?: string; image?: string }
-      | undefined;
-    let ogMetaTags = "";
-    if (og && (og.title || og.description || og.image)) {
-      if (og.title) {
-        ogMetaTags += `<meta property="og:title" content="${
-          escapeHtmlAttr(
-            og.title,
-          )
-        }" />\n`;
-      }
-      if (og.description) {
-        ogMetaTags += `<meta property="og:description" content="${
-          escapeHtmlAttr(
-            og.description,
-          )
-        }" />\n`;
-      }
-      if (og.image) {
-        ogMetaTags += `<meta property="og:image" content="${
-          escapeHtmlAttr(
-            og.image,
-          )
-        }" />\n`;
-      }
-    } else {
-      ogMetaTags =
-        `<meta property="og:title" content="framejs.io" />\n<meta property="og:description" content="" />\n`;
-    }
+    const ogMetaTags = buildOgMetaTags(decoded);
 
     // Inject a lightweight script that sets the short URL ID and starts an
     // async fetch for the hash params.  The full hash-param blob is NOT
@@ -501,26 +596,18 @@ app.get("/j/:sha256", async (c) => {
     // await __SHORT_URL_READY before reading hash params.
     const injectedScript =
       `<script id="short-url-init">window.__SHORT_URL_ID = ${
-        JSON.stringify(sha256)
+        JSON.stringify(
+          sha256,
+        )
+      };window.__FRAMEJS_APP_ORIGIN = ${
+        JSON.stringify(FRAMEJS_APP_ORIGIN)
       };window.__SHORT_URL_CANONICAL_KEYS = new Set(${canonicalKeysJson});window.__SHORT_URL_READY = fetch("/api/j/" + ${
-        JSON.stringify(sha256)
-      } + "/url").then(function(r){return r.text()}).then(function(fullUrl){var idx=fullUrl.indexOf("#");var stored=idx===-1?"":fullUrl.slice(idx+1);window.__SHORT_URL_HASH_PARAMS=stored;var C=window.__SHORT_URL_CANONICAL_KEYS;var ss=stored.charAt(0)==="?"?stored.slice(1):stored;var sp=ss.split("&");var pm={};var po=[];for(var i=0;i<sp.length;i++){var ei=sp[i].indexOf("=");var ki=ei===-1?sp[i]:sp[i].substring(0,ei);if(ki){pm[ki]=sp[i];po.push(ki)}}var h=window.location.hash;if(h){var s=h.charAt(0)==="#"?h.slice(1):h;if(s.charAt(0)==="?")s=s.slice(1);if(s){var up=s.split("&");for(var j=0;j<up.length;j++){var ej=up[j].indexOf("=");var kj=ej===-1?up[j]:up[j].substring(0,ej);if(kj&&!C.has(kj)){if(!(kj in pm))po.push(kj);pm[kj]=up[j]}}}}var m="?";for(var x=0;x<po.length;x++){if(x>0)m+="&";m+=pm[po[x]]}history.replaceState(null,"",window.location.pathname+window.location.search+"#"+m)});</script>`;
-    // Strip the default OG block (between OG_START and OG_END comments) and inject short-URL-specific OG tags
-    const ogStripped = indexHtml.replace(
-      /<!-- OG_START -->[\s\S]*?<!-- OG_END -->/,
-      "",
-    );
-    const modifiedHtml = ogStripped.replace(
-      "</head>",
-      ogMetaTags + injectedScript + "\n</head>",
-    );
+        JSON.stringify(
+          sha256,
+        )
+      } + "/url").then(function(r){return r.text()}).then(function(fullUrl){var idx=fullUrl.indexOf("#");var stored=idx===-1?"":fullUrl.slice(idx+1);window.__SHORT_URL_HASH_PARAMS=stored;var C=window.__SHORT_URL_CANONICAL_KEYS;var ss=stored.charAt(0)==="?"?stored.slice(1):stored;var sp=ss.split("&");var pm={};var po=[];for(var i=0;i<sp.length;i++){var ei=sp[i].indexOf("=");var ki=ei===-1?sp[i]:sp[i].substring(0,ei);if(ki){pm[ki]=sp[i];po.push(ki)}}var h=window.location.hash;if(h){var s=h.charAt(0)==="#"?h.slice(1):h;if(s.charAt(0)==="?")s=s.slice(1);if(s){var up=s.split("&");for(var j=0;j<up.length;j++){var ej=up[j].indexOf("=");var kj=ej===-1?up[j]:up[j].substring(0,ej);if(kj&&!C.has(kj)){if(!(kj in pm))po.push(kj);pm[kj]=up[j]}}}}var m="?";for(var x=0;x<po.length;x++){if(x>0)m+="&";m+=pm[po[x]]};(function(od){try{if(od&&od.configurable){window.__sfhod=od;window.__sfhs=m;Object.defineProperty(Location.prototype,'hash',{get:function(){return window.__sfhs!==undefined?'#'+window.__sfhs:od.get.call(this)},set:function(v){od.set.call(this,v)},configurable:true})}else{history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}}catch(e){history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}})(Object.getOwnPropertyDescriptor(Location.prototype,'hash'))});</script>`;
 
-    return new Response(modifiedHtml, {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-cache",
-      },
-    });
+    return await serveShortUrlHtml(ogMetaTags, injectedScript);
   } catch (error: any) {
     console.error("Shortened URL error:", error);
 
@@ -538,15 +625,15 @@ app.get("/j/:sha256", async (c) => {
 // QR codes for these short URLs can be dynamically embedded (e.g. in an <img>).
 app.get("/j/:sha256/qrcode.png", async (c) => {
   try {
-    const sha256 = c.req.param("sha256");
+    const id = c.req.param("sha256");
 
-    if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256)) {
+    if (!id || (!/^[a-f0-9]{64}$/.test(id) && !UUID_REGEX.test(id))) {
       return c.json({ error: "Invalid shortened URL ID" }, 400);
     }
 
     // Pin the canonical origin so the QR encodes a stable, public URL
     // regardless of which host (alias, *.deno.dev, etc.) served the request.
-    const target = new URL(`${PUBLIC_ORIGIN}/j/${sha256}`);
+    const target = new URL(`${PUBLIC_ORIGIN}/j/${id}`);
 
     // Forward any extra query params onto the encoded URL.
     const incoming = new URL(c.req.url);
@@ -576,18 +663,26 @@ app.get("/j/:sha256/qrcode.png", async (c) => {
 
 // Short URL metaframe.json — computes effective definition from stored hash params
 app.get("/j/:sha256/metaframe.json", async (c) => {
-  if (!s3Client) {
-    return c.json({ error: "URL shortening not configured" }, 503);
-  }
-
   try {
-    const sha256 = c.req.param("sha256");
+    const id = c.req.param("sha256");
 
-    if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256)) {
+    if (id && UUID_REGEX.test(id)) {
+      const hashParams = await fetchUuidHashParams(id);
+      if (hashParams === null) {
+        return c.json({ error: "Shortened URL not found" }, 404);
+      }
+      return c.json(computeMetaframeDefinition(hashParams));
+    }
+
+    if (!s3Client) {
+      return c.json({ error: "URL shortening not configured" }, 503);
+    }
+
+    if (!id || !/^[a-f0-9]{64}$/.test(id)) {
       return c.json({ error: "Invalid shortened URL ID" }, 400);
     }
 
-    const key = `j/${sha256}`;
+    const key = `j/${id}`;
     const command = new GetObjectCommand({
       Bucket: S3_BUCKET_NAME,
       Key: key,
@@ -613,18 +708,27 @@ app.get("/j/:sha256/metaframe.json", async (c) => {
 
 // Short URL JSON API — returns id and hashParams for a given sha256
 app.get("/api/j/:sha256", async (c) => {
-  if (!s3Client) {
-    return c.json({ error: "URL shortening not configured" }, 503);
-  }
-
   try {
-    const sha256 = c.req.param("sha256");
+    const id = c.req.param("sha256");
 
-    if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256)) {
+    if (id && UUID_REGEX.test(id)) {
+      const hashParams = await fetchUuidHashParams(id);
+      if (hashParams === null) {
+        return c.json({ error: "Shortened URL not found" }, 404);
+      }
+      track(c, { name: "fetch", source: detectSource(c) });
+      return c.json({ id, hashParams: decodeHashParamsToJson(hashParams) });
+    }
+
+    if (!s3Client) {
+      return c.json({ error: "URL shortening not configured" }, 503);
+    }
+
+    if (!id || !/^[a-f0-9]{64}$/.test(id)) {
       return c.json({ error: "Invalid shortened URL ID" }, 400);
     }
 
-    const key = `j/${sha256}`;
+    const key = `j/${id}`;
     const command = new GetObjectCommand({
       Bucket: S3_BUCKET_NAME,
       Key: key,
@@ -637,10 +741,7 @@ app.get("/api/j/:sha256", async (c) => {
     track(c, { name: "fetch", source: detectSource(c) });
 
     c.header("Cache-Control", "public, max-age=31536000, immutable");
-    return c.json({
-      id: sha256,
-      hashParams: decodeHashParamsToJson(hashParams),
-    });
+    return c.json({ id, hashParams: decodeHashParamsToJson(hashParams) });
   } catch (error: any) {
     console.error("Short URL API error:", error);
 
@@ -654,18 +755,29 @@ app.get("/api/j/:sha256", async (c) => {
 
 // Short URL full-URL API — returns the full URL as plain text for a given sha256
 app.get("/api/j/:sha256/url", async (c) => {
-  if (!s3Client) {
-    return c.json({ error: "URL shortening not configured" }, 503);
-  }
-
   try {
-    const sha256 = c.req.param("sha256");
+    const id = c.req.param("sha256");
 
-    if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256)) {
+    if (id && UUID_REGEX.test(id)) {
+      const hashParams = await fetchUuidHashParams(id);
+      if (hashParams === null) {
+        return c.json({ error: "Shortened URL not found" }, 404);
+      }
+      const protocol = c.req.header("x-forwarded-proto") || "https";
+      const host = c.req.header("host");
+      c.header("Content-Type", "text/plain; charset=utf-8");
+      return c.text(`${protocol}://${host}/#${hashParams}`);
+    }
+
+    if (!s3Client) {
+      return c.json({ error: "URL shortening not configured" }, 503);
+    }
+
+    if (!id || !/^[a-f0-9]{64}$/.test(id)) {
       return c.json({ error: "Invalid shortened URL ID" }, 400);
     }
 
-    const key = `j/${sha256}`;
+    const key = `j/${id}`;
     const command = new GetObjectCommand({
       Bucket: S3_BUCKET_NAME,
       Key: key,

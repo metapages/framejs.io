@@ -2,7 +2,7 @@ set shell := ["bash", "-c"]
 set dotenv-load := true
 set export := true
 
-APP_FQDN := env_var_or_default("APP_FQDN", "server1.localhost")
+APP_FQDN := env_var_or_default("APP_FQDN", "framejs-io.localhost")
 APP_PORT := env_var_or_default("APP_PORT", "4430")
 APP_PORT_BROWSER := env_var_or_default("APP_PORT_BROWSER", "4440")
 DENO_DEPLOY_TOKEN := env_var_or_default("DENO_DEPLOY_TOKEN", "")
@@ -49,7 +49,7 @@ fmt:
     just worker/fmt
 
 # DEV: generate TLS certs for HTTPS over localhost https://blog.filippo.io/mkcert-valid-https-certificates-for-localhost/
-@_mkcert: _delete-certs
+@_mkcert: _delete-certs _hostcheck
     mkdir -p .traefik/certs
     mkcert -cert-file .traefik/certs/local-cert.pem -key-file .traefik/certs/local-key.pem {{ APP_FQDN }} s3.localhost localhost
 
@@ -216,3 +216,23 @@ alias docs := _docs
 alias examples := _examples
 @_examples +args="":
     just examples/{{ args }}
+
+# Verify the dev host resolves: the dev server binds to framejs.localhost, which
+# macOS does NOT resolve to loopback automatically (browsers do, the OS resolver
+# doesn't), so without an /etc/hosts entry the server fails with
+# `getaddrinfo ENOTFOUND framejs.localhost`.
+_hostcheck:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! grep -qE '^[[:space:]]*127\.0\.0\.1[[:space:]]+([^#]*[[:space:]])?framejs-io\.localhost([[:space:]]|$)' /etc/hosts; then
+        echo -e "\033[1m[hostcheck] Missing /etc/hosts entry for framejs-io.localhost\033[0m" >&2
+        echo "" >&2
+        echo "The dev server binds to 'framejs-io.localhost', but your OS can't resolve it," >&2
+        echo "so it will fail with: getaddrinfo ENOTFOUND framejs-io.localhost" >&2
+        echo "" >&2
+        echo "Fix it by adding the loopback mapping to /etc/hosts:" >&2
+        echo "" >&2
+        echo "    echo '127.0.0.1 framejs-io.localhost' | sudo tee -a /etc/hosts" >&2
+        echo "" >&2
+        exit 1
+    fi

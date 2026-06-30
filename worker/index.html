@@ -4,8 +4,7 @@
     <meta charset="utf-8" />
     <base target="_parent" />
     <title>
-      framejs.io — Create and share JavaScript visualizations and apps
-      instantly
+      framejs.io — Create and share JavaScript visualizations and apps instantly
     </title>
     <meta
       name="description"
@@ -345,8 +344,7 @@
           >
             <strong style="color: #333">Embed anywhere</strong><br>
             <span style="font-size: 0.9rem; color: #555"
-            >Notion, Jupyter, Confluence, blogs — just paste the
-              URL.</span></a>
+            >Notion, Jupyter, Confluence, blogs — just paste the URL.</span></a>
         </div>
 
         <h2
@@ -1929,58 +1927,27 @@ frame();</code></pre>
       }
       refreshUpdateSvgButton();
 
-      setHashParamInWindow("edit", undefined);
+      if (!window.__SHORT_URL_ID) {
+        setHashParamInWindow("edit", undefined);
+      }
       document.getElementById("root").className = "root borderFatSolidGreen";
       document.getElementById("editor-root").className =
         "editor-container-hidden borderDashedBlue";
     };
 
     const onMenuClick = async () => {
-      // In short URL mode, navigate to the full hash URL with edit mode.
-      // This exits the short URL path entirely so the editor works normally.
-      if (window.__SHORT_URL_ID && window.__SHORT_URL_HASH_PARAMS) {
-        // Build full URL from stored params, overriding with any changed
-        // user-defined params from the current URL, plus edit=true.
-        var canonicalKeys = window.__SHORT_URL_CANONICAL_KEYS || new Set();
-        var storedStr = window.__SHORT_URL_HASH_PARAMS;
-        var ss = storedStr.charAt(0) === "?" ? storedStr.slice(1) : storedStr;
-        var sp = ss.split("&");
-        var pm = {};
-        var po = [];
-        for (var si = 0; si < sp.length; si++) {
-          var sei = sp[si].indexOf("=");
-          var ski = sei === -1 ? sp[si] : sp[si].substring(0, sei);
-          if (ski) {
-            pm[ski] = sp[si];
-            po.push(ski);
-          }
+      // In short URL mode, open the canonical short URL on the configured
+      // host in a new window (or in the parent window if we are iframed).
+      if (window.__SHORT_URL_ID) {
+        // `#?edit=true` tells framejs.app to open the embedded editor right
+        // away; framejs.app consumes and strips it so its URL stays clean.
+        var editUrl = (window.__FRAMEJS_APP_ORIGIN || window.location.origin) +
+          "/j/" + window.__SHORT_URL_ID + "#?edit=true";
+        if (isIframe()) {
+          window.parent.location.href = editUrl;
+        } else {
+          window.open(editUrl, "_blank");
         }
-        var currentHash = window.location.hash;
-        if (currentHash) {
-          var s = currentHash.charAt(0) === "#"
-            ? currentHash.slice(1)
-            : currentHash;
-          if (s.charAt(0) === "?") s = s.slice(1);
-          if (s) {
-            var up = s.split("&");
-            for (var j = 0; j < up.length; j++) {
-              var ej = up[j].indexOf("=");
-              var kj = ej === -1 ? up[j] : up[j].substring(0, ej);
-              if (kj && !canonicalKeys.has(kj)) {
-                if (!(kj in pm)) po.push(kj);
-                pm[kj] = up[j];
-              }
-            }
-          }
-        }
-        if (!("edit" in pm)) po.push("edit");
-        pm["edit"] = "edit=true";
-        var merged = "?";
-        for (var x = 0; x < po.length; x++) {
-          if (x > 0) merged += "&";
-          merged += pm[po[x]];
-        }
-        window.location.href = window.location.origin + "/#" + merged;
         return;
       }
 
@@ -2114,6 +2081,13 @@ frame();</code></pre>
               newHash = "#?" + changedPairs.join("&");
             }
           }
+        }
+        // Restore the original Location.prototype.hash descriptor before
+        // finalizing the URL so history.replaceState writes the real hash.
+        if (window.__sfhod) {
+          Object.defineProperty(Location.prototype, "hash", window.__sfhod);
+          delete window.__sfhs;
+          delete window.__sfhod;
         }
         history.replaceState(
           null,

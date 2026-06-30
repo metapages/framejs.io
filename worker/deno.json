@@ -6,6 +6,9 @@
   "tasks": {
     "dev": "deno run --watch main.ts"
   },
+  "fmt": {
+    "exclude": ["docs/"]
+  },
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4",
     "@aws-sdk/s3-request-presigner": "npm:@aws-sdk/s3-request-presigner@^3.997.0",
