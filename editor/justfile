@@ -8,7 +8,7 @@ set dotenv-load                    := true
 NPM_PUBLISH                        := "true"
 # E.g. 'my.app.com'. Some services e.g. auth need know the external endpoint for example OAuth
 # The root domain for this app, serving index.html
-export APP_FQDN                    := env_var_or_default("APP_FQDN", "server1.localhost")
+export APP_FQDN                    := env_var_or_default("APP_FQDN", "framejs-io.localhost")
 export APP_PORT                    := env_var_or_default("APP_PORT", "4430")
 export APP_PORT_BROWSER            := env_var_or_default("APP_PORT_BROWSER", "4440")
 # SERVER_ORIGIN allows overriding the target server origin for the browser

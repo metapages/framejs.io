@@ -19,7 +19,7 @@ This starts the full stack via Docker Compose:
 - **Worker** (Deno backend)
 - **Editor** (Vite dev server)
 
-The dev server is available at `https://server1.localhost:4430/` (configurable via `APP_FQDN` and `APP_PORT` env vars).
+The dev server is available at `https://framejs-io.localhost:4430/` (configurable via `APP_FQDN` and `APP_PORT` env vars).
 
 ## Useful commands
 

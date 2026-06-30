@@ -1,5 +1,4 @@
 services:
-
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
@@ -46,7 +45,7 @@ services:
   worker:
     build:
       context: ./worker
-    command: deno run -A --watch ./server.ts
+    command: deno run --unsafely-ignore-certificate-errors -A --watch ./server.ts
     working_dir: /app/worker
     depends_on:
       minio-init:
@@ -59,7 +58,7 @@ services:
       - "DENO_DIR=/deno"
       - "DENO_INSTALL_ROOT=/deno"
       - "PORT=3000"
-      - "APP_FQDN=${APP_FQDN:-server1.localhost}"
+      - "APP_FQDN=${APP_FQDN:-framejs-io.localhost}"
       - "PATH=$PATH:/DENO_INSTALL_ROOT/bin"
       - "S3_ENDPOINT=${S3_ENDPOINT:-http://minio:9000}"
       - "S3_PRESIGN_ENDPOINT=${S3_PRESIGN_ENDPOINT:-https://s3.localhost:${APP_PORT:-443}}"
@@ -74,6 +73,10 @@ services:
       - "S3_UPLOAD_MAX_SIZE_MB=${S3_UPLOAD_MAX_SIZE_MB:-500}"
       - "UMAMI_HOST=${UMAMI_HOST:-https://cloud.umami.is}"
       - "UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}"
+      # Backend that resolves a frame UUID to its hash-param values (/j/:uuid).
+      - "FRAMEJS_APP_ORIGIN=${FRAMEJS_APP_ORIGIN:-http://framejs.app}"
+    extra_hosts:
+      - "framejs-app.localhost:host-gateway"
     expose:
       - 3000
     volumes:
@@ -86,7 +89,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.app-server.tls=true
-      - traefik.http.routers.app-server.rule=Host("${APP_FQDN:-server1.localhost}")
+      - traefik.http.routers.app-server.rule=Host("${APP_FQDN:-framejs-io.localhost}")
 
   editor:
     build:
@@ -103,7 +106,7 @@ services:
       - "DENO_INSTALL_ROOT=/deno"
       - "APP_PORT_BROWSER=4440"
       - "APP_PORT=${APP_PORT:-443}"
-      - "APP_FQDN=${APP_FQDN:-server1.localhost}"
+      - "APP_FQDN=${APP_FQDN:-framejs-io.localhost}"
       - BASE=editor
     expose:
       - 4440
@@ -125,7 +128,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.app-editor.tls=true
-      - traefik.http.routers.app-editor.rule=Host("${APP_FQDN:-server1.localhost}") && PathPrefix(`/editor`)
+      - traefik.http.routers.app-editor.rule=Host("${APP_FQDN:-framejs-io.localhost}") && PathPrefix(`/editor`)
 
   docs:
     image: node:25-alpine
@@ -141,25 +144,25 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.app-docs.tls=true
-      - traefik.http.routers.app-docs.rule=Host("${APP_FQDN:-server1.localhost}") && PathPrefix(`/docs`)
+      - traefik.http.routers.app-docs.rule=Host("${APP_FQDN:-framejs-io.localhost}") && PathPrefix(`/docs`)
       - traefik.http.services.app-docs.loadbalancer.server.port=4173
 
   traefik:
     image: "traefik:v2.11"
     container_name: "traefik-connect-metaframe-js"
     labels:
-     - "traefik.enable=true"
-     - "traefik.http.routers.traefik=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik=true"
     ports:
       # HTTPS / SSL port
       - "${APP_PORT:-443}:443"
       # The Traefik Web UI port (enabled by api:insecure: true in traefik.yml)
       - "${TRAEFIK_WEB_UI_PORT:-8080}:8080"
     volumes:
-     - ./.traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-     - ./.traefik/config.yml:/etc/traefik/config.yml:ro
-     - ./.traefik/certs:/etc/certs:ro
-     - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./.traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./.traefik/config.yml:/etc/traefik/config.yml:ro
+      - ./.traefik/certs:/etc/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 volumes:
   deno:
@@ -170,5 +173,3 @@ volumes:
     driver: local
   docs_node_modules:
     driver: local
-
-

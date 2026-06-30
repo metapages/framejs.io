@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const APP_FQDN = process.env.APP_FQDN ?? "server1.localhost";
+const APP_FQDN = process.env.APP_FQDN ?? "framejs-io.localhost";
 const APP_PORT = process.env.APP_PORT ?? "4430";
 
 export default defineConfig({

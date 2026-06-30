@@ -19,7 +19,7 @@
       "Bash(echo Waiting for server...:*)",
       "Bash(curl:*)",
       "Bash(cd /Users/dion/dev/git/metapages/metaframes/metaframe-js/test && npx playwright test 2>&1)",
-      "Bash(APP_PORT=4470 APP_FQDN=server1.localhost bash:*)",
+      "Bash(APP_PORT=4470 APP_FQDN=framejs-io.localhost bash:*)",
       "Bash(just test:*)",
       "Bash(cd /Users/dion/dev/git/metapages/metaframes/metaframe-js/test && npx tsc --noEmit --strict tests/short-url.spec.ts --skipLibCheck --moduleResolution node --module esnext --target esnext 2>&1)",
       "Bash(cd /Users/dion/dev/git/metapages/metaframes/metaframe-js/test && node -e \"\n  const ts = require\\('typescript'\\);\n  const program = ts.createProgram\\(['tests/short-url.spec.ts'], {\n    noEmit: true, strict: true, skipLibCheck: true,\n    moduleResolution: ts.ModuleResolutionKind.Node10,\n    module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext\n  }\\);\n  const diags = ts.getPreEmitDiagnostics\\(program\\);\n  diags.forEach\\(d => {\n    const msg = ts.flattenDiagnosticMessageText\\(d.messageText, '\\\\n'\\);\n    const file = d.file?.fileName ?? '<unknown>';\n    const line = d.file ? ts.getLineAndCharacterOfPosition\\(d.file, d.start\\).line + 1 : 0;\n    console.log\\(file + ':' + line + ': ' + msg\\);\n  }\\);\n  process.exit\\(diags.length > 0 ? 1 : 0\\);\n\" 2>&1)",
@@ -64,8 +64,8 @@
       "Bash(examples/jupyter/.venv/bin/python3 --version)",
       "Bash(/tmp/mfw-venv/bin/pip install *)",
       "Bash(/tmp/mfw-venv/bin/python *)",
-      "Bash(APP_FQDN=server1.localhost APP_PORT=4470 npx playwright test css-hash-param.spec.ts)",
-      "Bash(APP_FQDN=server1.localhost APP_PORT=4470 npx playwright test)"
+      "Bash(APP_FQDN=framejs-io.localhost APP_PORT=4470 npx playwright test css-hash-param.spec.ts)",
+      "Bash(APP_FQDN=framejs-io.localhost APP_PORT=4470 npx playwright test)"
     ],
     "deny": [],
     "ask": []
