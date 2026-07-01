@@ -440,5 +440,3 @@ runtime via forwarded token) requests an upload, gets a file id, stores a
 - `editor/src/store.ts` — Zustand (ephemeral UI state only).
 - `docker-compose.yml` — local stack (worker, editor, docs, traefik, minio).
 - `justfile` — `just dev`, `just check`, `just deploy` (Deno Deploy).
-</content>
-</invoke>
