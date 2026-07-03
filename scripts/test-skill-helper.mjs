@@ -7,8 +7,8 @@
 //   - a fresh session mints a UUIDv7 and POSTs to /j/<slug>.json (201),
 //   - re-running with the same --state UPDATES the same frame,
 //   - --new starts a different frame, --id targets a specific one,
-//   - the printed output carries the framejs.app page URL, the no-login
-//     framejs.io run URL, and the id,
+//   - the printed output carries the framejs.app page URL and an immutable
+//     framejs.io /j/<sha256> snapshot URL,
 //   - origins are picked up from a nearby .env (local-dev behavior),
 //   - fetch round-trips the stored params.
 //
@@ -27,6 +27,7 @@ import {
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 
 const pExecFile = promisify(execFile);
@@ -35,14 +36,25 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HELPER = join(ROOT, "worker/static/skill/framejs/scripts/framejs.mjs");
 
 // --- stub framejs.app: records POSTs, serves the latest body back on GET ------
+// Also stands in for the framejs.io snapshot shortener (POST /api/shorten/json),
+// returning a content-addressed /j/<sha256> id for the posted body.
 function startStub() {
   const posts = [];
+  const shortens = []; // { id, params } per POST /api/shorten/json
   const store = new Map(); // slug -> latest params
   const server = createServer((req, res) => {
     const m = req.url.match(/^\/j\/([0-9a-f]+)\.json$/i);
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", () => {
+      // Snapshot shortener: hash the body → immutable /j/<sha256> copy.
+      if (req.method === "POST" && req.url === "/api/shorten/json") {
+        const id = createHash("sha256").update(body || "").digest("hex");
+        shortens.push({ id, params: JSON.parse(body || "{}") });
+        res.writeHead(200, { "content-type": "application/json" })
+          .end(JSON.stringify({ id }));
+        return;
+      }
       if (!m) {
         res.writeHead(404).end();
         return;
@@ -72,7 +84,13 @@ function startStub() {
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       const { port } = server.address();
-      resolve({ server, posts, store, origin: `http://127.0.0.1:${port}` });
+      resolve({
+        server,
+        posts,
+        shortens,
+        store,
+        origin: `http://127.0.0.1:${port}`,
+      });
     });
   });
 }
@@ -122,11 +140,15 @@ async function create(args, opts) {
 
 function parse(lines) {
   const page = lines[0];
-  const run = lines.find((l) => l.startsWith("run: "))?.slice(5);
-  const id = lines.find((l) => l.startsWith("id:"))?.replace(/^id:\s+/, "");
+  const snapshot = lines.find((l) => l.startsWith("snapshot: "))?.slice(10);
   const slug = page.match(/\/j\/([0-9a-f]+)$/i)?.[1];
-  return { page, run, id, slug };
+  return { page, snapshot, slug };
 }
+
+// The frame id (hyphenated uuid) now lives only in the --state file — the helper
+// no longer echoes an `id:` line to stdout.
+const stateUuid = (statePath) =>
+  JSON.parse(readFileSync(statePath, "utf8")).uuid;
 
 const results = [];
 const check = (name, fn) => {
@@ -138,7 +160,7 @@ const check = (name, fn) => {
   }
 };
 
-const { server, posts, origin } = await startStub();
+const { server, posts, shortens, origin } = await startStub();
 const IO = origin; // reuse the stub as a stand-in framejs.io origin for run URLs
 const tmp = mkdtempSync(join(tmpdir(), "framejs-skill-test-"));
 const env = { FRAMEJS_APP_ORIGIN: origin, FRAMEJS_IO_ORIGIN: IO };
@@ -155,30 +177,32 @@ try {
     assert.equal(posts[0].params.js, SRC);
     assert.deepEqual(posts[0].params.og, { title: "T1", description: "" });
   });
-  check("mints a 32-hex uuidv7 slug matching the printed id", () => {
+  check("mints a 32-hex uuidv7 slug recorded as the frame uuid", () => {
     assert.match(c1.slug, /^[0-9a-f]{32}$/);
-    assert.equal(c1.id.replaceAll("-", ""), c1.slug);
-    assert.equal(c1.id[14], "7"); // uuid version nibble
+    const uuid = stateUuid(state);
+    assert.equal(uuid.replaceAll("-", ""), c1.slug);
+    assert.equal(uuid[14], "7"); // uuid version nibble
   });
-  check("prints framejs.app page URL, framejs.io run URL, and id", () => {
+  check("prints the framejs.app page URL and an immutable snapshot URL", () => {
     assert.equal(c1.page, `${origin}/j/${c1.slug}`);
-    assert.ok(c1.run.startsWith(`${IO}/#?`), `run url: ${c1.run}`);
-    assert.ok(c1.run.includes("js="), "run url carries js hash param");
+    assert.ok(c1.snapshot, "prints a snapshot: line");
+    assert.ok(c1.snapshot.startsWith(`${IO}/j/`), `snapshot url: ${c1.snapshot}`);
+    const sha = c1.snapshot.match(/\/j\/([0-9a-f]+)$/)?.[1];
+    assert.match(sha, /^[0-9a-f]{64}$/); // content-addressed snapshot id
   });
-  check("run url encodes js as a raw string, not a JSON blob", () => {
+  check("snapshot posts js as a raw string, not a JSON blob", () => {
     // Regression: packHashParamValue used to JSON.stringify every value
-    // (including js), but @metapages/hash-query's client-side decoder for
-    // `js` is a plain base64/URI decode with no JSON.parse — so a
-    // JSON.stringify'd value comes back quoted/escaped, and a `%` in the
-    // source trips the client's legacy double-decode fallback into a
-    // `URIError: URI malformed`.
-    const rawValue = c1.run.match(/[?&]js=([^&]*)/)[1];
-    const decoded = decodeURIComponent(atob(rawValue)); // client-side decode
-    assert.equal(decoded, SRC);
+    // (including js). The snapshot body (and the frame POST above) must carry
+    // `js` as the raw source string so the client-side base64/URI decoder —
+    // which does no JSON.parse — round-trips it exactly. A JSON.stringify'd
+    // value would come back quoted/escaped and a `%` in the source would trip
+    // the client's legacy double-decode into a `URIError: URI malformed`.
+    assert.equal(shortens[0].params.js, SRC);
   });
   check("records the frame in the --state file", () => {
     const saved = JSON.parse(readFileSync(state, "utf8"));
-    assert.equal(saved.uuid, c1.id);
+    assert.equal(saved.uuid.replaceAll("-", ""), c1.slug);
+    assert.equal(saved.appOrigin, origin);
   });
 
   // 2. Same --state → UPDATE the same frame.
@@ -193,7 +217,7 @@ try {
   const c3 = parse(await create(["--state", state, "--no-open", "--new"], { env }));
   check("--new starts a distinct frame", () => {
     assert.notEqual(c3.slug, c1.slug);
-    assert.equal(JSON.parse(readFileSync(state, "utf8")).uuid, c3.id);
+    assert.equal(stateUuid(state).replaceAll("-", ""), c3.slug);
   });
 
   // 4. --id targets a specific frame regardless of state.
