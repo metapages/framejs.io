@@ -5,22 +5,25 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.0"
+  version: "1.4"
 ---
 
 # framejs
 
-framejs.io runs an ES6 JavaScript module in the browser and encodes the whole
-app into a shareable URL. Your job: turn the user's request into that browser
-JavaScript and deliver it the right way for your environment.
+framejs runs an ES6 JavaScript module in the browser. A **frame** is the app: it
+lives at a stable, shareable `framejs.app/j/<uuid>` URL whose content is mutable
+— you update the app in place by POSTing its hash params. Your job: turn the
+user's request into that browser JavaScript and deliver it the right way for
+your environment.
 
 ## Pick your delivery mode
 
 Choose based on what you can do — not on the request:
 
 - **Automation mode — you can run a shell / `node`:** generate the JavaScript,
-  then create a short URL via the framejs.io API, **print the short URL**, and
-  open it in the browser. This is the default whenever a shell is available.
+  then create-or-update the session's framejs.app frame, **print its `/j/<uuid>`
+  URL**, and open it in the browser. This is the default whenever a shell is
+  available.
 - **Code-block mode — chat / API only, no shell:** respond with **only** a
   single fenced JavaScript code block (open it with a `javascript` info string)
   and nothing else — no surrounding prose, no files, no URLs. The user pastes it
@@ -32,10 +35,16 @@ In both modes the JavaScript you write follows the same rules — read
 ## What the request can be
 
 1. **Create from a prompt** — "a bouncing ball animation", "plot y = sin(x)".
-2. **Modify an existing app** — the request contains a short URL
-   (`https://framejs.io/j/<sha256>`) or a bare 64-char hex id. You MUST fetch
-   the existing code first and modify it — see
-   [references/short-url-api.md](references/short-url-api.md) (§ Modify).
+2. **Modify an existing app** — the request contains a frame URL
+   (`https://framejs.app/j/<uuid>`) or a bare 32-char hex id (or a legacy
+   `https://framejs.io/j/<sha256>` / 64-char id). Whenever you see a framejs
+   URL, extract the uuid from its `/j/<uuid>` path and target THAT frame (pass
+   the URL straight to `--id`). You MUST fetch the existing code first and
+   modify it — see [references/short-url-api.md](references/short-url-api.md) (§
+   Modify). If the URL carries a `?token=<key>` query param (from the app's
+   "Copy frame for AI session" action), pass the whole URL to `--id` (or the key
+   to `--token`): the helper stores it and sends it as the bearer credential so
+   your updates keep working even after the frame's owner has claimed it.
 3. **Visualize local files** — the request references file paths (`./data.csv`,
    `/tmp/results.json`). Upload them and pass as inputs — see
    [references/file-inputs.md](references/file-inputs.md).
@@ -46,14 +55,52 @@ Generate the code, then use the bundled helper (preferred) or the inline-node
 fallback in [references/short-url-api.md](references/short-url-api.md):
 
 ```bash
-cat << 'JSCODE' | node scripts/framejs.mjs create --title "<short title>" --description "<one-sentence summary>" --screenshot
+cat << 'JSCODE' | node scripts/framejs.mjs create --state "${SCRATCHPAD}/framejs-frame.json" --title "<short title>" --description "<one-sentence summary>" --screenshot
 // your generated browser JS here — $vars, backticks, all special chars are safe inside the heredoc
 JSCODE
 ```
 
-The helper prints the `https://framejs.io/j/<sha256>` short URL and opens the
-browser (`--no-open` to skip). Re-run to create a NEW short URL on every update.
+The helper prints (on stdout) two URLs — the primary
+`https://framejs.app/j/<uuid>` page URL and an immutable `snapshot:`
+`https://framejs.io/j/<sha256>` URL. It also prints (on stderr) a **share-link
+lifecycle notice you MUST relay to the user**:
+
+- the **`/j/<uuid>` page** is editable and live-updating, but an **anonymous
+  (unclaimed) frame is temporary and will expire** — tell the user to open it
+  and **claim it** (free account) to keep it permanently;
+- the **`/j/<sha256>` snapshot** is an **immutable** copy of the current app
+  that **expires ~30 days after it is last opened** — a good stable share/backup
+  link, but it never reflects later edits.
+
 Add `--module <url>` for classic scripts and `--input name=value` for inputs.
+
+**One frame per session, updated in place.** Always pass
+`--state "<path in your scratchpad>/framejs-frame.json"` (any writable file
+path). The first `create` mints the frame; **re-run `create` with the same
+`--state` to UPDATE the same frame** — the `/j/<uuid>` URL stays constant and
+any open framejs.app page updates live, so give the URL to the user once. Only
+when the user wants a **separate** app in the same session, add `--new` to start
+a fresh frame (subsequent updates then target that new one). To update one
+specific frame regardless of state, pass `--id <uuid>`. On such an in-place
+update the helper **carries the frame's existing Open Graph data forward
+automatically** when you pass no `--og`/`--title`/`--description`, so a bare
+re-run never drops the title/description (and the retained `og.image` skips a
+redundant re-screenshot). Pass `--title`/`--description` again only to _change_
+the preview copy.
+
+The browser opens automatically only the first time a frame is minted
+(`--no-open` to skip even that). A later update to the same frame — same
+`--state`, or an explicit `--id` — does NOT reopen the browser: the page already
+open reaches it live through the same-frame subscription, so opening again would
+just spawn a redundant new tab.
+
+If a local dev checkout is present, the helper auto-loads its `.env` and targets
+the dev stacks (`FRAMEJS_APP_ORIGIN` / `FRAMEJS_IO_ORIGIN`) instead of
+production — no action needed on your part.
+
+If the helper prints an `out of date` update notice (on stderr, at most hourly),
+relay it to the user verbatim once — their installed skill is behind the latest
+and the notice tells them the one command to update it.
 
 Always pass `--screenshot`: the helper renders the finished app and stores the
 capture as the `og:image` preview. It is self-guarding — it captures ONLY when
@@ -85,8 +132,9 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
 - **Modifying an existing app:** the fetched app already carries `og` (the
   `fetch` command returns it). Do NOT recalculate it — pass the fetched object
   straight back through with `--og '<the fetched og JSON>'`, which preserves
-  every field (including `image`). Only set new `--title`/`--description` if the
-  user explicitly asked to change the preview copy. You can still pass
+  every field (including `image`). Update the SAME frame with `--id <uuid>` (or
+  the same `--state`). Only set new `--title`/`--description` if the user
+  explicitly asked to change the preview copy. You can still pass
   `--screenshot`: if the fetched `og` already has an `image` it is left
   untouched; if it has none, a fresh capture is added.
 
@@ -98,8 +146,13 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   visualization/rendering/widget tools to render the result.
 - NEVER modify `root.style.position`, `root.style.height`, or
   `root.style.width`.
+- **IMPORTANT: the visualization MUST look good on mobile and adapt to that
+  screen size** — use responsive sizing (read `root`'s dimensions / listen for
+  resize), avoid fixed pixel widths that overflow, keep text and touch targets
+  legible on small screens.
 - In automation mode, NEVER output a code block for the user to copy and NEVER
-  build a long URL with the code in the hash — always use the short-URL API.
+  hand-build a long hash URL as the deliverable — always POST through the frame
+  API (the helper's `create`). Give the user the `/j/<uuid>` page URL.
 - In code-block mode, output ONLY the single fenced JavaScript code block —
   nothing else.
 
@@ -107,9 +160,11 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
 
 - [references/coding-guide.md](references/coding-guide.md) — globals, exports,
   patterns, CDN libraries, common mistakes.
-- [references/short-url-api.md](references/short-url-api.md) — create/modify a
-  short URL, Open Graph tags, inline fallbacks.
+- [references/short-url-api.md](references/short-url-api.md) — create/update a
+  frame (`POST /j/<uuid>.json`), one-frame-per-session state, Open Graph tags,
+  API tokens (keep updating after a frame is claimed), inline fallbacks.
 - [references/file-inputs.md](references/file-inputs.md) — upload local files
   and wire them in as inputs.
-- `scripts/framejs.mjs` — Node helper: `create` (stdin JS → short URL),
-  `fetch <id>`, `upload <path>`. Override the host with `FRAMEJS_BASE`.
+- `scripts/framejs.mjs` — Node helper: `create` (stdin JS → framejs.app frame),
+  `fetch <id>`, `upload <path>`. Origins: `FRAMEJS_APP_ORIGIN` /
+  `FRAMEJS_IO_ORIGIN` (auto-loaded from a nearby `.env` in local dev).
