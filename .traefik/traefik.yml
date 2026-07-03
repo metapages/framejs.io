@@ -10,6 +10,11 @@ providers:
     endpoint: "unix:///var/run/docker.sock"
     watch: true
     exposedByDefault: false
+    # Docker provider watches ALL containers on the socket, not just this
+    # compose project. Scope it so it ignores unrelated containers/labels
+    # (e.g. another project's traefik-labeled containers referencing
+    # entrypoints that don't exist here).
+    constraints: "Label(`com.docker.compose.project`, `metaframe-js`)"
 
   file:
     filename: /etc/traefik/config.yml

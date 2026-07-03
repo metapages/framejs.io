@@ -8,6 +8,11 @@ import {
 } from "npm:@aws-sdk/client-s3";
 import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner";
 import { HashParamType } from "@metapages/metapage";
+import {
+  blobFromBase64String,
+  getUrlHashParamsFromHashString,
+  stringFromBase64String,
+} from "@metapages/hash-query";
 import QRCode from "qrcode";
 import {
   computeMetaframeDefinition,
@@ -17,6 +22,11 @@ import {
   stripDefaultHashParams,
 } from "./src/metaframe-definition.ts";
 import { detectEmbed, detectSource, track } from "./src/analytics.ts";
+import {
+  normalizeUuid,
+  resolveSaveUuid,
+  UUID_REGEX,
+} from "./src/frame-uuid.ts";
 
 /** Escape a string for safe use inside an HTML attribute (double-quoted). */
 function escapeHtmlAttr(s: string): string {
@@ -26,12 +36,6 @@ function escapeHtmlAttr(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
-
-/** Matches a canonical UUID (8-4-4-4-12 hex, e.g. from gen_random_uuid()). */
-const UUID_REGEX =
-  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
-
-const normalizeUuid = (id: string): string => id.replaceAll("-", "");
 
 /**
  * Builds the Open Graph <meta> tags for a short-URL page from the decoded
@@ -99,14 +103,14 @@ async function serveShortUrlHtml(
 /**
  * Decodes a raw hash params string (e.g. "?js=abc&inputs=def") into a JSON
  * object with correctly decoded values, using the type metadata from
- * DEFAULT_METAFRAME_DEFINITION (and any user-provided definition).
- *
- * Handles both base64-wrapped encoding (new @metapages/hash-query format)
- * and plain URI-encoded values (old manual format).
+ * DEFAULT_METAFRAME_DEFINITION (and any user-provided definition). All
+ * splitting/decoding is delegated to @metapages/hash-query — the module
+ * @metapages/hash-query's own encoder (jsonToHashParams, above) targets —
+ * rather than hand-rolled parsing, so both directions stay in sync by
+ * construction.
  */
 function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
-  const cleaned = hashParams.startsWith("?") ? hashParams.slice(1) : hashParams;
-  const searchParams = new URLSearchParams(cleaned);
+  const [, hashObject] = getUrlHashParamsFromHashString(hashParams);
 
   // Build type map from default definition
   const typeMap: Record<string, HashParamType> = {};
@@ -118,50 +122,34 @@ function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
   }
 
   // Decode definition (always json type) to discover custom param types
-  const defRaw = searchParams.get("definition");
-  if (defRaw) {
-    try {
-      let def: Record<string, unknown> | undefined;
-      try {
-        def = JSON.parse(decodeURIComponent(atob(defRaw)));
-      } catch {
-        def = JSON.parse(decodeURIComponent(defRaw));
-      }
-      const defHP = (def as Record<string, unknown>)?.hashParams;
-      if (defHP && typeof defHP === "object" && !Array.isArray(defHP)) {
-        for (
-          const [k, v] of Object.entries(
-            defHP as Record<string, { type?: HashParamType }>,
-          )
-        ) {
-          if (!typeMap[k]) {
-            typeMap[k] = v.type || "json";
-          }
+  if (hashObject.definition) {
+    const def = blobFromBase64String(hashObject.definition) as
+      | Record<string, unknown>
+      | undefined;
+    const defHP = def?.hashParams;
+    if (defHP && typeof defHP === "object" && !Array.isArray(defHP)) {
+      for (
+        const [k, v] of Object.entries(
+          defHP as Record<string, { type?: HashParamType }>,
+        )
+      ) {
+        if (!typeMap[k]) {
+          typeMap[k] = v.type || "json";
         }
       }
-    } catch {
-      // ignore decode errors for definition
     }
   }
 
   const result: Record<string, unknown> = {};
 
-  for (const [key, rawValue] of searchParams) {
+  for (const [key, rawValue] of Object.entries(hashObject)) {
     const type = typeMap[key] || "json";
 
     try {
       if (type === "json") {
-        try {
-          result[key] = JSON.parse(decodeURIComponent(atob(rawValue)));
-        } catch {
-          result[key] = JSON.parse(decodeURIComponent(rawValue));
-        }
+        result[key] = blobFromBase64String(rawValue);
       } else if (type === "stringBase64") {
-        try {
-          result[key] = decodeURIComponent(atob(rawValue));
-        } catch {
-          result[key] = rawValue;
-        }
+        result[key] = stringFromBase64String(rawValue);
       } else if (type === "boolean") {
         result[key] = rawValue === "true";
       } else if (type === "number") {
@@ -478,28 +466,6 @@ app.post("/api/shorten/json", async (c) => {
   }
 });
 
-// Mints a time-ordered UUIDv7, matching the client-side mint the framejs skill
-// uses so frames created from the editor sort like those created via the CLI.
-function uuidv7(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  const t = Date.now();
-  bytes[0] = (t / 2 ** 40) & 0xff;
-  bytes[1] = (t / 2 ** 32) & 0xff;
-  bytes[2] = (t / 2 ** 24) & 0xff;
-  bytes[3] = (t / 2 ** 16) & 0xff;
-  bytes[4] = (t / 2 ** 8) & 0xff;
-  bytes[5] = t & 0xff;
-  bytes[6] = (bytes[6] & 0x0f) | 0x70; // version 7
-  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
-    "",
-  );
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${
-    hex.slice(16, 20)
-  }-${hex.slice(20)}`;
-}
-
 // Save the current editor state as a mutable framejs.app frame. The body is the
 // editor's current hash-param string plus an optional existing frame `id`:
 //   - with a uuid `id` (page loaded from /j/<uuid>): update that frame in place
@@ -523,10 +489,13 @@ app.post("/api/frame", async (c) => {
       return c.json({ error: "Nothing to save: missing js" }, 400);
     }
 
-    const uuid = id && UUID_REGEX.test(id) ? id : uuidv7();
+    // The uuid slug is canonically dashless (matches framejs.app's /j/:uuid
+    // route spec) — resolveSaveUuid normalizes once so every use below,
+    // including the URL handed back to the browser, stays in that form.
+    const uuid = resolveSaveUuid(id);
 
     const response = await fetch(
-      `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json`,
+      `${FRAMEJS_APP_ORIGIN}/j/${uuid}.json`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -536,7 +505,6 @@ app.post("/api/frame", async (c) => {
 
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
-      await response.body?.cancel();
       console.error("Save frame failed:", response.status, detail);
       return c.json(
         { error: "Failed to save frame", status: response.status },
