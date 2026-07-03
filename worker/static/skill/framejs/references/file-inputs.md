@@ -54,8 +54,8 @@ Inputs are DataRef objects with `type` and `value`. For uploaded files use type
 }
 ```
 
-Pass `inputs` in the short-URL body alongside `js` (see `short-url-api.md`).
-With the helper script:
+Pass `inputs` in the frame body alongside `js` (see `short-url-api.md`). With
+the helper script:
 
 ```bash
 cat app.js | node scripts/framejs.mjs create \
@@ -86,5 +86,5 @@ export function onInputs(inputs) {
 }
 ```
 
-**Upload files BEFORE building the short URL** — you need the upload URLs to
+**Upload files BEFORE creating the frame** — you need the upload URLs to
 populate `inputs`.

@@ -139,7 +139,7 @@ d3.select(root).append("svg").attr("width", 500);
 ### Classic scripts (NOT ES6 — go in the `modules` array, not an import)
 
 Some libraries are classic scripts that attach globals rather than ES6 modules.
-Put their URLs in the `modules` array of the short-URL body (see
-`short-url-api.md`) instead of `import`-ing them:
+Put their URLs in the `modules` array of the frame body (see `short-url-api.md`)
+instead of `import`-ing them:
 
 - 3Dmol.js: `https://3dmol.org/build/3Dmol-min.js`

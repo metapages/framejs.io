@@ -127,4 +127,18 @@ try {
   console.warn(`  skipped tarball (${e.message})`);
 }
 
+// --- version manifest (served at /skill/version.json) -------------------------
+// Single source of truth: the SKILL.md `version` frontmatter. The installed
+// helper fetches this hourly to nudge users whose copy is behind the latest.
+// Sibling of framejs/, so it is NOT bundled into the tarball (the installed
+// copy's own version comes from its shipped SKILL.md).
+const fm = (read("SKILL.md").match(/^---\n([\s\S]*?)\n---/) || [])[1] || "";
+const version = (fm.match(/^\s*version:\s*"?([^"\n]+?)"?\s*$/m) || [])[1];
+if (!version) {
+  console.warn("  skipped skill/version.json (no version in SKILL.md frontmatter)");
+} else {
+  write("skill/version.json", JSON.stringify({ version }));
+  console.log(`  (skill version v${version})`);
+}
+
 console.log("Done. Generated artifacts from worker/static/skill/framejs/.");

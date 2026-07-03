@@ -218,9 +218,15 @@ const S3_UPLOAD_MAX_SIZE_MB = parseInt(
 // Backend that resolves a frame UUID to its hash-param values. The /j/:uuid
 // route fetches `${FRAMEJS_APP_ORIGIN}/<uuid>` and expects a JSON object of hash
 // param values (e.g. {js, modules, inputs, og}) on a 200 response.
+const FRAMEJS_APP_ORIGIN_DEFAULT = "https://framejs.app";
 const FRAMEJS_APP_ORIGIN = (
-  Deno.env.get("FRAMEJS_APP_ORIGIN") || "http://framejs.app"
+  Deno.env.get("FRAMEJS_APP_ORIGIN") || FRAMEJS_APP_ORIGIN_DEFAULT
 ).replace(/\/$/, "");
+if (FRAMEJS_APP_ORIGIN !== FRAMEJS_APP_ORIGIN_DEFAULT) {
+  console.log(
+    `⚙ FRAMEJS_APP_ORIGIN overridden → ${FRAMEJS_APP_ORIGIN} (default: ${FRAMEJS_APP_ORIGIN_DEFAULT})`,
+  );
+}
 
 const getPublicUrl = (id: string) => {
   return `${S3_PUBLIC_URL}/${id}`;
@@ -469,6 +475,85 @@ app.post("/api/shorten/json", async (c) => {
   } catch (error) {
     console.error("Shorten JSON error:", error);
     return c.json({ error: "Failed to shorten URL" }, 500);
+  }
+});
+
+// Mints a time-ordered UUIDv7, matching the client-side mint the framejs skill
+// uses so frames created from the editor sort like those created via the CLI.
+function uuidv7(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const t = Date.now();
+  bytes[0] = (t / 2 ** 40) & 0xff;
+  bytes[1] = (t / 2 ** 32) & 0xff;
+  bytes[2] = (t / 2 ** 24) & 0xff;
+  bytes[3] = (t / 2 ** 16) & 0xff;
+  bytes[4] = (t / 2 ** 8) & 0xff;
+  bytes[5] = t & 0xff;
+  bytes[6] = (bytes[6] & 0x0f) | 0x70; // version 7
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+    "",
+  );
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${
+    hex.slice(16, 20)
+  }-${hex.slice(20)}`;
+}
+
+// Save the current editor state as a mutable framejs.app frame. The body is the
+// editor's current hash-param string plus an optional existing frame `id`:
+//   - with a uuid `id` (page loaded from /j/<uuid>): update that frame in place
+//   - without one (raw hash params or legacy /j/<sha256>): mint a new frame
+// The hash params are decoded to the {js, modules, inputs, og, ...} JSON shape
+// framejs.app's `POST /j/<uuid>.json` expects and forwarded server-side (no CORS
+// from the browser). Returns the stable framejs.app page URL to navigate to.
+app.post("/api/frame", async (c) => {
+  try {
+    const { hashParams, id } = (await c.req.json()) as {
+      hashParams?: string;
+      id?: string;
+    };
+
+    if (!hashParams) {
+      return c.json({ error: "Missing required field: hashParams" }, 400);
+    }
+
+    const frameJson = decodeHashParamsToJson(hashParams);
+    if (!frameJson.js) {
+      return c.json({ error: "Nothing to save: missing js" }, 400);
+    }
+
+    const uuid = id && UUID_REGEX.test(id) ? id : uuidv7();
+
+    const response = await fetch(
+      `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(frameJson),
+      },
+    );
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      await response.body?.cancel();
+      console.error("Save frame failed:", response.status, detail);
+      return c.json(
+        { error: "Failed to save frame", status: response.status },
+        response.status === 403 ? 403 : 502,
+      );
+    }
+    await response.body?.cancel();
+
+    track(c, { name: "save-frame", source: detectSource(c) });
+
+    return c.json({
+      id: uuid,
+      url: `${FRAMEJS_APP_ORIGIN}/j/${uuid}`,
+    });
+  } catch (error) {
+    console.error("Save frame error:", error);
+    return c.json({ error: "Failed to save frame" }, 500);
   }
 });
 

@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { ButtonCopyExternalLink } from "./components/ButtonCopyExternalLink";
+import { ButtonSaveFrame } from "./components/ButtonSaveFrame";
 import { ButtonShortenUrl } from "./components/ButtonShortenUrl";
 
 export const capitalize = (str: string): string => {
@@ -106,7 +107,6 @@ export const MainHeader: React.FC = () => {
           () => setShownPanel(shownPanel === "settings" ? null : "settings"),
           true,
         )}
-        <ButtonShortenUrl iconSize={iconSize} iconPadding={iconPadding} />
         {icon(FilePlusIcon, "Embed File", () => triggerFileUpload(), true)}
         {icon(
           MagicWandIcon,
@@ -121,14 +121,17 @@ export const MainHeader: React.FC = () => {
           "docs",
           () => {
             const docsUrl = `${window.location.origin}/docs/`;
-            (window.top || window).open(
-              docsUrl,
-              "_blank",
-              "noopener,noreferrer",
-            );
+            // Open from `window`, not `window.top`: `window.top` is always a
+            // truthy Window (so `|| window` never fires), and when the editor is
+            // embedded cross-origin (e.g. framejs.app) reading `.open` off the
+            // cross-origin top frame throws a SecurityError. `_blank` already
+            // opens a top-level tab from inside the iframe.
+            window.open(docsUrl, "_blank", "noopener,noreferrer");
           },
           true,
         )}
+        <ButtonShortenUrl iconSize={iconSize} iconPadding={iconPadding} />
+        <ButtonSaveFrame iconSize={iconSize} iconPadding={iconPadding} />
         {icon(XIcon, "close", () => setEdit(false))}
       </HStack>
     </HStack>

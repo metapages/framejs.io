@@ -50,9 +50,12 @@ export const ButtonShortenUrl: React.FC<{
     try {
       setLoading(true);
 
-      // Get current hash params and remove "edit"
+      // Get current hash params and remove "edit" and "hm" (the edit-button
+      // visibility setting) so a shortened URL never forces the edit button
+      // to stay visible.
       let hash = window.location.hash.slice(1); // Remove leading "#"
       hash = setHashParamValueInHashString(hash, "edit", undefined);
+      hash = setHashParamValueInHashString(hash, "hm", undefined);
 
       // Merge metaframe inputs (received via onInputs) into hash params
       let newInputs = getHashParamValueJsonFromWindow<

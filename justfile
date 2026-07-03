@@ -68,9 +68,25 @@ build-skill:
     # Format generated markdown so it matches `just fmt` output — keeps the two idempotent and prevents fmt from ever rewriting (or re-breaking) generated files
     deno fmt worker/static/command-js.md worker/static/llms-prompt.md > /dev/null
 
-# Validate the framejs Agent Skill (spec compliance + regenerates artifacts)
+# Validate the framejs Agent Skill (spec compliance + regenerates artifacts) and
+# exercise the helper's create/update/state/env flow against a local stub.
 check-skill: build-skill
     node scripts/validate-skill.mjs
+    node scripts/test-skill-helper.mjs
+
+# Symlink the skill into a skills dir for live local-stack testing (default
+# ~/.claude/skills). Edits become live; the helper then auto-targets the local
+# dev stacks via this repo's .env. See worker/static/skill/README.md.
+dev-install-skill dir="~/.claude/skills":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target="${dir/#\~/$HOME}"
+    src="{{ justfile_directory() }}/worker/static/skill/framejs"
+    mkdir -p "$target"
+    rm -rf "$target/framejs"
+    ln -s "$src" "$target/framejs"
+    echo -e "{{ green }}Symlinked{{ normal }} $target/framejs -> $src"
+    echo "Restart your agent so it reloads SKILL.md."
 
 # deno deploy to framejs.io
 deploy: build
