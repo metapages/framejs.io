@@ -262,12 +262,67 @@ test("GET /api/j/:sha256 strips a default param from an already-stored URL", asy
 });
 
 // ---------------------------------------------------------------------------
-// Browser tests – edit button exits short URL mode
+// Browser tests – edit button behaviour differs by short URL form
+//
+// There are two short URL forms with two different edit behaviours:
+//
+//   • sha256 (64 hex chars, minted by /api/shorten/json): backed by THIS
+//     worker's S3 store. Clicking edit expands the stored hash params in place
+//     and navigates to `<origin>/#...&edit=true`, exiting short-URL mode so the
+//     local editor takes over. Stays on the same origin.
+//
+//   • uuid (8-4-4-4-12 hex, backed by framejs.app): clicking edit hands off to
+//     framejs.app by opening the canonical short URL with `#?edit=true`. When
+//     embedded (the production case) it uses window.open into a new tab; the
+//     handoff target is a DIFFERENT origin (framejs.app) and the /j/:uuid path
+//     is preserved rather than expanded.
 // ---------------------------------------------------------------------------
 
-test("clicking edit on a short URL hands off to the editor in a new tab", async ({
+test("sha256 short URL: clicking edit expands the hash in place on the same origin", async ({
   page,
 }) => {
+  // /api/shorten/json mints a sha256 short URL.
+  const { id } = await createShortUrl(
+    page.request,
+    'document.getElementById("root").textContent = "edit test";',
+  );
+  expect(id).toMatch(/^[a-f0-9]{64}$/);
+
+  await page.goto(`/j/${id}`);
+  await page.waitForLoadState("load");
+
+  // Confirm we're on the short URL
+  expect(new URL(page.url()).pathname).toBe(`/j/${id}`);
+
+  // Click the edit button → the sha256 branch expands the stored hash params
+  // in place and navigates to the root with edit=true (no framejs.app handoff).
+  await page.click("#menu-button");
+
+  await page.waitForURL(
+    (url) => url.pathname === "/" && url.hash.includes("edit=true"),
+    { timeout: 10_000 },
+  );
+
+  const url = new URL(page.url());
+  expect(url.origin).toBe(new URL(page.url()).origin); // stayed on the worker origin
+  expect(url.pathname).toBe("/");
+  expect(url.hash).toContain("js=");
+  expect(url.hash).toContain("edit=true");
+
+  // The expanded URL is a fresh load at `/` — no longer in short URL mode.
+  const shortUrlId = await page.evaluate(() => window.__SHORT_URL_ID);
+  expect(shortUrlId).toBeUndefined();
+});
+
+test("uuid short URL: clicking edit hands off to framejs.app via window.open", async ({
+  page,
+}) => {
+  // The test stack cannot mint a real uuid short URL page (that requires the
+  // framejs.app backend, which is unreachable here). Instead we load the app
+  // fully wired inside a same-origin iframe (so isIframe() is true, matching the
+  // production embed) and re-point its short-URL id to a uuid. The edit handler
+  // reads window.__SHORT_URL_ID at click time, so this exercises the real uuid
+  // branch of onMenuClick.
   const { id } = await createShortUrl(
     page.request,
     'document.getElementById("root").textContent = "edit test";',
@@ -276,32 +331,60 @@ test("clicking edit on a short URL hands off to the editor in a new tab", async 
   await page.goto(`/j/${id}`);
   await page.waitForLoadState("load");
 
-  // Confirm we're on the short URL
-  expect(new URL(page.url()).pathname).toBe(`/j/${id}`);
+  const uuid = "12345678-1234-4234-8234-123456789abc";
+  const uuidNoDashes = uuid.replace(/-/g, "");
 
-  // Capture window.open: in short-URL mode the edit button hands off to
-  // framejs.app by opening the canonical short URL with #?edit=true in a new
-  // tab (it does NOT expand the hash in place). We stub window.open because the
-  // framejs.app origin is not reachable in the test stack — we only care that
-  // the app *requests* the correct handoff URL.
-  await page.evaluate(() => {
-    window.__openCalls = [];
-    window.open = (url?: string | URL) => {
-      window.__openCalls!.push(String(url ?? ""));
-      return null;
-    };
-  });
+  const result = await page.evaluate(
+    async ({ path, uuid }) => {
+      // Embed the same short-URL app in a same-origin iframe.
+      const iframe = document.createElement("iframe");
+      iframe.src = path;
+      const loaded = new Promise<void>((res) => {
+        iframe.onload = () => res();
+      });
+      document.body.appendChild(iframe);
+      await loaded;
 
-  await page.click("#menu-button");
+      const cw = iframe.contentWindow as any;
 
-  const openCalls = await page.evaluate(() => window.__openCalls);
-  expect(openCalls).toHaveLength(1);
-  const handoffUrl = new URL(openCalls![0]);
-  expect(handoffUrl.pathname).toBe(`/j/${id}`);
+      // Wait until the iframe app has finished its short-URL init (the module
+      // script awaits __SHORT_URL_READY, then sets __SHORT_URL_HASH_PARAMS).
+      const start = Date.now();
+      while (cw.__SHORT_URL_HASH_PARAMS === undefined) {
+        if (Date.now() - start > 10_000) throw new Error("iframe app not ready");
+        await new Promise((r) => setTimeout(r, 50));
+      }
+
+      // Re-point the short URL id to a uuid and capture the handoff.
+      cw.__SHORT_URL_ID = uuid;
+      const openCalls: string[] = [];
+      cw.open = (url?: string) => {
+        openCalls.push(String(url ?? ""));
+        return null;
+      };
+
+      cw.document.getElementById("menu-button").click();
+
+      return {
+        openCalls,
+        framejsAppOrigin: cw.__FRAMEJS_APP_ORIGIN,
+        // the iframe path is preserved (uuid handoff does not expand in place)
+        stillShortUrlId: cw.__SHORT_URL_ID,
+      };
+    },
+    { path: `/j/${id}`, uuid },
+  );
+
+  // window.open was called exactly once with the framejs.app handoff URL.
+  expect(result.openCalls).toHaveLength(1);
+  const handoffUrl = new URL(result.openCalls[0]);
+  // Handoff targets framejs.app — a DIFFERENT origin than this worker.
+  expect(handoffUrl.origin).toBe(new URL(result.framejsAppOrigin).origin);
+  expect(handoffUrl.origin).not.toBe(new URL(page.url()).origin);
+  // Canonical short URL preserved with dashes stripped, plus #?edit=true.
+  expect(handoffUrl.pathname).toBe(`/j/${uuidNoDashes}`);
   expect(handoffUrl.hash).toContain("edit=true");
 
-  // The original page stays on the short URL and in short URL mode.
-  expect(new URL(page.url()).pathname).toBe(`/j/${id}`);
-  const shortUrlId = await page.evaluate(() => window.__SHORT_URL_ID);
-  expect(shortUrlId).toBe(id);
+  // Handoff does not exit short URL mode on the source page.
+  expect(result.stillShortUrlId).toBe(uuid);
 });
