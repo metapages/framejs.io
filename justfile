@@ -158,7 +158,10 @@ _integration-test: _mkcert
 
     # Wait for server to be ready
     echo "Waiting for dev server at https://{{ APP_FQDN }}:{{ APP_PORT }}..."
-    timeout 90 bash -c 'until curl -skf "https://{{ APP_FQDN }}:{{ APP_PORT }}" >/dev/null 2>&1; do sleep 2; done'
+    if ! timeout 90 bash -c 'until curl -skf "https://{{ APP_FQDN }}:{{ APP_PORT }}" >/dev/null 2>&1; do sleep 2; done'; then
+      echo "❌ Dev server did not become ready within 90s"
+      exit 1
+    fi
     echo "Dev server ready."
 
     # Run playwright integration tests

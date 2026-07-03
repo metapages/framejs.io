@@ -10,13 +10,16 @@ dev:
     deno run --allow-all HTTPS://deno.land/x/metapages@v0.0.17/exec/open_url.ts https://metapages.github.io/load-page-when-available/?url=http://${APP_FQDN}:${SERVER_PORT}
     PORT={{SERVER_PORT}} APP_FQDN={{APP_FQDN}} deno run --watch -A ./server.ts
     
-check: test
-
 # Format TypeScript
 @fmt:
     deno fmt .
 
 # Quick type check
-@test:
+@check:
     deno check server.ts
     echo "✅ worker typescript compilation"
+
+# Type check plus unit tests
+test: check
+    deno test --allow-all src/
+    echo "✅ worker unit tests"
