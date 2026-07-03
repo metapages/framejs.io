@@ -22,3 +22,6 @@ worker/static/llms-claude-code.txt
 
 #dependencies
 **/node_modules
+
+# Playwright local test run cache
+test/test-results/
