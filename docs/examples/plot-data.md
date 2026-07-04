@@ -4,10 +4,10 @@
 
 > /js Create an interactive visualization of world population and individual country population over time
 
-## Result <a href="https://framejs.io/j/f78d4225732a192149f431d01d256d076af35dfff71966cc33defe13c2a0cf64" target="_blank" rel="noopener noreferrer">↗</a>
+## Result <a href="https://framejs.io/j/019f2b54c3bf7303a8c562b8c34c86f5" target="_blank" rel="noopener noreferrer">↗</a>
 
 <iframe
-  src="https://framejs.io/j/f78d4225732a192149f431d01d256d076af35dfff71966cc33defe13c2a0cf64"
+  src="https://framejs.io/j/019f2b54c3bf7303a8c562b8c34c86f5"
   width="100%"
   height="500"
   frameborder="0"

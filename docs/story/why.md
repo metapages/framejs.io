@@ -70,10 +70,10 @@ I think there's a version of the web that leans into this shape. Where the small
 With the development of tools such as Claude Code, creating self-contained websites is now available to everyone with a voice.
 
 
-## Example <a href="https://framejs.io/j/8e5d5eed5c3fda9c5094b186169feadecde2bf007fcd58b7fa0df52e3e3c34be" target="_blank" rel="noopener noreferrer">↗</a>
+## Example <a href="https://framejs.io/j/019f2b53304f788d9fe1d00556489768" target="_blank" rel="noopener noreferrer">↗</a>
 
 <iframe
-  src="https://framejs.io/j/8e5d5eed5c3fda9c5094b186169feadecde2bf007fcd58b7fa0df52e3e3c34be"
+  src="https://framejs.io/j/019f2b53304f788d9fe1d00556489768"
   width="100%"
   height="500"
   frameborder="0"

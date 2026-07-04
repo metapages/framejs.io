@@ -3,12 +3,12 @@
 
 ## [Prompt](../ai/setup#install-js-command)
 
-> /js Create an interactive 3D globe that highlights countries on hover with population and fertility, when none are selected use the global values
+> create an interactive 3D globe that highlights countries on hover with population and fertility, when none are selected use the global values
 
-## Result <a href="https://framejs.io/j/47f35f9803e4949bbc3c4a6ae7f7e854e8e342c1d5a0c312a733f0d13bcee457" target="_blank" rel="noopener noreferrer">↗</a>
+## Result <a href="https://framejs.io/j/019f2b40f2a97d68a14ae3d997e37de4" target="_blank" rel="noopener noreferrer">↗</a>
 
 <iframe
-  src="https://framejs.io/j/47f35f9803e4949bbc3c4a6ae7f7e854e8e342c1d5a0c312a733f0d13bcee457"
+  src="https://framejs.io/j/019f2b40f2a97d68a14ae3d997e37de4"
   width="100%"
   height="500"
   frameborder="0"

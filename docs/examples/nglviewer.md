@@ -8,10 +8,10 @@
 
 _No local files — created entirely from the prompt._
 
-## Result <a href="https://framejs.io/j/6a549a9e3b64e73a2ed6481b36c25b1f694c436275e698366a29b7e47c8b4dd8" target="_blank" rel="noopener noreferrer">↗</a>
+## Result <a href="https://framejs.io/j/019f2b54229677d58ea02ceba744a5b8" target="_blank" rel="noopener noreferrer">↗</a>
 
 <iframe
-  src="https://framejs.io/j/6a549a9e3b64e73a2ed6481b36c25b1f694c436275e698366a29b7e47c8b4dd8"
+  src="https://framejs.io/j/019f2b54229677d58ea02ceba744a5b8"
   width="100%"
   height="500"
   frameborder="0"

@@ -9,13 +9,13 @@ const { Layout } = DefaultTheme;
     <template #home-hero-image>
       <div class="hero-iframe-container">
         <iframe
-          src="https://framejs.io/j/8e5d5eed5c3fda9c5094b186169feadecde2bf007fcd58b7fa0df52e3e3c34be"
+          src="https://framejs.io/j/019f2b53304f788d9fe1d00556489768"
           class="hero-iframe"
           frameborder="0"
           allow="clipboard-read; clipboard-write"
         ></iframe>
         <p class="hero-tagline-line">
-          URL: <a href="https://framejs.io/j/8e5d5eed5c3fda9c5094b186169feadecde2bf007fcd58b7fa0df52e3e3c34be"><span class="highlight">https://framejs.io/j/8e5d5eed5c...</span></a>
+          URL: <a href="https://framejs.io/j/019f2b53304f788d9fe1d00556489768"><span class="highlight">https://framejs.io/j/8e5d5eed5c...</span></a>
         </p>
         <p class="hero-tagline-line">
           The URL shareable and editable <span class="highlight"><a href="/docs/guide/ai">(with AI)</a></span> 

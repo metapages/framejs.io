@@ -2,16 +2,54 @@
 
 Since all code and state is stored in the URL hash, metaframe URLs can get very long. The built-in URL shortener compresses these into compact, shareable links.
 
-## How it works
+There are two forms of short URL persistence:
+ - Expiring immutable URLs
+ - Durable editable URLs
 
-1. Click the **Save and Shorten** button in the editor header ![](./shorten-url-button.png)
+## Howto: Expiring immutable URLs
+
+1. Click the **Save and Shorten** button in the editor header ![](./shorten-url-sha256-button.png)
 2. The current hash parameters (code, inputs, options) are stored in [R2](https://www.cloudflare.com/developer-platform/products/r2/) 
-4. You get a short URL `framejs.io/j/<SHA256-based short ID>` e.g `https://framejs.io/j/8a3b1c9f...`
-5. Open Graph title, description, and image are supported for nice bookmarks and previews
+3. You get a short URL `framejs.io/j/<SHA256-based short ID>`
+4. Title, description, and image are supported for nice bookmarks and previews
 
 The short URL is automatically copied to your clipboard.
 
-The content is immutable and we currently have no plans to expire the content. Possibly the large blobs may eventually be expired, but the code likely never. If the blobs ever do expire, it will be a human comfortable length of time: at least a month.
+The content is immutable — the same content always produces the same short URL.
+Short URLs are a **free convenience snapshot, kept for a month** and then garbage-collected. They are perfect for quick sharing, previews, and QR codes. If you need a link that lasts, save the content to a durable **Frame** on [framejs.app](https://framejs.app) — see below and 
+[Persistence & Data Retention](/guide/persistence) for the full retention model
+across every kind of URL.
+
+## Howto: Durable editable URLs
+
+1. Click the **Save to framejs.app** button in the editor header ![](./shorten-url-uuid-button.png)
+2. The current hash parameters (code, inputs, options) are persisted
+3. The durable editable short URL `framejs.app/j/<uuid>` opens
+4. You can claim this URL for your account if authenticated
+
+
+## Longer discussion between the two short-URL forms: `/j/<sha256>` vs `/j/<uuid>`
+
+Both forms look alike — `framejs.io/j/…` and `framejs.app/j/…` — but they make
+**very different persistence promises**. The **Save & Shorten** button above
+creates the ephemeral `sha256` form; saving into an account creates the durable
+`uuid` form.
+
+| | `framejs.io/j/<sha256>` | `framejs.app/j/<uuid>` |
+|--|--------------------------|-------------------------|
+| **Identifier** | SHA-256 of the content (content-addressed) | Random UUID (a stable document handle) |
+| **Backed by** | Immutable blob in object storage (R2) | Versioned rows in a database, tied to an account |
+| **Mutable?** | No — different content always yields a different URL | Yes — the same URL, edited over time (append-only version history) |
+| **Account?** | None required | Owned by an account (free tier included) |
+| **Persistence** | Free, best-effort, kept **~30 days**, then garbage-collected | **Durable & guaranteed** while the account is active |
+| **Best for** | Quick sharing, previews, QR codes, paste-into-chat | Anything you need to keep, keep editing, or make private |
+
+In short: **`sha256` is a disposable snapshot; `uuid` is a durable document.**
+You get the best of both by pinning an exact immutable version of a durable Frame
+with `framejs.app/j/<uuid>?sha256=<version>` — a stable handle *and* an
+unchanging snapshot. Public pinned versions are kept on the long-term
+("human-permanent") lifecycle. See
+[Persistence & Data Retention](/guide/persistence) for the complete model.
 
 ## Example
 
@@ -154,5 +192,7 @@ curl -L https://framejs.io/f/abcd1234...
 ```
 
 ::: tip
-Short URLs are content-addressed — the same code always produces the same short URL. They never expire.
+Short URLs are content-addressed — the same code always produces the same short
+URL. They are free and kept for about a month; for a link that lasts, save it to
+a durable [Frame](/guide/persistence).
 :::

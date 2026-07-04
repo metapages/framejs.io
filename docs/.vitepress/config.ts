@@ -32,6 +32,7 @@ export default withMermaid(
             { text: "JavaScript API", link: "/guide/javascript-api" },
             { text: "URL State", link: "/guide/url-state" },
             { text: "Short URLs", link: "/guide/short-urls" },
+            { text: "Persistence & Retention", link: "/guide/persistence" },
             { text: "Embedding", link: "/guide/embedding" },
             { text: "Rendering in a Website", link: "/guide/rendering" },
           ],
@@ -85,6 +86,10 @@ export default withMermaid(
             {
               text: "What problems is this solving",
               link: "/story/why",
+            },
+            {
+              text: "Open Infrastructure & FAIR",
+              link: "/story/open-infrastructure",
             },
           ],
         },
