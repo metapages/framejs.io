@@ -8,31 +8,31 @@ Browse examples built with framejs.io. Each one includes the AI prompt used to c
 
 <ExamplesGrid :examples="[
   {
-    embedUrl: 'https://framejs.io/j/8e5d5eed5c3fda9c5094b186169feadecde2bf007fcd58b7fa0df52e3e3c34be',
+    embedUrl: 'https://framejs.io/j/019f2b53304f788d9fe1d00556489768',
     link: '/docs/examples/multi-demo'
   },
   {
-    embedUrl: 'https://framejs.io/j/9af8d1c7cbca86767a901b2968ccf06d458e177127984a4c9321f0a65dc626c8',
+    embedUrl: 'https://framejs.io/j/019f2b5190d77138a597414c7d4f4391',
     link: '/docs/examples/data-dashboard'
   },
   {
-    embedUrl: 'https://framejs.io/j/f78d4225732a192149f431d01d256d076af35dfff71966cc33defe13c2a0cf64',
+    embedUrl: 'https://framejs.io/j/019f2b54c3bf7303a8c562b8c34c86f5',
     link: '/docs/examples/plot-data'
   },
   {
-    embedUrl: 'https://framejs.io/j/8c6a0119bddd831cf4d87d252d56144ceb33a3a133b78151de9cabe4481cb75e',
+    embedUrl: 'https://framejs.io/j/019f2b55e1f57722af0293acbda78362',
     link: '/docs/examples/scientific-visualization'
   },
   {
-    embedUrl: 'https://framejs.io/j/69a1461a7ec981c3d215b8c7ce69ae7037012677c3257be4a904ecb503ddba77',
+    embedUrl: 'https://framejs.io/j/019f2b50e34b78afbc3dd0941f10388e',
     link: '/docs/examples/cytoscape'
   },
   {
-    embedUrl: 'https://framejs.io/j/6a549a9e3b64e73a2ed6481b36c25b1f694c436275e698366a29b7e47c8b4dd8',
+    embedUrl: 'https://framejs.io/j/019f2b54229677d58ea02ceba744a5b8',
     link: '/docs/examples/nglviewer'
   },
   {
-    embedUrl: 'https://framejs.io/j/f8f6bc83ce98c2acf6190a6b53396057379ab1bd6140e5498c90786e4016cf8e',
+    embedUrl: 'https://framejs.io/j/019f2b40f2a97d68a14ae3d997e37de4',
     link: '/docs/examples/globe'
   }
 ]" />

@@ -1,9 +1,11 @@
 
 # What is framejs.io?
 
-[framejs.io](https://framejs.io) is an embeddable, editable web app. 
+[framejs.io](https://framejs.io) is an open-source, embeddable, editable web app.
 
-It is designed for embedding code safely anywhere, creating custom, editable dashboards, widgets, notebook components, shareable visualizations, editable apps, and more. It is open-source, and aims to be a user-centric web primitive.
+Designed to be as simple to create and modify with AI tools.
+
+You can embed code safely anywhere, creating custom, editable dashboards, widgets, notebook components, visualizations, editable apps, and more. It is open-source, and aims to be a user-first web primitive. It looks good and is self-descriptive wherever you paste it.
 
 <p class="feature-link"><a href="/docs/examples/">Examples &rarr;</a></p>
 
@@ -22,7 +24,7 @@ show a range of ways of visualization using framejs.io platform with a slider
 
 <div class="feature-embed">
 <iframe
-  src="https://framejs.io/j/8e5d5eed5c3fda9c5094b186169feadecde2bf007fcd58b7fa0df52e3e3c34be"
+  src="https://framejs.io/j/019f2b53304f788d9fe1d00556489768"
   width="100%"
   height="350"
   frameborder="0"
@@ -40,7 +42,10 @@ show a range of ways of visualization using framejs.io platform with a slider
 Paste a URL into any platform that supports embeds — Notion, Obsidian, Confluence, Google Docs, Jupyter notebooks, your own website. It just works.
 
 ```html
-<iframe src="https://framejs.io/j/9af8d1c..." width="100%" height="400"></iframe>
+<iframe src="https://framejs.io/j/019f2b53304f788d9fe1d00556489768"
+  width="100%"
+  height="400">
+</iframe>
 ```
 
 <div class="embed-targets">
@@ -55,9 +60,9 @@ Paste a URL into any platform that supports embeds — Notion, Obsidian, Conflue
 
 ---
 
-## Open Graph Previews
+## Embed Previews ([Open Graph](https://ogp.me/))
 
-Links render with a title, description, and preview image in Slack, Discord, social media, and anywhere else that supports Open Graph. Set these in the editor's Settings panel.
+Links render with a title, description, and preview image in Slack, Discord, social media, and anywhere else that supports Open Graph. When created with AI these are automatically generated, and you can manually edit these in the editor's Settings panel.
 
 <div class="og-preview-card">
   <div class="og-image-placeholder">
@@ -79,13 +84,19 @@ All code and state lives in the URL. Copy it, send it, bookmark it — anyone wi
     <code>https://framejs.io/#?js=...</code>
   </div>
   <div class="url-example">
-    <span class="url-label">Short URL</span>
+    <span class="url-label">Short URL that expires:</span>
     <code>https://framejs.io/j/8e5d5eed5c...</code>
+  </div>
+  <div class="url-example">
+    <span class="url-label">Short URL that persists:</span>
+    <code>https://framejs.app/j/8e5d5eed5c...</code>
   </div>
 </div>
 
 ::: tip No accounts, no servers
-There is no login. The URL *is* the program. Short URLs are immutable content-addressed hashes — they never change or expire.
+For short URLs at `framejs.io/j/...` there is no login. The URL *is* the program. Short URLs are immutable content-addressed hashes where the same content always yields the same link. Free
+short URLs are kept for about a month; for guaranteed, durable persistence, save
+to a [Frame](/guide/persistence).
 :::
 
 <p class="feature-link"><a href="/docs/guide/short-urls">Short URLs &rarr;</a></p>
