@@ -144,6 +144,11 @@
       .root-with-editor {
         display: none !important;
       }
+
+      /* Editor is full-width on mobile, so there is no boundary to drag. */
+      #editor-resize-handle {
+        display: none !important;
+      }
     }
 
     .editor-container-hidden {
@@ -270,6 +275,55 @@
     .invisible-until-hover:hover {
       opacity: 1;
       /* Make the element fully opaque (visible) when hovered */
+    }
+
+    /**
+     * Draggable divider between the rendered output (#root) and the editor
+     * pane (#editor-root). It sits on the boundary — its `right` offset is kept
+     * in sync with the editor width in JS. This is also the escape hatch when
+     * the editor is set too narrow to reach the width setting: the strip is
+     * always grabbable regardless of how narrow the editor is.
+     */
+    #editor-resize-handle {
+      position: absolute;
+      top: 0;
+      height: 100vh;
+      width: 10px;
+      z-index: 4;
+      cursor: col-resize;
+      display: none;
+      background: transparent;
+      /* `right` is set in JS to match the current editor width */
+    }
+
+    #editor-resize-handle::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 100%;
+      width: 1px;
+      background: #d0d0d0;
+      transition: background 0.15s, width 0.15s;
+    }
+
+    #editor-resize-handle:hover::after,
+    #editor-resize-handle.dragging::after {
+      background: #2563eb;
+      width: 3px;
+    }
+
+    /* While dragging: show the resize cursor everywhere and stop the editor
+       iframe / output from swallowing the mousemove events. */
+    body.resizing {
+      cursor: col-resize;
+      user-select: none;
+    }
+
+    body.resizing #editor-root,
+    body.resizing #root {
+      pointer-events: none;
     }
     </style>
   </head>
@@ -472,6 +526,10 @@ frame();</code></pre>
       id="editor-root"
       class="editor-container-hidden borderDashedPurple transparent"
     ></div>
+
+    <!-- Draggable divider between the output and the editor pane. Hidden until
+         edit mode; positioned/shown by applyEditorLayout(). -->
+    <div id="editor-resize-handle"></div>
 
     <!-- Service Worker Registration and Configuration -->
     <script id="service-worker-setup" type="module">
@@ -1590,6 +1648,94 @@ frame();</code></pre>
       document.head.appendChild(element);
     };
 
+    // Resolve the effective editor width from the parsed hash params, applying
+    // the "80ch" default and the bare-number -> ch coercion.
+    const getEditorWidthFromParams = (hashParams) => {
+      let editorWidth = hashParams["editorWidth"] || "80ch";
+      // If the last character is a number, assume 'ch' units.
+      if (/\d$/.test(editorWidth)) {
+        editorWidth = `${editorWidth}ch`;
+      }
+      return editorWidth;
+    };
+
+    // Apply the output/editor split widths and position the resize handle.
+    // Pure layout: safe to call on any hashchange without re-running user JS.
+    const applyEditorLayout = () => {
+      const [, hashParams] = getUrlHashParamsFromHashString(
+        window.location.hash,
+      );
+      const inEditMode = hashParams["edit"] === "true";
+      const editorWidth = getEditorWidthFromParams(hashParams);
+
+      const root = document.getElementById("root");
+      const editor = document.getElementById("editor-root");
+      const handle = document.getElementById("editor-resize-handle");
+
+      root.style.width = inEditMode ? `calc(100% - ${editorWidth})` : "100%";
+      editor.style.width = inEditMode ? `${editorWidth}` : "0%";
+      if (handle) {
+        if (inEditMode) {
+          handle.style.right = editorWidth;
+          handle.style.display = "block";
+        } else {
+          handle.style.display = "none";
+        }
+      }
+    };
+
+    // Wire up drag-to-resize on the divider. The editor pane is pinned to the
+    // right edge, so its width is (viewport width - pointer x). Live updates
+    // are written straight to the inline styles for smoothness; the final width
+    // is persisted to the `editorWidth` hash param on release.
+    const setupEditorResizeHandle = () => {
+      const handle = document.getElementById("editor-resize-handle");
+      if (!handle) return;
+
+      const MIN_WIDTH_PX = 120;
+
+      const widthFromPointer = (clientX) => {
+        const max = window.innerWidth - 80; // always leave some output visible
+        const px = window.innerWidth - clientX;
+        return Math.max(MIN_WIDTH_PX, Math.min(max, px));
+      };
+
+      const applyWidthPx = (px) => {
+        const root = document.getElementById("root");
+        const editor = document.getElementById("editor-root");
+        root.style.width = `calc(100% - ${px}px)`;
+        editor.style.width = `${px}px`;
+        handle.style.right = `${px}px`;
+      };
+
+      const onMove = (e) => {
+        e.preventDefault();
+        applyWidthPx(widthFromPointer(e.clientX));
+      };
+
+      const onUp = (e) => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.classList.remove("resizing");
+        handle.classList.remove("dragging");
+        const px = widthFromPointer(e.clientX);
+        applyWidthPx(px);
+        // Persist. Uses a 'px' suffix so the value is not re-coerced to 'ch'.
+        setHashParamInWindow("editorWidth", `${Math.round(px)}px`);
+      };
+
+      handle.addEventListener("mousedown", (e) => {
+        // Only the primary button starts a resize.
+        if (e.button !== 0) return;
+        e.preventDefault();
+        document.body.classList.add("resizing");
+        handle.classList.add("dragging");
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+      });
+    };
+    setupEditorResizeHandle();
+
     const runJsFromUrl = async () => {
       // if there is a scriptUnload function, run it
       // The previous script has the option to put a cleanup function on the window
@@ -1616,11 +1762,6 @@ frame();</code></pre>
       const [_, hashParams] = getUrlHashParamsFromHashString(
         window.location.hash,
       );
-      let editorWidth = hashParams["editorWidth"] || "80ch";
-      // Check if last character is a number
-      if (/\d$/.test(editorWidth)) {
-        editorWidth = `${editorWidth}ch`;
-      }
 
       const inEditMode = hashParams["edit"] === "true";
       const defaultBgColor = hashParams["bgColor"];
@@ -1630,13 +1771,12 @@ frame();</code></pre>
 
       // set up (maybe re-override globals)
       const root = document.getElementById("root");
-      root.style.width = inEditMode ? `calc(100% - ${editorWidth})` : "100%";
       if (defaultBgColor) {
         root.style.background = defaultBgColor;
       }
 
-      const editor = document.getElementById("editor-root");
-      editor.style.width = inEditMode ? `${editorWidth}` : "0%";
+      // Apply the output/editor split widths (also positions the resize handle).
+      applyEditorLayout();
 
       if (js) {
         // clear all children of root (landing content or previous user code)
@@ -1853,7 +1993,9 @@ frame();</code></pre>
     // Hash params that do NOT require JS re-execution (metadata-only).
     // `css` is applied separately via applyCssFromUrl() on hashchange, so it
     // must not trigger a full re-run of the user's JS.
-    const NON_EXECUTION_PARAMS = new Set(["og", "css"]);
+    // `editorWidth` only affects the layout split, applied via
+    // applyEditorLayout() on hashchange — it must not re-run the user's JS.
+    const NON_EXECUTION_PARAMS = new Set(["og", "css", "editorWidth"]);
 
     // Build a lightweight snapshot from the raw hash string by filtering
     // out non-execution params. Avoids full parse + JSON.stringify of
@@ -1898,6 +2040,9 @@ frame();</code></pre>
       // Apply the transient `css` param on every hash change (it is excluded
       // from the execution snapshot above, so it never re-runs the user JS).
       applyCssFromUrl();
+      // Keep the split/handle in sync with `editorWidth` (and edit mode)
+      // without re-running the user's JS.
+      applyEditorLayout();
       if (hasExecutionParamsChanged()) {
         runJsFromUrl();
       }
@@ -1933,6 +2078,8 @@ frame();</code></pre>
       document.getElementById("root").className = "root borderFatSolidGreen";
       document.getElementById("editor-root").className =
         "editor-container-hidden borderDashedBlue";
+      const resizeHandle = document.getElementById("editor-resize-handle");
+      if (resizeHandle) resizeHandle.style.display = "none";
     };
 
     const onMenuClick = async () => {
