@@ -553,6 +553,31 @@ async function fetchUuidHashParams(uuid: string): Promise<string | null> {
 app.get("/j/:sha256", async (c) => {
   const id = c.req.param("sha256");
 
+  // uuid.json form: proxy the raw frame JSON to the framejs.app backend (or the
+  // dev-stack equivalent via FRAMEJS_APP_ORIGIN) so callers can fetch a frame's
+  // {js, modules, inputs, og} JSON same-origin, without hitting framejs.app CORS.
+  if (id && id.endsWith(".json")) {
+    const uuid = normalizeUuid(id.slice(0, -".json".length));
+    if (!UUID_REGEX.test(uuid)) {
+      return c.json({ error: "Invalid frame id" }, 400);
+    }
+    try {
+      const upstream = `${FRAMEJS_APP_ORIGIN}/j/${uuid}.json`;
+      const response = await fetch(upstream);
+      return new Response(response.body, {
+        status: response.status,
+        headers: {
+          "Content-Type": response.headers.get("Content-Type") ??
+            "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch (error) {
+      console.error("Proxy frame JSON error:", error);
+      return c.json({ error: "Failed to fetch frame" }, 502);
+    }
+  }
+
   // uuid form: resolve via FRAMEJS_APP_ORIGIN, then rewrite the URL to the base
   // /#?hash-params (dropping the /j/:uuid path entirely).
   if (id && UUID_REGEX.test(id)) {
