@@ -15,6 +15,7 @@ import {
   useClipboard,
   useToast,
 } from "@chakra-ui/react";
+import { getHashParamValueBase64DecodedFromUrl } from "@metapages/hash-query";
 import {
   getHashParamValueJsonFromWindow,
   setHashParamValueInHashString,
@@ -47,6 +48,22 @@ export const ButtonShortenUrl: React.FC<{
   }, [metaframeBlob.metaframe]);
 
   const handleShorten = async () => {
+    // With no code in the editor there's nothing to shorten/save. Surface a
+    // gentle notice instead of the generic error toast.
+    const code = getHashParamValueBase64DecodedFromUrl(
+      window.location.href,
+      "js",
+    );
+    if (!code || !code.trim()) {
+      toast({
+        title: "Empty: nothing to save",
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
       setLoading(true);
 

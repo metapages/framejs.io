@@ -8,6 +8,7 @@ import {
 } from "/@/utils/hashParams";
 
 import { Box, Icon, Tooltip, useToast } from "@chakra-ui/react";
+import { getHashParamValueBase64DecodedFromUrl } from "@metapages/hash-query";
 import {
   getHashParamValueJsonFromWindow,
   setHashParamValueInHashString,
@@ -116,6 +117,19 @@ export const ButtonSaveFrame: React.FC<{
   };
 
   const handleSave = async () => {
+    // With no code in the editor there's nothing to persist — the save API
+    // rejects an empty frame (which used to surface a "Failed to save" toast).
+    // Send the user to framejs.app (the account/home app) instead. Uses the
+    // dev origin when one is provided via __FRAMEJS_APP_ORIGIN.
+    const code = getHashParamValueBase64DecodedFromUrl(
+      window.location.href,
+      "js",
+    );
+    if (!code || !code.trim()) {
+      navigateTop(getFramejsAppOrigin());
+      return;
+    }
+
     const shortUrlId = getShortUrlId();
     const uuid =
       shortUrlId && UUID_REGEX.test(shortUrlId) ? shortUrlId : undefined;
@@ -163,8 +177,13 @@ export const ButtonSaveFrame: React.FC<{
     }
   };
 
+  // Reflects the actual target host in the tooltip (e.g. the dev override
+  // framejs-app.localhost:13298) so it's visible whether FRAMEJS_APP_ORIGIN
+  // is correctly wired up.
+  const framejsAppHost = new URL(getFramejsAppOrigin()).host;
+
   return (
-    <Tooltip label="Save to framejs.app">
+    <Tooltip label={`Save to ${framejsAppHost}`}>
       <Box
         display="flex"
         alignItems="center"

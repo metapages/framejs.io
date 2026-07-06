@@ -56,7 +56,7 @@ export const PanelSettings: React.FC = () => {
                   fontSize="xs"
                   py={1.5}
                   px="12px"
-                  bg="#EEEEEE"
+                  bg="var(--surface-2)"
                   color="gray.500"
                   _selected={{
                     color: "gray.800",
@@ -72,20 +72,20 @@ export const PanelSettings: React.FC = () => {
             <TabPanel p={0}>
               <VStack gap={3} py={3}>
                 <SectionModules />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <SectionInputs />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <SectionHashParams />
               </VStack>
             </TabPanel>
             <TabPanel p={0}>
               <VStack gap={3} py={3}>
                 <EditButtonSettings />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <EditColorScheme />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <EditBgColor />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <EditEditorWidth />
               </VStack>
             </TabPanel>
@@ -95,15 +95,15 @@ export const PanelSettings: React.FC = () => {
             <TabPanel p={0}>
               <VStack gap={3} py={3}>
                 <SectionIO />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <EditDisableDatarefs />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <EditDisableSmartInputUnpacking />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <EditDisableCache />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <EditDebugMode />
-                <Divider borderColor="#DEDEDE" />
+                <Divider borderColor="var(--line)" />
                 <CacheManagement />
               </VStack>
             </TabPanel>

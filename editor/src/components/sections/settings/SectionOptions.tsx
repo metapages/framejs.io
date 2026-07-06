@@ -22,21 +22,21 @@ export const SectionOptions: React.FC = () => {
       alignItems="stretch"
     >
       <EditButtonSettings />
-      <Divider borderColor="#DEDEDE" />
+      <Divider borderColor="var(--line)" />
       <EditColorScheme />
-      <Divider borderColor="#DEDEDE" />
+      <Divider borderColor="var(--line)" />
       <EditBgColor />
-      <Divider borderColor="#DEDEDE" />
+      <Divider borderColor="var(--line)" />
       <EditEditorWidth />
-      <Divider borderColor="#DEDEDE" />
+      <Divider borderColor="var(--line)" />
       <EditDisableDatarefs />
-      <Divider borderColor="#DEDEDE" />
+      <Divider borderColor="var(--line)" />
       <EditDisableSmartInputUnpacking />
-      <Divider borderColor="#DEDEDE" />
+      <Divider borderColor="var(--line)" />
       <EditDisableCache />
-      <Divider borderColor="#DEDEDE" />
+      <Divider borderColor="var(--line)" />
       <EditDebugMode />
-      <Divider borderColor="#DEDEDE" />
+      <Divider borderColor="var(--line)" />
       <CacheManagement />
     </VStack>
   );

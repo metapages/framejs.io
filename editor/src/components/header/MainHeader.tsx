@@ -73,7 +73,7 @@ export const MainHeader: React.FC = () => {
       alignItems={"center"}
       minWidth={"100%"}
       h={"40px"}
-      bg={"gray.100"}
+      bg={"var(--paper)"}
       borderBottom={"1px"}
       flexShrink={0}
     >
@@ -81,21 +81,23 @@ export const MainHeader: React.FC = () => {
         mx={3}
         onClick={() => setShownPanel(null)}
         variant={"ghost"}
-        _hover={{ bg: "gray.300" }}
-        fontWeight={400}
-        color={"gray.600"}
+        _hover={{ bg: "gray.100" }}
+        fontFamily={"mono"}
+        fontWeight={500}
+        letterSpacing={"0.04em"}
+        color={"gray.700"}
         fontSize={"sm"}
         h={"40px"}
         minH={0}
         flexShrink={0}
       >
-        Javascript
+        js
       </Button>
       <HStack
         borderLeft={"1px"}
         right={0}
         px={3}
-        bg={"gray.100"}
+        bg={"var(--paper)"}
         justifyContent={"space-around"}
         alignItems={"center"}
         h={"40px"}

@@ -170,7 +170,7 @@ export const SectionHashParams: React.FC = () => {
                 <HStack width="100%" px={5}>
                   <Text
                     borderBottom="1px solid"
-                    borderColor="#E8E8E8"
+                    borderColor="var(--line)"
                     width="100%"
                   />
                 </HStack>
