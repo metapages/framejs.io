@@ -1,4 +1,4 @@
-import "@fontsource-variable/jetbrains-mono";
+import "/@/styles/blueprint.css";
 
 import { StrictMode } from "react";
 

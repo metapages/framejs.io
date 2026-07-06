@@ -54,13 +54,14 @@ const { Layout } = DefaultTheme;
 .hero-tagline-line {
   margin: 0;
   padding-top: 4px;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--vp-c-text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Blueprint: shareable URLs / data callouts render in IBM Plex Mono. */
+  font-family: var(--vp-font-family-mono);
 }
 
 .hero-tagline-line .highlight {

@@ -1,32 +1,35 @@
 # AI Usage
 
+## In AI Chat
+
+```bash
+> visualize this data in this directory
+```
+
+
+
 ## The `framejs` Agent Skill (recommended)
+
+### One line Install
+
+Installs the framejs [skill](#notes):
+
+```bash
+# default install for claude
+curl -fsSL https://framejs.io/skill/install.sh | sh
+```
+
+```bash
+# or target another harness — pass its skills directory (see the table below):
+curl -fsSL https://framejs.io/skill/install.sh | sh -s -- <SKILLS_DIR>
+```
+
+Re-run any time to update. Prefer to do it by hand? [Unpack the bundle yourself](#unpack-the-bundle-yourself):
 
 framejs.io ships an [Agent Skill](https://agentskills.io) — a portable `SKILL.md`
 folder that works across ~40 agent harnesses (Claude Code, Gemini CLI, Cursor,
 opencode, Goose, OpenAI Codex, pi, and more). 
 
-### Install skill
-
-```bash
-curl -fsSL https://framejs.io/skill/install.sh | sh
-# or target another harness — pass its skills directory (see the table below):
-curl -fsSL https://framejs.io/skill/install.sh | sh -s -- <SKILLS_DIR>
-```
-
-A skill is just a `framejs/` folder containing `SKILL.md`. Drop it into your
-harness's skills directory.
-
-**One-liner** (installs into `~/.claude/skills` by default; pass any other
-harness's skills directory as an argument):
-
-
-
-Re-run any time to update. Prefer to do it by hand? Unpack the bundle yourself:
-
-```bash
-mkdir -p <SKILLS_DIR> && curl -fsSL https://framejs.io/skill/framejs.tar.gz | tar xz -C <SKILLS_DIR>
-```
 
 | Harness | Skills directory | Notes |
 |---------|------------------|-------|
@@ -139,3 +142,13 @@ at `worker/static/skill/framejs/`, so they never drift:
 | [`/llms-claude-code.txt`](https://framejs.io/llms-claude-code.txt) | CLI integration guide (short URLs, file uploads, coding guide) |
 | [`/skill/framejs.tar.gz`](https://framejs.io/skill/framejs.tar.gz) | Skill bundle |
 
+## Notes
+
+A skill is just a `framejs/` folder containing `SKILL.md`. Drop it into your
+harness's skills directory.
+
+### Unpack the bundle yourself
+
+```bash
+mkdir -p <SKILLS_DIR> && curl -fsSL https://framejs.io/skill/framejs.tar.gz | tar xz -C <SKILLS_DIR>
+```

@@ -27,7 +27,13 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
         w={"100%"}
         h="100%"
       >
-        <Text fontSize="0.7rem" fontWeight={400}>
+        <Text
+          fontFamily="mono"
+          fontSize="0.6875rem"
+          fontWeight={500}
+          letterSpacing="0.12em"
+          color="gray.500"
+        >
           {titleText}
         </Text>
         <HStack spacing={4} justify="center" flex="1" h="100%" align="center">

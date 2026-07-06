@@ -265,7 +265,17 @@ app.use("*", cors({ origin: "*" }));
 // Routes
 const serveIndex = async () => {
   const indexHtml = await Deno.readTextFile("./index.html");
-  return new Response(indexHtml, {
+  // Expose the configured framejs.app origin to the client so it can link/
+  // navigate to the right host in dev vs prod (the client reads
+  // window.__FRAMEJS_APP_ORIGIN, falling back to the prod default). The editor
+  // iframe reads it from window.parent.
+  const withOrigin = indexHtml.replace(
+    "</head>",
+    `<script id="framejs-app-origin-init">window.__FRAMEJS_APP_ORIGIN=${
+      JSON.stringify(FRAMEJS_APP_ORIGIN)
+    }</script>\n</head>`,
+  );
+  return new Response(withOrigin, {
     headers: { "Content-Type": "text/html; charset=utf-8" },
   });
 };

@@ -1,5 +1,5 @@
-import { defineConfig } from "vitepress";
-import { withMermaid } from "vitepress-plugin-mermaid";
+import { defineConfig } from 'vitepress';
+import { withMermaid } from 'vitepress-plugin-mermaid';
 
 export default withMermaid(
   defineConfig({
@@ -41,18 +41,7 @@ export default withMermaid(
           text: "AI",
           items: [
             { text: "Setup", link: "/ai/setup" },
-            {
-              text: "Agent Skill (SKILL.md)",
-              link: "https://framejs.io/skill/framejs/SKILL.md",
-            },
-            {
-              text: "command-js.md",
-              link: "https://framejs.io/command-js.md",
-            },
-            {
-              text: "llms-prompt.md",
-              link: "https://framejs.io/llms-prompt.md",
-            },
+            
           ],
         },
         {
@@ -101,6 +90,23 @@ export default withMermaid(
             { text: "Editor", link: "/development/editor" },
             { text: "Worker", link: "/development/worker" },
             { text: "Deployment", link: "/development/deployment" },
+          ],
+        },
+        {
+          text: "Reference Files",
+          items: [
+            {
+              text: "Agent Skill (SKILL.md)",
+              link: "https://framejs.io/skill/framejs/SKILL.md",
+            },
+            {
+              text: "command-js.md",
+              link: "https://framejs.io/command-js.md",
+            },
+            {
+              text: "llms-prompt.md",
+              link: "https://framejs.io/llms-prompt.md",
+            },
           ],
         },
       ],

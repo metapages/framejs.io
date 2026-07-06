@@ -15,13 +15,10 @@ This prompt was not a single prompt, but many over time.
 
 <a href="/docs/network.graphml" download target="_blank">network.graphml</a>
 
-## Result <a href="https://framejs.io/j/019f2b55e1f57722af0293acbda78362" target="_blank" rel="noopener noreferrer">↗</a>
+## Result
 
-<iframe
-  src="https://framejs.io/j/019f2b55e1f57722af0293acbda78362"
-  width="100%"
-  height="500"
-  frameborder="0"
-  style="border: 1px solid var(--vp-c-border); border-radius: 8px;"
-  allow="clipboard-read; clipboard-write"
-></iframe>
+<BrowserFrame
+  url="https://framejs.io/j/019f2b55e1f57722af0293acbda78362"
+  :height="500"
+/>
+

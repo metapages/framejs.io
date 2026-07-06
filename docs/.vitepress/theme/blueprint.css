@@ -1,0 +1,202 @@
+/* ---------------------------------------------------------------------------
+   Blueprint design system for the framejs.io docs (VitePress).
+
+   Mirror of framejs.app's design language (framejs-nhost
+   frontend/worker/assets/styles.css), adapted to VitePress theming: the
+   blueprint CSS custom properties (--paper, --ink, --accent, …) are declared
+   here, then VitePress's own `--vp-*` variables are remapped onto them for
+   both light and dark. See the `framejs-css-sync` skill for the derivation.
+
+   "Blueprint / drafting table": warm technical paper ground, cobalt blueprint
+   ink accent, hairline warm-gray rules, low radii, IBM Plex Sans (body) +
+   IBM Plex Mono (labels/data/code).
+
+   Fonts are co-located in ./fonts and referenced relatively so Vite processes
+   them (VitePress runs under a `/docs/` base, where root-absolute /fonts/ paths
+   would not resolve).
+--------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2");
+}
+
+/* --- Blueprint tokens: light (framejs.app :root) ------------------------- */
+:root {
+  --paper: #fbfaf7;
+  --surface: #ffffff;
+  --surface-2: #f4f2ec;
+  --ink: #1a1712;
+  --ink-2: #56514a;
+  --ink-3: #8b857a;
+  --line: #e8e4da;
+  --line-strong: #d5cfc3;
+  --accent: #1f2edb;
+  --accent-hover: #1824ae;
+  --accent-soft: #edeefe;
+  --on-accent: #ffffff;
+  --good: #1f883d;
+  --good-soft: #e9f5ec;
+  --warning: #a86709;
+  --danger: #c0392b;
+  --danger-soft: #fbeceb;
+
+  --radius-plate: 3px;
+  --radius-control: 4px;
+}
+
+/* --- Blueprint tokens: dark (framejs.app dark palette) ------------------- */
+/* VitePress toggles dark mode with a `.dark` class on <html>. */
+.dark {
+  --paper: #0e1117;
+  --surface: #151a22;
+  --surface-2: #1c222c;
+  --ink: #ece9e1;
+  --ink-2: #a8a99e;
+  --ink-3: #767c86;
+  --line: #262d38;
+  --line-strong: #38414f;
+  --accent: #6e82ff;
+  --accent-hover: #8a9aff;
+  --accent-soft: #1a2136;
+  --on-accent: #0b0e14;
+  --good: #3fb950;
+  --good-soft: #16241a;
+  --warning: #d0a215;
+  --danger: #f0776c;
+  --danger-soft: #2a1a19;
+}
+
+/* --- Map blueprint tokens onto VitePress variables (light) --------------- */
+:root {
+  /* Type */
+  --vp-font-family-base: "IBM Plex Sans", ui-sans-serif, system-ui,
+    -apple-system, sans-serif;
+  --vp-font-family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular,
+    "SF Mono", Menlo, monospace;
+
+  /* Surfaces */
+  --vp-c-bg: var(--paper);
+  --vp-c-bg-alt: var(--surface-2);
+  --vp-c-bg-soft: var(--surface-2);
+  --vp-c-bg-elv: var(--surface);
+
+  /* Text */
+  --vp-c-text-1: var(--ink);
+  --vp-c-text-2: var(--ink-2);
+  --vp-c-text-3: var(--ink-3);
+
+  /* Hairlines */
+  --vp-c-border: var(--line-strong);
+  --vp-c-divider: var(--line);
+  --vp-c-gutter: var(--line);
+
+  /* Brand — cobalt blueprint ink */
+  --vp-c-brand-1: var(--accent);
+  --vp-c-brand-2: var(--accent-hover);
+  --vp-c-brand-3: var(--accent);
+  --vp-c-brand-soft: var(--accent-soft);
+  --vp-c-brand: var(--accent);
+
+  /* Status */
+  --vp-c-tip-1: var(--accent);
+  --vp-c-tip-soft: var(--accent-soft);
+  --vp-c-warning-1: var(--warning);
+  --vp-c-warning-soft: var(--good-soft);
+  --vp-c-danger-1: var(--danger);
+  --vp-c-danger-soft: var(--danger-soft);
+
+  /* Brand buttons (hero / doc actions) */
+  --vp-button-brand-bg: var(--accent);
+  --vp-button-brand-hover-bg: var(--accent-hover);
+  --vp-button-brand-active-bg: var(--accent-hover);
+  --vp-button-brand-text: var(--on-accent);
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: var(--on-accent);
+
+  /* Home hero: solid cobalt wordmark (not the default gradient) */
+  --vp-home-hero-name-color: var(--accent);
+  --vp-home-hero-name-background: transparent;
+}
+
+/* Dark: re-point the VitePress surfaces/text at the dark blueprint tokens.
+   (Brand/type vars above already resolve through the tokens, which .dark
+   overrides, so they follow automatically — only the raw surfaces need it.) */
+.dark {
+  --vp-c-bg: var(--paper);
+  --vp-c-bg-alt: var(--surface);
+  --vp-c-bg-soft: var(--surface-2);
+  --vp-c-bg-elv: var(--surface);
+  --vp-c-text-1: var(--ink);
+  --vp-c-text-2: var(--ink-2);
+  --vp-c-text-3: var(--ink-3);
+  --vp-c-border: var(--line-strong);
+  --vp-c-divider: var(--line);
+  --vp-c-gutter: var(--line);
+}
+
+/* --- Low-radius "drafting plate" feel (blueprint uses 3–4px, not pills) --- */
+.VPButton {
+  border-radius: var(--radius-control) !important;
+}
+.VPFeature {
+  border-radius: var(--radius-plate);
+}
+.vp-doc div[class*="language-"],
+.vp-doc :not(pre) > code {
+  border-radius: var(--radius-control);
+}
+
+/* Selection + focus, matching framejs.app */
+::selection {
+  background-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* --- Opt-in word-wrap for a single code block ---
+   Wrap a fenced block in <div class="wrap-code">…</div> to make its
+   long lines wrap instead of scroll. Formatting/highlighting preserved. */
+.vp-doc .wrap-code div[class*="language-"] pre code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}

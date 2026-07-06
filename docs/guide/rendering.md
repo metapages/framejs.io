@@ -4,7 +4,7 @@ You can render any metaframe-js widget directly in your own website simply as an
 
 ```html
 <iframe
-  src="https://framejs.io/j/9af8d1c7cbca86767a901b2968ccf06d458e177127984a4c9321f0a65dc626c8"
+  src="https://framejs.io/j/019f2b55e1f57722af0293acbda78362"
   width="100%"
   height="500"
   frameborder="0"
@@ -32,9 +32,13 @@ const { setInputs, dispose } = await renderMetaframe({
   onOutputs: (outputs) => {
     console.log("Got outputs", outputs);
   },
-  url: "https://framejs.io/",
+  url: "https://framejs.io/j/019f2b55e1f57722af0293acbda78362",
   rootDiv: document.getElementById("container"),
 });
+
+// see https://framejs.io/docs/examples/scientific-visualization
+// for an example of where you can pass in the inputs at runtime
+setInputs(networkGraphml)
 ```
 
 ### Parameters
@@ -66,7 +70,7 @@ const { setInputs, dispose } = await renderMetaframe({
       console.log("Got outputs", outputs);
       // Use outputs in your app — update state, call APIs, etc.
     },
-    url: "https://framejs.io/#?hm=disabled&editurl=https://framejs.io/",
+    url: "https://framejs.io/j/019f2b55e1f57722af0293acbda78362",
     rootDiv: document.getElementById("container"),
   });
 
