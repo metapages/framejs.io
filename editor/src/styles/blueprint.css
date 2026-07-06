@@ -84,10 +84,10 @@
   --focus: #1f2edb;
 
   /* type + shape tokens (framejs.app maps these via @theme; kept plain here) */
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system,
-    sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
-    monospace;
+  --font-sans:
+    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   --radius-plate: 3px;
   --radius-control: 4px;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
