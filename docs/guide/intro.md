@@ -22,16 +22,11 @@ Describe what you want in plain language — visualizations, dashboards, apps, g
 show a range of ways of visualization using framejs.io platform with a slider
 ```
 
-<div class="feature-embed">
-<iframe
-  src="https://framejs.io/j/019f2b53304f788d9fe1d00556489768"
-  width="100%"
-  height="350"
-  frameborder="0"
-  style="border: 1px solid var(--vp-c-border); border-radius: 8px;"
-  allow="clipboard-read; clipboard-write"
-></iframe>
-</div>
+<BrowserFrame
+  url="https://framejs.io/j/019f2b53304f788d9fe1d00556489768"
+  :height="500"
+/>
+
 
 <p class="feature-link"><a href="/docs/ai/setup">Set up AI editing &rarr;</a></p>
 

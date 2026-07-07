@@ -1,14 +1,19 @@
-# AI Usage
+# AI Usage and Installation
 
-## In AI Chat
+## Create and edit in AI chat
+
+Simply describe what you want, referencing local files or anything accessible to the agent. Other skills can be combined
 
 ```bash
 > visualize this data in this directory
 ```
+<BrowserFrame
+  url="https://framejs.io/j/019f3ad1d064783582418a59243d419e"
+  :height="500"
+/>
 
 
-
-## The `framejs` Agent Skill (recommended)
+## Install the `framejs` Agent Skill (recommended)
 
 ### One line Install
 
@@ -80,7 +85,7 @@ Then `/js make a bouncing ball animation`, `/js visualize ./data.csv`, or
 > New setups should prefer the Agent Skill above — it is portable across harnesses
 > and avoids the Claude-Code-only install path.
 
-## Using an AI chat interface
+## Using an AI chat interface via copy/pasting code
 
 From the component page:
 
