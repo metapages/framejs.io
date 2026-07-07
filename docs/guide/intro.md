@@ -17,7 +17,7 @@ You can embed code safely anywhere, creating custom, editable dashboards, widget
 
 Describe what you want in plain language — visualizations, dashboards, apps, games — and AI builds it for you. Works with Claude, ChatGPT, or any LLM.
 
-[After installation of the skill](ai/setup):
+[After installation of the skill](../ai/setup):
 ```
 show a range of ways of visualization using framejs.io platform with a slider
 ```
@@ -56,7 +56,7 @@ Paste a URL into any platform that supports embeds — Notion, Obsidian, Conflue
   <div class="embed-target">Any website</div>
 </div>
 
-<p class="feature-link"><a href="/docs/guide/embedding">Embedding guide &rarr;</a></p>
+<p class="feature-link"><a href="embedding">Embedding guide &rarr;</a></p>
 
 ---
 
@@ -66,11 +66,11 @@ Links render with a title, description, and preview image in Slack, Discord, soc
 
 <div class="og-preview-card">
   <div class="og-image-placeholder">
-    <img src="./guide/open-graph-embed.png" alt="Open Graph preview showing a framejs.io link with title, description, and preview image" />
+    <img src="./open-graph-embed.png" alt="Open Graph preview showing a framejs.io link with title, description, and preview image" />
   </div>
 </div>
 
-<p class="feature-link"><a href="/docs/guide/embedding#open-graph-link-previews">Open Graph details &rarr;</a></p>
+<p class="feature-link"><a href="embedding#open-graph-link-previews">Open Graph details &rarr;</a></p>
 
 ---
 
@@ -96,10 +96,10 @@ All code and state lives in the URL. Copy it, send it, bookmark it — anyone wi
 ::: tip No accounts, no servers
 For short URLs at `framejs.io/j/...` there is no login. The URL *is* the program. Short URLs are immutable content-addressed hashes where the same content always yields the same link. Free
 short URLs are kept for about a month; for guaranteed, durable persistence, save
-to a [Frame](/guide/persistence).
+to a [Frame](persistence).
 :::
 
-<p class="feature-link"><a href="/docs/guide/short-urls">Short URLs &rarr;</a></p>
+<p class="feature-link"><a href="short-urls">Short URLs &rarr;</a></p>
 
 ---
 
@@ -118,7 +118,7 @@ export function onInputs(inputs) {
 }
 ```
 
-<p class="feature-link"><a href="/docs/guide/javascript-api#inputs-and-outputs">I/O API reference &rarr;</a></p>
+<p class="feature-link"><a href="javascript-api#inputs-and-outputs">I/O API reference &rarr;</a></p>
 
 ---
 
@@ -145,7 +145,7 @@ A full code editor runs in the browser. Write JavaScript, add npm modules and CS
 ></iframe>
 </div>
 
-<p class="feature-link"><a href="/docs/guide/javascript-api">JavaScript API &rarr;</a></p>
+<p class="feature-link"><a href="javascript-api">JavaScript API &rarr;</a></p>
 
 </div>
 
@@ -246,4 +246,4 @@ A full code editor runs in the browser. Write JavaScript, add npm modules and CS
 - Export `onResize` to handle window/div resizes
 - Use ES6 module imports, or add CSS / npm modules — everything is embedded in the URL
 
-See the full [JavaScript API](./guide/javascript-api) for details.
+See the full [JavaScript API](javascript-api) for details.

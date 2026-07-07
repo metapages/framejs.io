@@ -12,7 +12,7 @@ It is designed for embedding code safely anywhere, creating custom, editable das
 
 See [examples](../examples/)
 
-## [Quickstart](./quickstart.md)
+## [Quickstart](../quickstart.md)
 
 1. Go to [framejs.io](https://framejs.io)
 2. Write JavaScript in the editor or [edit with AI](../ai/setup)
