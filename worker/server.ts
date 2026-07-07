@@ -1,32 +1,33 @@
-import { Hono } from "@hono/hono";
-import { cors } from "@hono/hono/cors";
-import { serveStatic } from "@hono/hono/deno";
 import {
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "npm:@aws-sdk/client-s3";
 import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner";
-import { HashParamType } from "@metapages/metapage";
+import QRCode from "qrcode";
+
+import { Hono } from "@hono/hono";
+import { cors } from "@hono/hono/cors";
+import { serveStatic } from "@hono/hono/deno";
 import {
   blobFromBase64String,
   getUrlHashParamsFromHashString,
   stringFromBase64String,
 } from "@metapages/hash-query";
-import QRCode from "qrcode";
-import {
-  computeMetaframeDefinition,
-  DEFAULT_METAFRAME_DEFINITION,
-  getAllowedHashParams,
-  jsonToHashParams,
-  stripDefaultHashParams,
-} from "./src/metaframe-definition.ts";
+import { HashParamType } from "@metapages/metapage";
+
 import { detectEmbed, detectSource, track } from "./src/analytics.ts";
 import {
   normalizeUuid,
   resolveSaveUuid,
   UUID_REGEX,
 } from "./src/frame-uuid.ts";
+import {
+  computeMetaframeDefinition,
+  DEFAULT_METAFRAME_DEFINITION,
+  jsonToHashParams,
+  stripDefaultHashParams,
+} from "./src/metaframe-definition.ts";
 
 /** Escape a string for safe use inside an HTML attribute (double-quoted). */
 function escapeHtmlAttr(s: string): string {
@@ -263,19 +264,32 @@ const app = new Hono();
 app.use("*", cors({ origin: "*" }));
 
 // Routes
+let indexHtmlProcessed = "";
 const serveIndex = async () => {
-  const indexHtml = await Deno.readTextFile("./index.html");
-  // Expose the configured framejs.app origin to the client so it can link/
-  // navigate to the right host in dev vs prod (the client reads
-  // window.__FRAMEJS_APP_ORIGIN, falling back to the prod default). The editor
-  // iframe reads it from window.parent.
-  const withOrigin = indexHtml.replace(
-    "</head>",
-    `<script id="framejs-app-origin-init">window.__FRAMEJS_APP_ORIGIN=${
-      JSON.stringify(FRAMEJS_APP_ORIGIN)
-    }</script>\n</head>`,
-  );
-  return new Response(withOrigin, {
+  // In dev, always re-read from disk so edits to index.html are picked up
+  // without restarting the server; in prod, compute once and cache.
+  const isDev = Deno.env.get("DEV") === "true";
+  if (isDev || !indexHtmlProcessed) {
+    const indexHtml = await Deno.readTextFile("./index.html");
+    // Expose the configured framejs.app origin to the client so it can link/
+    // navigate to the right host in dev vs prod (the client reads
+    // window.__FRAMEJS_APP_ORIGIN, falling back to the prod default). The editor
+    // iframe reads it from window.parent.
+    const withOrigin = indexHtml.replace(
+      "</head>",
+      `<script id="framejs-app-origin-init">window.__FRAMEJS_APP_ORIGIN=${
+        JSON.stringify(FRAMEJS_APP_ORIGIN)
+      }</script>\n</head>`,
+    ).replaceAll("https://framejs.app", FRAMEJS_APP_ORIGIN);
+    if (isDev) {
+      // don't cache the index.html in dev
+      return new Response(withOrigin, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+    indexHtmlProcessed = withOrigin;
+  }
+  return new Response(indexHtmlProcessed, {
     headers: { "Content-Type": "text/html; charset=utf-8" },
   });
 };

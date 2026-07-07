@@ -8,7 +8,7 @@ export APP_FQDN    := env_var_or_default("APP_FQDN", "framejs-io.localhost")
 
 dev:
     deno run --allow-all HTTPS://deno.land/x/metapages@v0.0.17/exec/open_url.ts https://metapages.github.io/load-page-when-available/?url=http://${APP_FQDN}:${SERVER_PORT}
-    PORT={{SERVER_PORT}} APP_FQDN={{APP_FQDN}} deno run --watch -A ./server.ts
+    DEV=true PORT={{SERVER_PORT}} APP_FQDN={{APP_FQDN}} deno run --watch -A ./server.ts
     
 # Format TypeScript
 @fmt:

@@ -2,16 +2,19 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { useMetaframeUrl } from "/@/hooks/useMetaframeUrl";
 import { useOptions } from "/@/hooks/useOptions";
+import { getFramejsAppOrigin } from "/@/utils/origin";
 
 import {
   blobToBase64String,
   useHashParamBase64,
+  useHashParamBoolean,
 } from "@metapages/hash-query/react-hooks";
 import { MetaframeInputMap } from "@metapages/metapage";
 import { MetaframeStandaloneComponent } from "@metapages/metapage-react";
 
 export const PanelCode: React.FC = () => {
   let [code, setCode] = useHashParamBase64("js");
+  const [edit] = useHashParamBoolean("edit");
   const { url } = useMetaframeUrl();
   // deal with bad double encoded data from old version of hash-query
   if (
@@ -21,8 +24,23 @@ export const PanelCode: React.FC = () => {
   ) {
     code = decodeURIComponent(code);
   }
+  // Nothing to render yet and the user isn't editing: show framejs.app's
+  // embeddable getting-started guide (/howto) instead of an empty editor.
+  if ((!code || !code.trim()) && !edit) {
+    return <HowTo />;
+  }
   return url ? <LocalEditor code={code} setCode={setCode} /> : <></>;
 };
+
+const HowTo: React.FC = () => (
+  <div className="iframe-container">
+    <iframe
+      className="iframe"
+      title="Getting started"
+      src={`${getFramejsAppOrigin()}/howto`}
+    />
+  </div>
+);
 
 const LocalEditor: React.FC<{
   code: string;
