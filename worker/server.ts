@@ -266,7 +266,10 @@ app.use("*", cors({ origin: "*" }));
 // Routes
 let indexHtmlProcessed = "";
 const serveIndex = async () => {
-  if (!indexHtmlProcessed) {
+  // In dev, always re-read from disk so edits to index.html are picked up
+  // without restarting the server; in prod, compute once and cache.
+  const isDev = Deno.env.get("DEV") === "true";
+  if (isDev || !indexHtmlProcessed) {
     const indexHtml = await Deno.readTextFile("./index.html");
     // Expose the configured framejs.app origin to the client so it can link/
     // navigate to the right host in dev vs prod (the client reads
@@ -278,9 +281,9 @@ const serveIndex = async () => {
         JSON.stringify(FRAMEJS_APP_ORIGIN)
       }</script>\n</head>`,
     ).replaceAll("https://framejs.app", FRAMEJS_APP_ORIGIN);
-    if (Deno.env.get("DEV") === "true") {
+    if (isDev) {
       // don't cache the index.html in dev
-      return new Response(indexHtmlProcessed, {
+      return new Response(withOrigin, {
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
