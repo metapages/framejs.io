@@ -1,9 +1,11 @@
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "npm:@aws-sdk/client-s3";
 import { getSignedUrl } from "npm:@aws-sdk/s3-request-presigner";
+import { initWasm, Resvg } from "@resvg/resvg-wasm";
 import QRCode from "qrcode";
 
 import { Hono } from "@hono/hono";
@@ -83,6 +85,7 @@ function buildOgMetaTags(decoded: Record<string, unknown>): string {
 async function serveShortUrlHtml(
   ogMetaTags: string,
   injectedScript: string,
+  extraHead = "",
 ): Promise<Response> {
   const indexHtml = await Deno.readTextFile("./index.html");
   const ogStripped = indexHtml.replace(
@@ -91,7 +94,7 @@ async function serveShortUrlHtml(
   );
   const modifiedHtml = ogStripped.replace(
     "</head>",
-    ogMetaTags + injectedScript + "\n</head>",
+    ogMetaTags + extraHead + injectedScript + "\n</head>",
   );
   return new Response(modifiedHtml, {
     headers: {
@@ -256,6 +259,135 @@ if (s3Credentials && presignEndpoint) {
     responseChecksumValidation: "WHEN_REQUIRED",
   });
   console.log(`S3 presign client configured: endpoint=${presignEndpoint}`);
+}
+
+// ---------------------------------------------------------------------------
+// Per-frame derived favicons (purple border + the frame's og image).
+//
+// A frame's content (and thus its og image) is immutable once shortened to a
+// sha256, so its favicon is computed ONCE at shorten time and stored permanently
+// under `favicon/{sha256}` (the 7-day ILM expiry is scoped to the transient `f/`
+// upload prefix, so `favicon/` and `j/` survive — verify the prod R2 lifecycle
+// likewise excludes `favicon/`). The serve route `/j/:sha256/favicon.png` only
+// looks it up — it never generates — so it stays fast and returns the default
+// favicon until one exists. The composite matches framejs.app's (resvg-wasm on
+// the same SVG), so a frame looks identical whichever origin renders it.
+// ---------------------------------------------------------------------------
+
+const FAVICON_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
+// resvg's wasm binary. Fetched (and cached by Deno) once per isolate; generation
+// only happens at shorten time and is best-effort, so a cold fetch here never sits
+// on a hot path. Pin the version to the imported package.
+const RESVG_WASM_URL =
+  "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm";
+
+let resvgReady: Promise<void> | undefined;
+function ensureResvg(): Promise<void> {
+  if (!resvgReady) resvgReady = initWasm(fetch(RESVG_WASM_URL));
+  return resvgReady;
+}
+
+/**
+ * Composite the derived favicon: the app's purple rounded border (from
+ * framejs.app's static/favicon.svg, scaled 32→64) with its interior filled by
+ * `imageBytes`, center-cropped. Returns a 64×64 PNG.
+ */
+function bytesToBase64(bytes: Uint8Array): string {
+  // Chunked to avoid blowing the call stack on `String.fromCharCode(...big)`.
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
+async function renderFaviconPng(
+  imageBytes: Uint8Array,
+  mimeType: string,
+): Promise<Uint8Array> {
+  await ensureResvg();
+  const dataUri = `data:${mimeType};base64,${bytesToBase64(imageBytes)}`;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs><clipPath id="c"><rect x="15" y="15" width="34" height="34" rx="5"/></clipPath></defs>
+  <rect width="64" height="64" rx="12" fill="#fbfaf7"/>
+  <image href="${dataUri}" x="15" y="15" width="34" height="34" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>
+  <rect x="12.8" y="12.8" width="38.4" height="38.4" rx="7.2" fill="none" stroke="#1f2edb" stroke-width="4.4"/>
+</svg>`;
+  return new Resvg(svg, { fitTo: { mode: "original" } }).render().asPng();
+}
+
+/** Whether `favicon/{sha256}` already exists in storage. */
+async function faviconExists(sha256: string): Promise<boolean> {
+  if (!s3Client) return false;
+  try {
+    await s3Client.send(
+      new HeadObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: `favicon/${sha256}`,
+      }),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Fetch the og image bytes; `/f/<id>` (relative or same-origin) resolve against
+// the public origin, external URLs are fetched as-is. Returns null when there's
+// nothing usable to composite.
+async function fetchOgImageBytes(
+  ogImage: string,
+): Promise<{ bytes: Uint8Array; mime: string } | null> {
+  try {
+    const src = ogImage.startsWith("/")
+      ? `${PUBLIC_ORIGIN}${ogImage}`
+      : ogImage;
+    const res = await fetch(src, { redirect: "follow" });
+    if (!res.ok) return null;
+    const mime = res.headers.get("content-type") ?? "application/octet-stream";
+    if (!mime.startsWith("image/")) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > FAVICON_MAX_SOURCE_BYTES) {
+      return null;
+    }
+    return { bytes, mime };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Eagerly generate + permanently store the favicon for a freshly-shortened
+ * frame, if it has an og image and one isn't already stored. Best-effort: never
+ * throws, so a favicon failure can't break the shorten it's called from.
+ */
+async function generateFaviconForSha256(
+  sha256: string,
+  hashParams: string,
+): Promise<void> {
+  try {
+    if (!s3Client) return;
+    const og = decodeHashParamsToJson(hashParams).og as
+      | { image?: string }
+      | undefined;
+    if (!og?.image) return;
+    if (await faviconExists(sha256)) return;
+    const source = await fetchOgImageBytes(og.image);
+    if (!source) return;
+    const png = await renderFaviconPng(source.bytes, source.mime);
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: `favicon/${sha256}`,
+        Body: png,
+        ContentType: "image/png",
+      }),
+    );
+  } catch (error) {
+    console.error(`favicon generation failed for ${sha256}:`, error);
+  }
 }
 
 const app = new Hono();
@@ -423,6 +555,10 @@ app.post("/api/shorten", async (c) => {
 
     await s3Client.send(command);
 
+    // Eagerly derive the frame's favicon (best-effort, never throws). The content
+    // is immutable, so this computes once and stores permanently.
+    await generateFaviconForSha256(sha256, hashParams);
+
     track(c, { name: "shorten", source: detectSource(c) });
 
     return c.json({
@@ -471,6 +607,10 @@ app.post("/api/shorten/json", async (c) => {
       ContentType: "text/plain; charset=utf-8",
     });
     await s3Client.send(command);
+
+    // Eagerly derive the frame's favicon (best-effort, never throws). The content
+    // is immutable, so this computes once and stores permanently.
+    await generateFaviconForSha256(sha256, hashParams);
 
     const protocol = c.req.header("x-forwarded-proto") || "https";
     const host = c.req.header("host");
@@ -619,6 +759,12 @@ app.get("/j/:sha256", async (c) => {
 
       const decoded = decodeHashParamsToJson(hashParams);
       const ogMetaTags = buildOgMetaTags(decoded);
+      // This is a framejs.app-owned frame; its derived favicon lives there. Point
+      // the tab icon at framejs.app's endpoint (cross-origin) when it has an og
+      // image; degrades to the default if unreachable/not yet generated.
+      const favicon = (decoded.og as { image?: string } | undefined)?.image
+        ? `<link rel="icon" type="image/png" href="${FRAMEJS_APP_ORIGIN}/j/${id}/favicon.png" />\n`
+        : "";
       const canonicalKeysJson = JSON.stringify(CANONICAL_HASH_PARAM_KEYS);
 
       // Strip edit=true so the app doesn't immediately exit short-URL mode on load.
@@ -647,7 +793,7 @@ app.get("/j/:sha256", async (c) => {
           JSON.stringify(cleanedHashParams)
         };window.__SHORT_URL_READY=Promise.resolve();(function(){var stored=window.__SHORT_URL_HASH_PARAMS;var C=window.__SHORT_URL_CANONICAL_KEYS;var ss=stored.charAt(0)==="?"?stored.slice(1):stored;var sp=ss.split("&");var pm={},po=[];for(var i=0;i<sp.length;i++){var ei=sp[i].indexOf("=");var ki=ei===-1?sp[i]:sp[i].substring(0,ei);if(ki){pm[ki]=sp[i];po.push(ki);}}var h=window.location.hash;if(h){var s=h.charAt(0)==="#"?h.slice(1):h;if(s.charAt(0)==="?")s=s.slice(1);if(s){var up=s.split("&");for(var j=0;j<up.length;j++){var ej=up[j].indexOf("=");var kj=ej===-1?up[j]:up[j].substring(0,ej);if(kj&&!C.has(kj)){if(!(kj in pm))po.push(kj);pm[kj]=up[j];}}}}var m="?";for(var x=0;x<po.length;x++){if(x>0)m+="&";m+=pm[po[x]];}(function(od){try{if(od&&od.configurable){window.__sfhod=od;window.__sfhs=m;Object.defineProperty(Location.prototype,'hash',{get:function(){return window.__sfhs!==undefined?'#'+window.__sfhs:od.get.call(this)},set:function(v){od.set.call(this,v)},configurable:true})}else{history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}}catch(e){history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}})(Object.getOwnPropertyDescriptor(Location.prototype,'hash'));})();</script>`;
 
-      return await serveShortUrlHtml(ogMetaTags, injectedScript);
+      return await serveShortUrlHtml(ogMetaTags, injectedScript, favicon);
     } catch (error) {
       console.error("UUID shortened URL error:", error);
       return c.json({ error: "Failed to retrieve shortened URL" }, 500);
@@ -690,6 +836,11 @@ app.get("/j/:sha256", async (c) => {
     // Extract OG metadata from hash params and inject meta tags
     const decoded = decodeHashParamsToJson(hashParams);
     const ogMetaTags = buildOgMetaTags(decoded);
+    // Point the tab favicon at this frame's derived favicon (same-origin) when it
+    // has an og image; the serve route falls back to the default until it exists.
+    const favicon = (decoded.og as { image?: string } | undefined)?.image
+      ? `<link rel="icon" type="image/png" href="/j/${sha256}/favicon.png" />\n`
+      : "";
 
     // Inject a lightweight script that sets the short URL ID and starts an
     // async fetch for the hash params.  The full hash-param blob is NOT
@@ -709,7 +860,7 @@ app.get("/j/:sha256", async (c) => {
         )
       } + "/url").then(function(r){return r.text()}).then(function(fullUrl){var idx=fullUrl.indexOf("#");var stored=idx===-1?"":fullUrl.slice(idx+1);window.__SHORT_URL_HASH_PARAMS=stored;var C=window.__SHORT_URL_CANONICAL_KEYS;var ss=stored.charAt(0)==="?"?stored.slice(1):stored;var sp=ss.split("&");var pm={};var po=[];for(var i=0;i<sp.length;i++){var ei=sp[i].indexOf("=");var ki=ei===-1?sp[i]:sp[i].substring(0,ei);if(ki){pm[ki]=sp[i];po.push(ki)}}var h=window.location.hash;if(h){var s=h.charAt(0)==="#"?h.slice(1):h;if(s.charAt(0)==="?")s=s.slice(1);if(s){var up=s.split("&");for(var j=0;j<up.length;j++){var ej=up[j].indexOf("=");var kj=ej===-1?up[j]:up[j].substring(0,ej);if(kj&&!C.has(kj)){if(!(kj in pm))po.push(kj);pm[kj]=up[j]}}}}var m="?";for(var x=0;x<po.length;x++){if(x>0)m+="&";m+=pm[po[x]]};(function(od){try{if(od&&od.configurable){window.__sfhod=od;window.__sfhs=m;Object.defineProperty(Location.prototype,'hash',{get:function(){return window.__sfhs!==undefined?'#'+window.__sfhs:od.get.call(this)},set:function(v){od.set.call(this,v)},configurable:true})}else{history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}}catch(e){history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}})(Object.getOwnPropertyDescriptor(Location.prototype,'hash'))});</script>`;
 
-    return await serveShortUrlHtml(ogMetaTags, injectedScript);
+    return await serveShortUrlHtml(ogMetaTags, injectedScript, favicon);
   } catch (error: any) {
     console.error("Shortened URL error:", error);
 
@@ -760,6 +911,42 @@ app.get("/j/:sha256/qrcode.png", async (c) => {
   } catch (error) {
     console.error("Short URL QR code error:", error);
     return c.json({ error: "Failed to generate QR code" }, 500);
+  }
+});
+
+// Per-frame favicon — returns the derived favicon (purple border + the frame's
+// og image) if one has been generated (eagerly, at shorten time), else the site
+// default. Never generates on this path, so it stays fast. sha256 content is
+// immutable, so the stored favicon is permanent and served with immutable cache.
+app.get("/j/:sha256/favicon.png", async (c) => {
+  const sha256 = c.req.param("sha256");
+  const fallback = () => c.redirect("/favicon.ico", 302);
+
+  if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256) || !s3Client) {
+    return fallback();
+  }
+
+  try {
+    const response = await s3Client.send(
+      new GetObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: `favicon/${sha256}`,
+      }),
+    );
+    if (!response.Body) return fallback();
+    const bytes = await response.Body.transformToByteArray();
+    // Copy into a fresh ArrayBuffer-backed buffer so the body type is concrete.
+    const body = new Uint8Array(bytes).buffer;
+    return new Response(body, {
+      headers: {
+        "Content-Type": "image/png",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  } catch {
+    // Not generated yet (or storage miss) — the default favicon applies.
+    return fallback();
   }
 });
 
