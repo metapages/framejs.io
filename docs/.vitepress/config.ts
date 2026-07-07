@@ -6,8 +6,8 @@ export default withMermaid(
     title: "framejs.io",
     description: "Run and edit JavaScript in the browser, embedded in the URL",
     base: "/docs/",
-    // Generate links without the .html suffix (e.g. /docs/intro instead of
-    // /docs/intro.html). Requires the server to serve `foo.html` when `/foo`
+    // Generate links without the .html suffix (e.g. /docs/guide/intro instead of
+    // /docs/guide/intro.html). Requires the server to serve `foo.html` when `/foo`
     // is requested — see the /docs/* serveStatic rewrite in worker/server.ts.
     cleanUrls: true,
 
@@ -15,7 +15,7 @@ export default withMermaid(
 
     themeConfig: {
       nav: [
-        { text: "Docs", link: "/intro" },
+        { text: "Docs", link: "/quickstart" },
         { text: "Examples", link: "/examples/" },
         { text: "Integrations", link: "/integrations/jupyter" },
         { text: "Development", link: "/development/local-setup" },
@@ -23,11 +23,12 @@ export default withMermaid(
       ],
 
       sidebar: [
-        { text: "Intro", link: "/intro" },
+        { text: "Quickstart", link: "/quickstart" },
         {
           text: "Guide",
           items: [
-            { text: "Quickstart", link: "/guide/quickstart" },
+            { text: "Intro", link: "/guide/intro" },
+            
             { text: "Overview", link: "/guide/overview" },
             { text: "JavaScript API", link: "/guide/javascript-api" },
             { text: "URL State", link: "/guide/url-state" },

@@ -8,10 +8,10 @@ hero:
   actions:
     - theme: brand
       text: Quickstart
-      link: /guide/quickstart
+      link: /quickstart
     - theme: alt
       text: Intro
-      link: /intro
+      link: /guide/intro
     - theme: alt
       text: Create new
       link: https://framejs.io#?edit=true
