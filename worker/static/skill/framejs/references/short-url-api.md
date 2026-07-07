@@ -17,6 +17,36 @@ When a local dev checkout is present, the helper auto-loads a nearby `.env` so
 both origins point at the dev stack (e.g. `https://framejs-app.localhost:5173`
 and `https://framejs-io.localhost:4470`).
 
+## Local / dev origins
+
+You don't always run inside the checkout (another session, another repo). To
+drive a **dev or self-hosted** stack without preconfiguring env, the helper
+resolves the backend per run, most specific first:
+
+1. `--app-origin <url>` / `--io-origin <url>` — explicit override.
+2. the **origin of a full frame URL** passed to `--id` (create) or the `fetch`
+   arg — so a URL like
+   `https://framejs-app.localhost:13747/j/<uuid>?token=<key>` posts updates to
+   `https://framejs-app.localhost:13747` (and its `?token=` is used as the
+   bearer credential, exactly as in production).
+3. the origin recorded in `--state` for a frame the session already created (so
+   repeated in-place updates stay on the same stack).
+4. the env/`.env` baseline (`FRAMEJS_APP_ORIGIN` / `FRAMEJS_IO_ORIGIN`), else
+   the production default.
+
+```bash
+# Full local dev round-trip against a dev framejs.app — the URL's origin + token
+# are honored, no FRAMEJS_APP_ORIGIN needed:
+DEV="https://framejs-app.localhost:13747/j/<uuid>?token=<key>"
+node scripts/framejs.mjs fetch "$DEV"                       # read current code from the dev stack
+cat app.js | node scripts/framejs.mjs create --id "$DEV"    # update it on the dev stack
+```
+
+Only the framejs.app **app origin** is carried on a frame URL. The framejs.io
+runtime origin (uploads, screenshots, the `/j/<sha256>` snapshot) stays on the
+env/production baseline unless you also pass `--io-origin <url>` (or point
+`FRAMEJS_IO_ORIGIN` at your dev runtime).
+
 ## One frame per session
 
 A single conversation edits **one** frame at a stable URL. The helper records

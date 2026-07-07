@@ -252,6 +252,58 @@ try {
     assert.equal(JSON.parse(fetchOut).js, SRC);
   });
 
+  // 6b. A full frame URL's origin drives the target backend, overriding the env
+  // baseline — the dev/self-hosted case: `create --id <dev-url>?token=…` must
+  // POST to the URL's origin (with the URL's token) even when env points
+  // elsewhere. Env here names an unroutable app origin so a wrong target fails.
+  const bogus = "http://127.0.0.1:1"; // connection-refused if ever used
+  const urlSlug = "0192cccc-dddd-71ee-8fff-aaaaaaaaaaaa".replaceAll("-", "");
+  const beforeUrl = posts.length;
+  const cUrl = parse(await create([
+    "--id",
+    `${origin}/j/${urlSlug}?token=cap-xyz`,
+    "--state",
+    join(tmp, "url-origin.json"),
+    "--no-open",
+  ], { env: { FRAMEJS_APP_ORIGIN: bogus, FRAMEJS_IO_ORIGIN: IO } }));
+  check("a full frame URL's origin overrides the env app origin", () => {
+    assert.equal(posts.length, beforeUrl + 1);
+    assert.equal(posts[posts.length - 1].slug, urlSlug);
+    assert.equal(cUrl.page, `${origin}/j/${urlSlug}`);
+  });
+  check("records both origins in --state", () => {
+    const saved = JSON.parse(readFileSync(join(tmp, "url-origin.json"), "utf8"));
+    assert.equal(saved.appOrigin, origin);
+    assert.equal(saved.ioOrigin, IO);
+  });
+
+  // 6c. --app-origin flag wins outright (even over a full-URL origin).
+  const flagSlug = "0192dddd-eeee-71ff-8aaa-bbbbbbbbbbbb".replaceAll("-", "");
+  const beforeFlag = posts.length;
+  await create([
+    "--id",
+    `${bogus}/j/${flagSlug}`,
+    "--app-origin",
+    origin,
+    "--state",
+    join(tmp, "flag-origin.json"),
+    "--no-open",
+  ], { env: { FRAMEJS_APP_ORIGIN: bogus, FRAMEJS_IO_ORIGIN: IO } });
+  check("--app-origin flag overrides both env and the URL origin", () => {
+    assert.equal(posts.length, beforeFlag + 1);
+    assert.equal(posts[posts.length - 1].slug, flagSlug);
+  });
+
+  // 6d. fetch honors the origin carried on a full frame URL too.
+  const fetchUrl = await run(
+    "fetch",
+    [`${origin}/j/${c1.slug}`],
+    { env: { FRAMEJS_APP_ORIGIN: bogus, FRAMEJS_IO_ORIGIN: IO } },
+  );
+  check("fetch honors the origin on a full frame URL", () => {
+    assert.equal(JSON.parse(fetchUrl).js, SRC);
+  });
+
   // 7. The browser opens only for a freshly minted frame — updates reach the
   // same already-open tab via its live-update subscription, so reopening it
   // would just spawn a redundant new tab. None of the calls above pass
