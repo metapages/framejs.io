@@ -63,10 +63,12 @@ make a bouncing ball animation
 visualize ./data.csv as a bar chart
 ```
 
-Modify an existing app by pasting its short URL (top right `Edit -> Short URL`):
+Modify an existing app by pasting its short URL
+ - `framejs.app`: (top right `Menu -> Copy frame for AI session`)
+ - `framejs.io`: `Save and shorten URL`
 
 ```
-https://framejs.io/j/<sha256> make the background white
+https://framejs.io/j/<id> make the background white
 ```
 
 ## Legacy: the `/js` Claude Code command

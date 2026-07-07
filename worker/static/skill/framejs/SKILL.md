@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.4"
+  version: "1.5"
 ---
 
 # framejs
@@ -45,6 +45,13 @@ In both modes the JavaScript you write follows the same rules — read
    "Copy frame for AI session" action), pass the whole URL to `--id` (or the key
    to `--token`): the helper stores it and sends it as the bearer credential so
    your updates keep working even after the frame's owner has claimed it.
+   Passing the **whole URL** also targets the backend the URL names — so a dev
+   or self-hosted frame URL (e.g.
+   `https://framejs-app.localhost:13747/j/<uuid>?token=<key>`) updates its own
+   stack with no env preconfigured. `--app-origin <url>` / `--io-origin <url>`
+   set the backend explicitly. See
+   [references/short-url-api.md](references/short-url-api.md) (§ Local / dev
+   origins).
 3. **Visualize local files** — the request references file paths (`./data.csv`,
    `/tmp/results.json`). Upload them and pass as inputs — see
    [references/file-inputs.md](references/file-inputs.md).
@@ -167,4 +174,6 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   and wire them in as inputs.
 - `scripts/framejs.mjs` — Node helper: `create` (stdin JS → framejs.app frame),
   `fetch <id>`, `upload <path>`. Origins: `FRAMEJS_APP_ORIGIN` /
-  `FRAMEJS_IO_ORIGIN` (auto-loaded from a nearby `.env` in local dev).
+  `FRAMEJS_IO_ORIGIN` (auto-loaded from a nearby `.env` in local dev), or
+  per-run via `--app-origin`/`--io-origin` or the origin of a full frame URL
+  passed to `--id`/`fetch`.

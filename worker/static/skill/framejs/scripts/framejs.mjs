@@ -22,7 +22,10 @@
 //            --id accepts a full framejs URL (either backend); a `?token=<key>`
 //            on it (from the app's "Copy frame for AI session") is stored and
 //            sent as the bearer credential so updates survive the frame being
-//            claimed. --token <key> sets it explicitly.
+//            claimed. --token <key> sets it explicitly. When --id is a full URL
+//            its origin becomes the target backend (so a dev/self-hosted frame
+//            URL updates its own stack); --app-origin / --io-origin override
+//            explicitly.
 //   fetch    retrieve the stored hash params (js/inputs/modules/og) for a
 //            framejs.app /j/<uuid> frame (or a legacy framejs.io /j/<sha256>).
 //   upload   upload a local file and print its public DataRef URL.
@@ -31,6 +34,10 @@
 //   FRAMEJS_APP_ORIGIN  framejs.app layer   (default https://framejs.app)
 //   FRAMEJS_IO_ORIGIN   framejs.io runtime  (default https://framejs.io;
 //                       FRAMEJS_BASE is accepted as a legacy alias)
+// Per-run overrides (win over the env baseline): the --app-origin/--io-origin
+// flags, or the origin of a full frame URL passed to --id / fetch — so a dev
+// frame URL like https://framejs-app.localhost:13747/j/<uuid>?token=<key> drives
+// its own backend with no env preconfigured (see resolveOrigins).
 //
 // `create --screenshot` additionally captures a preview image of the rendered
 // app and stores it as `og.image` — but ONLY when the app does not already have
@@ -102,11 +109,16 @@ loadDotEnv();
 const stripSlash = (u) => u.replace(/\/+$/, "");
 
 // framejs.app: the account/frame layer that owns the mutable /j/<uuid> content.
-const APP_ORIGIN = stripSlash(
+// framejs.io: the runtime (rendering, uploads, screenshots, legacy sha256 read).
+// These are the baseline (env/.env → production default). Each command may
+// narrow them for its run — an explicit --app-origin/--io-origin flag, or the
+// origin carried on a full frame URL passed to --id/fetch — so a dev or
+// self-hosted frame (e.g. https://framejs-app.localhost:13747/j/<uuid>?token=…)
+// targets its own backend without any env preconfigured. See resolveOrigins().
+let APP_ORIGIN = stripSlash(
   process.env.FRAMEJS_APP_ORIGIN || "https://framejs.app",
 );
-// framejs.io: the runtime (rendering, uploads, screenshots, legacy sha256 read).
-const IO_ORIGIN = stripSlash(
+let IO_ORIGIN = stripSlash(
   process.env.FRAMEJS_IO_ORIGIN || process.env.FRAMEJS_BASE ||
     "https://framejs.io",
 );
@@ -200,6 +212,8 @@ function parseFlags(argv) {
     else if (a === "--new") flags.new = true;
     else if (a === "--id") flags.id = argv[++i];
     else if (a === "--token") flags.token = argv[++i];
+    else if (a === "--app-origin") flags.appOrigin = argv[++i];
+    else if (a === "--io-origin") flags.ioOrigin = argv[++i];
     else if (a === "--state") flags.state = argv[++i];
     else if (a === "--screenshot") flags.screenshot = true;
     else if (a === "--screenshot-wait") {
@@ -262,8 +276,11 @@ const frameSlug = (uuid) => uuid.replaceAll("-", "");
 // Parse a frame reference the user/agent may hand us: a bare id, a slug, or a
 // full framejs URL — from either backend, with or without a `?token=<key>` query
 // param (as produced by the app's "Copy frame for AI session" action). Returns
-// { id, token }: `id` is the frame id (dashes preserved; frameSlug strips them),
-// `token` the API bearer key if the URL carried one (undefined otherwise).
+// { id, token, origin }: `id` is the frame id (dashes preserved; frameSlug
+// strips them), `token` the API bearer key if the URL carried one (undefined
+// otherwise), and `origin` the scheme://host[:port] when a full URL was given —
+// so a dev/self-hosted frame URL can target its own backend (undefined for a
+// bare id/slug).
 function parseFrameRef(raw) {
   let s = String(raw || "").trim();
   let token;
@@ -274,9 +291,13 @@ function parseFrameRef(raw) {
     } catch { /* not parseable — ignore the query string */ }
     s = s.slice(0, q);
   }
+  // Capture the origin when a full URL was given (anything before `/j/`), so an
+  // update/read can go to the same backend the URL names — no env needed.
+  const originMatch = s.match(/^(https?:\/\/[^/]+)\/j\//i);
+  const origin = originMatch ? stripSlash(originMatch[1]) : undefined;
   // Drop any leading origin/.../j/ and a trailing .json, leaving just the id.
   const id = s.replace(/^.*\/j\//, "").replace(/\.json$/, "").trim();
-  return { id, token };
+  return { id, token, origin };
 }
 
 // Encode one JSON-blob value the way framejs hash params are stored: the exact
@@ -329,6 +350,32 @@ function writeState(path, data) {
   }
 }
 
+// First `--name value` occurrence in argv, else undefined. Used by commands
+// (like `fetch`) that don't route through parseFlags but still accept origins.
+function flagValue(argv, name) {
+  const i = argv.indexOf(name);
+  return i >= 0 ? argv[i + 1] : undefined;
+}
+
+// Narrow the backend origins for this run, most specific first:
+//   explicit --app-origin/--io-origin flag
+//   > origin carried on a full frame URL (--id / the fetch arg) — app only
+//   > origin recorded in --state for a reused session frame
+//   > the env/.env/production baseline already in APP_ORIGIN / IO_ORIGIN.
+// This lets a dev/self-hosted frame URL (e.g.
+// https://framejs-app.localhost:13747/j/<uuid>?token=…) drive its own stack for
+// full local testing, and keeps a session's repeated in-place updates on the
+// same backend the frame was first created against.
+function resolveOrigins(
+  { flagApp, flagIo, urlOrigin, stateApp, stateIo } = {},
+) {
+  if (flagApp) APP_ORIGIN = stripSlash(flagApp);
+  else if (urlOrigin) APP_ORIGIN = stripSlash(urlOrigin);
+  else if (stateApp) APP_ORIGIN = stripSlash(stateApp);
+  if (flagIo) IO_ORIGIN = stripSlash(flagIo);
+  else if (stateIo) IO_ORIGIN = stripSlash(stateIo);
+}
+
 async function cmdCreate(argv) {
   const flags = parseFlags(argv);
   const code = await readStdin();
@@ -344,6 +391,15 @@ async function cmdCreate(argv) {
   const statePath = stateFile(flags);
   const state = readState(statePath);
   const ref = flags.id ? parseFrameRef(flags.id) : null;
+  // Resolve the effective backend origins before any network call below (the OG
+  // fetch, screenshot upload, POST, token mint and snapshot all read them).
+  resolveOrigins({
+    flagApp: flags.appOrigin,
+    flagIo: flags.ioOrigin,
+    urlOrigin: ref?.origin,
+    stateApp: state.appOrigin,
+    stateIo: state.ioOrigin,
+  });
   const uuid = ref?.id || (!flags.new && state.uuid) || uuidv7();
   const slug = frameSlug(uuid);
   // Only a freshly minted uuid (no --id, and not already the session's known
@@ -404,7 +460,12 @@ async function cmdCreate(argv) {
   if (!token) {
     token = await mintToken(slug);
   }
-  writeState(statePath, { uuid, token, appOrigin: APP_ORIGIN });
+  writeState(statePath, {
+    uuid,
+    token,
+    appOrigin: APP_ORIGIN,
+    ioOrigin: IO_ORIGIN,
+  });
 
   const pageUrl = `${APP_ORIGIN}/j/${slug}`;
   // Immutable content-addressed snapshot of exactly what we just posted (best
@@ -541,7 +602,16 @@ async function shortenSnapshot(body) {
 }
 
 async function cmdFetch(argv) {
-  const hex = parseFrameRef(argv[0]).id.replaceAll("-", "").toLowerCase();
+  const ref = parseFrameRef(argv[0]);
+  // Read from the backend the URL names (or an explicit --app-origin/--io-origin)
+  // so a dev/self-hosted frame is fetched from its own stack — keeping the
+  // fetch→modify round-trip on one backend, same resolution as `create`.
+  resolveOrigins({
+    flagApp: flagValue(argv, "--app-origin"),
+    flagIo: flagValue(argv, "--io-origin"),
+    urlOrigin: ref.origin,
+  });
+  const hex = ref.id.replaceAll("-", "").toLowerCase();
   if (/^[0-9a-f]{32}$/.test(hex)) {
     // framejs.app frame — the public read API returns the unpacked hash params
     // ({ js, inputs, modules, og }): the exact shape `create` accepts back.
@@ -844,7 +914,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 const handlers = { create: cmdCreate, fetch: cmdFetch, upload: cmdUpload };
 if (!handlers[cmd]) {
   die(
-    `usage: framejs.mjs <create|fetch|upload> [...]\n  create  (reads JS from stdin)  --state <file> | --id <uuid|url> | --new  --token <key>  --module <url> --input name=value --inputs <file.json> --title <t> --description <d> --og <json> --screenshot [--screenshot-wait <ms>] [--screenshot-size <w,h>] --no-open\n  fetch   <uuid | /j/uuid | url | sha256 | /j/sha256>   (a ?token= on the url is honored)\n  upload  <file-path>`,
+    `usage: framejs.mjs <create|fetch|upload> [...]\n  create  (reads JS from stdin)  --state <file> | --id <uuid|url> | --new  --token <key>  --app-origin <url> --io-origin <url>  --module <url> --input name=value --inputs <file.json> --title <t> --description <d> --og <json> --screenshot [--screenshot-wait <ms>] [--screenshot-size <w,h>] --no-open\n  fetch   <uuid | /j/uuid | url | sha256 | /j/sha256> [--app-origin <url>] [--io-origin <url>]   (a ?token= / origin on the url is honored)\n  upload  <file-path>`,
   );
 }
 await checkForUpdate();
