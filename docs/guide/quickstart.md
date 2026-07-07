@@ -13,7 +13,7 @@ curl -fsSL https://framejs.io/skill/install.sh | sh
 <div class="wrap-code">
 
 ```bash
-> create an interactive 3D globe that highlights countries on hover with population and fertility, when none are selected use the global values
+> create an interactive 3D globe visualization that highlights countries on hover with population and fertility, when none are selected use the global values
 ```
 
 </div>

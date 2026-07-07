@@ -349,13 +349,17 @@
     <div id="root" class="root borderFatSolidGreen transparent">
       <div
         id="landing-content"
-        style="display: none; max-width: 740px; margin: 48px auto; padding: 0 24px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1c1c1c; line-height: 1.6"
+        style="background-color: #FBFAF7; display: none; height: 100%; width: 100%; margin: 4px auto; padding: 0 4px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1c1c1c; line-height: 1.6"
       >
-        <link
+        <!-- <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap"
-        >
-        <h1
+        > -->
+
+        <iframe src="https://framejs.app/howto"
+          style="border: none; width: 100%; height: 100%;" frameborder="0"
+          allow="clipboard-read; clipboard-write"></iframe>
+        <!-- <h1
           style="font-size: 2.8rem; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 8px; color: #2563eb"
         >
           framejs.io
@@ -409,13 +413,13 @@
         <div style="position: relative; margin: 0 0 32px">
           <button
             onclick='navigator.clipboard.writeText(
-  this.parentElement.querySelector("code").textContent,
-).then(() => {
-  this.textContent = "Copied!";
-  setTimeout(() => {
-    this.textContent = "Copy";
-  }, 1500);
-})'
+        this.parentElement.querySelector("code").textContent,
+        ).then(() => {
+        this.textContent = "Copied!";
+        setTimeout(() => {
+        this.textContent = "Copy";
+        }, 1500);
+        })'
             style="position: absolute; top: 10px; right: 10px; background: #3a3a3a; color: #ddd; border: none; border-radius: 5px; padding: 5px 12px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; cursor: pointer; z-index: 1; transition: background 0.2s"
             onmouseover='this.style.background = "#555"'
             onmouseout='this.style.background = "#3a3a3a"'
@@ -425,32 +429,32 @@
           <pre
             style="background: #1a1a1a; color: #d4d4d4; border-radius: 8px; padding: 18px 20px; overflow: auto; max-height: 280px; font-family: 'jetbrains mono', monospace; font-size: 0.82rem; line-height: 1.5; margin: 0"
           ><code>const canvas = document.createelement("canvas");
-canvas.width = root.getboundingclientrect().width;
-canvas.height = root.getboundingclientrect().height;
-root.appendchild(canvas);
-const ctx = canvas.getcontext("2d");
+        canvas.width = root.getboundingclientrect().width;
+        canvas.height = root.getboundingclientrect().height;
+        root.appendchild(canvas);
+        const ctx = canvas.getcontext("2d");
 
-let particles = array.from({length: 80}, () => ({
-  x: math.random() * root.getboundingclientrect().width, y: math.random() * root.getboundingclientrect().height,
-  vx: (math.random() - 0.5) * 2, vy: (math.random() - 0.5) * 2,
-  r: math.random() * 3 + 1
-}));
+        let particles = array.from({length: 80}, () => ({
+        x: math.random() * root.getboundingclientrect().width, y: math.random() * root.getboundingclientrect().height,
+        vx: (math.random() - 0.5) * 2, vy: (math.random() - 0.5) * 2,
+        r: math.random() * 3 + 1
+        }));
 
-function frame() {
-  ctx.fillstyle = "rgba(0,0,0,0.08)";
-  ctx.fillrect(0, 0, root.getboundingclientrect().width, root.getboundingclientrect().height);
-  for (const p of particles) {
-    p.x += p.vx; p.y += p.vy;
-    if (p.x < 0 || p.x > root.getboundingclientrect().width) p.vx *= -1;
-    if (p.y < 0 || p.y > root.getboundingclientrect().height) p.vy *= -1;
-    ctx.beginpath();
-    ctx.arc(p.x, p.y, p.r, 0, math.pi * 2);
-    ctx.fillstyle = `hsl(210, 40%, ${50 + p.r * 10}%)`;
-    ctx.fill();
-  }
-  requestanimationframe(frame);
-}
-frame();</code></pre>
+        function frame() {
+        ctx.fillstyle = "rgba(0,0,0,0.08)";
+        ctx.fillrect(0, 0, root.getboundingclientrect().width, root.getboundingclientrect().height);
+        for (const p of particles) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > root.getboundingclientrect().width) p.vx *= -1;
+        if (p.y < 0 || p.y > root.getboundingclientrect().height) p.vy *= -1;
+        ctx.beginpath();
+        ctx.arc(p.x, p.y, p.r, 0, math.pi * 2);
+        ctx.fillstyle = `hsl(210, 40%, ${50 + p.r * 10}%)`;
+        ctx.fill();
+        }
+        requestanimationframe(frame);
+        }
+        frame();</code></pre>
         </div>
 
         <div
@@ -505,7 +509,7 @@ frame();</code></pre>
             &#x2022;
             <a href="/llms.txt" style="color: #4b7be5">llms.txt</a>
           </p>
-        </div>
+        </div> -->
       </div>
     </div>
     <!-- Show landing content only if no JS is pending (no short URL, no js hash param) -->

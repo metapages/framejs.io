@@ -6,6 +6,7 @@ import {
   getAllowedHashParams,
   stripDisallowedHashParams,
 } from "/@/utils/hashParams";
+import { getFramejsAppOrigin } from "/@/utils/origin";
 
 import { Box, Icon, Tooltip, useToast } from "@chakra-ui/react";
 import { getHashParamValueBase64DecodedFromUrl } from "@metapages/hash-query";
@@ -17,12 +18,6 @@ import {
 import { MetaframeDefinition } from "@metapages/metapage";
 import { useMetaframe } from "@metapages/metapage-react/hooks";
 import { FloppyDiskIcon } from "@phosphor-icons/react";
-
-declare global {
-  interface Window {
-    __FRAMEJS_APP_ORIGIN?: string;
-  }
-}
 
 // Matches a canonical UUID (8-4-4-4-12 hex). Keep in sync with the worker's
 // UUID_REGEX (worker/server.ts).
@@ -41,17 +36,6 @@ const getShortUrlId = (): string | undefined => {
     // cross-origin parent
   }
   return window.__SHORT_URL_ID;
-};
-
-const getFramejsAppOrigin = (): string => {
-  try {
-    if (window.parent !== window && window.parent.__FRAMEJS_APP_ORIGIN) {
-      return window.parent.__FRAMEJS_APP_ORIGIN;
-    }
-  } catch {
-    // cross-origin parent
-  }
-  return window.__FRAMEJS_APP_ORIGIN || "https://framejs.app";
 };
 
 // Navigate the top-most window (so we escape the editor iframe when embedded).

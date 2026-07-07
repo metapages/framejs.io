@@ -57,6 +57,7 @@ services:
       interval: 5s
       timeout: 1s
     environment:
+      - "DEV=true"
       - "DENO_DIR=/deno"
       - "DENO_INSTALL_ROOT=/deno"
       - "PORT=3000"
@@ -148,6 +149,12 @@ services:
       - traefik.http.routers.app-docs.tls=true
       - traefik.http.routers.app-docs.rule=Host("${APP_FQDN:-framejs-io.localhost}") && PathPrefix(`/docs`)
       - traefik.http.services.app-docs.loadbalancer.server.port=4173
+      # VitePress base is /docs/ (with trailing slash), so bare /docs is outside
+      # the base and shows "did you mean /docs/?". Redirect /docs → /docs/ to
+      # match the worker's prod redirect (worker/server.ts).
+      - traefik.http.routers.app-docs.middlewares=docs-add-slash
+      - traefik.http.middlewares.docs-add-slash.redirectregex.regex=^(https?://[^/]+)/docs$$
+      - traefik.http.middlewares.docs-add-slash.redirectregex.replacement=$${1}/docs/
 
   traefik:
     image: "traefik:v2.11"
