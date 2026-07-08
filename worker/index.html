@@ -2248,8 +2248,11 @@
     );
     const inEditMode = hashParams["edit"] === "true";
     // Show editor if the hash param is set to edit=true
-    // or if the page is not in an iframe AND there is no js in the hash params
-    if (inEditMode || (!getJsFromUrl() && !isIframe())) {
+    // DISABLED: previously also auto-opened the editor when the page is not in
+    // an iframe AND there is no js in the hash params (i.e. opened in a window).
+    // To re-enable, restore the commented-out condition below.
+    // if (inEditMode || (!getJsFromUrl() && !isIframe())) {
+    if (inEditMode) {
       // if editing, force showing the menu
       window.addEventListener("load", () => {
         onMenuClick();

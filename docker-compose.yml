@@ -77,7 +77,7 @@ services:
       - "UMAMI_HOST=${UMAMI_HOST:-https://cloud.umami.is}"
       - "UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID:-}"
       # Backend that resolves a frame UUID to its hash-param values (/j/:uuid).
-      - "FRAMEJS_APP_ORIGIN=${FRAMEJS_APP_ORIGIN:-http://framejs.app}"
+      - "FRAMEJS_APP_ORIGIN=${FRAMEJS_APP_ORIGIN:-https://framejs.app}"
     extra_hosts:
       - "framejs-app.localhost:host-gateway"
     expose:
