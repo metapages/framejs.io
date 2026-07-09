@@ -88,11 +88,20 @@ async function serveShortUrlHtml(
   extraHead = "",
 ): Promise<Response> {
   const indexHtml = await Deno.readTextFile("./index.html");
-  const ogStripped = indexHtml.replace(
+  let html = indexHtml.replace(
     /<!-- OG_START -->[\s\S]*?<!-- OG_END -->/,
     "",
   );
-  const modifiedHtml = ogStripped.replace(
+  // When a per-frame favicon is injected, strip the static <link rel="icon">
+  // tags from index.html first. Browsers don't take "the last matching rel" —
+  // they choose the best icon candidate and prefer a scalable SVG over a
+  // size-less PNG regardless of source order, so index.html's /favicon.svg would
+  // otherwise always win and the per-frame favicon would never show. Removing the
+  // static icons leaves the injected per-frame favicon as the only rel="icon".
+  if (/rel="icon"/.test(extraHead)) {
+    html = html.replace(/[ \t]*<link\b[^>]*\brel="icon"[^>]*>\r?\n?/g, "");
+  }
+  const modifiedHtml = html.replace(
     "</head>",
     ogMetaTags + extraHead + injectedScript + "\n</head>",
   );
@@ -114,7 +123,18 @@ async function serveShortUrlHtml(
  * construction.
  */
 function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
-  const [, hashObject] = getUrlHashParamsFromHashString(hashParams);
+  // Normalize the leading marker. The stored blob varies by shorten path:
+  // /api/shorten/json builds it via jsonToHashParams (leading "?"), but
+  // /api/shorten stores the client string verbatim, which may be a bare
+  // "js=...&og=..." (or "#js=..."). getUrlHashParamsFromHashString only parses
+  // a "?"-prefixed query, returning {} for a bare/"#"-only string — which
+  // silently dropped og (favicon + OG meta) for those frames. Strip any leading
+  // "#" and ensure exactly one "?" so every stored form decodes identically.
+  let normalized = hashParams.startsWith("#")
+    ? hashParams.slice(1)
+    : hashParams;
+  if (normalized && !normalized.startsWith("?")) normalized = "?" + normalized;
+  const [, hashObject] = getUrlHashParamsFromHashString(normalized);
 
   // Build type map from default definition
   const typeMap: Record<string, HashParamType> = {};
@@ -284,7 +304,7 @@ async function getS3PresignClient(): Promise<S3Client | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Per-frame derived favicons (purple border + the frame's og image).
+// Per-frame derived favicons (the frame's og image, full-bleed, 64×64).
 //
 // A frame's content (and thus its og image) is immutable once shortened to a
 // sha256, so its favicon is computed ONCE at shorten time and stored permanently
@@ -316,9 +336,9 @@ function ensureResvg(): Promise<void> {
 }
 
 /**
- * Composite the derived favicon: the app's purple rounded border (from
- * framejs.app's static/favicon.svg, scaled 32→64) with its interior filled by
- * `imageBytes`, center-cropped. Returns a 64×64 PNG.
+ * Composite the derived favicon: the frame's og image, full-bleed and
+ * center-cropped to fill the whole 64×64 icon (no border, no background).
+ * Returns a 64×64 PNG.
  */
 function bytesToBase64(bytes: Uint8Array): string {
   // Chunked to avoid blowing the call stack on `String.fromCharCode(...big)`.
@@ -339,10 +359,7 @@ async function renderFaviconPng(
   const dataUri = `data:${mimeType};base64,${bytesToBase64(imageBytes)}`;
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <defs><clipPath id="c"><rect x="15" y="15" width="34" height="34" rx="5"/></clipPath></defs>
-  <rect width="64" height="64" rx="12" fill="#fbfaf7"/>
-  <image href="${dataUri}" x="15" y="15" width="34" height="34" preserveAspectRatio="xMidYMid slice" clip-path="url(#c)"/>
-  <rect x="12.8" y="12.8" width="38.4" height="38.4" rx="7.2" fill="none" stroke="#1f2edb" stroke-width="4.4"/>
+  <image href="${dataUri}" x="0" y="0" width="64" height="64" preserveAspectRatio="xMidYMid slice"/>
 </svg>`;
   return new Resvg(svg, { fitTo: { mode: "original" } }).render().asPng();
 }
@@ -843,7 +860,7 @@ app.get("/j/:sha256", async (c) => {
       // the tab icon at framejs.app's endpoint (cross-origin) when it has an og
       // image; degrades to the default if unreachable/not yet generated.
       const favicon = (decoded.og as { image?: string } | undefined)?.image
-        ? `<link rel="icon" type="image/png" href="${FRAMEJS_APP_ORIGIN}/j/${id}/favicon.png" />\n`
+        ? `<link rel="icon" type="image/png" sizes="any" href="${FRAMEJS_APP_ORIGIN}/j/${id}/favicon.png" />\n`
         : "";
       const canonicalKeysJson = JSON.stringify(CANONICAL_HASH_PARAM_KEYS);
 
@@ -921,7 +938,7 @@ app.get("/j/:sha256", async (c) => {
     // Point the tab favicon at this frame's derived favicon (same-origin) when it
     // has an og image; the serve route falls back to the default until it exists.
     const favicon = (decoded.og as { image?: string } | undefined)?.image
-      ? `<link rel="icon" type="image/png" href="/j/${sha256}/favicon.png" />\n`
+      ? `<link rel="icon" type="image/png" sizes="any" href="/j/${sha256}/favicon.png" />\n`
       : "";
 
     // Inject a lightweight script that sets the short URL ID and starts an
@@ -997,9 +1014,10 @@ app.get("/j/:sha256/qrcode.png", async (c) => {
   }
 });
 
-// Per-frame favicon — returns the derived favicon (purple border + the frame's
-// og image) if one has been generated (eagerly, at shorten time), else the site
-// default. Never generates on this path, so it stays fast. sha256 content is
+// Per-frame favicon — returns the derived favicon (the frame's og image,
+// full-bleed). Normally generated eagerly at shorten time; on a miss this path
+// generates once, lazily, then serves (self-healing for frames shortened before
+// generation existed, or via a path whose og didn't decode). sha256 content is
 // immutable, so the stored favicon is permanent and served with immutable cache.
 app.get("/j/:sha256/favicon.png", async (c) => {
   const sha256 = c.req.param("sha256");
@@ -1011,29 +1029,53 @@ app.get("/j/:sha256/favicon.png", async (c) => {
   const s3 = await getS3Client();
   if (!s3) return fallback();
 
-  try {
-    const { GetObjectCommand } = await s3Mod();
-    const response = await s3.send(
-      new GetObjectCommand({
-        Bucket: S3_BUCKET_NAME,
-        Key: `favicon/${sha256}`,
-      }),
-    );
-    if (!response.Body) return fallback();
-    const bytes = await response.Body.transformToByteArray();
-    // Copy into a fresh ArrayBuffer-backed buffer so the body type is concrete.
-    const body = new Uint8Array(bytes).buffer;
-    return new Response(body, {
+  // Load the stored favicon PNG, or null if it doesn't exist yet.
+  const loadFavicon = async (): Promise<ArrayBuffer | null> => {
+    try {
+      const { GetObjectCommand } = await s3Mod();
+      const response = await s3.send(
+        new GetObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: `favicon/${sha256}`,
+        }),
+      );
+      if (!response.Body) return null;
+      const bytes = await response.Body.transformToByteArray();
+      // Copy into a fresh ArrayBuffer-backed buffer so the body type is concrete.
+      return new Uint8Array(bytes).buffer;
+    } catch {
+      return null;
+    }
+  };
+
+  const serve = (body: ArrayBuffer) =>
+    new Response(body, {
       headers: {
         "Content-Type": "image/png",
         "Access-Control-Allow-Origin": "*",
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });
+
+  const existing = await loadFavicon();
+  if (existing) return serve(existing);
+
+  // Miss — generate lazily from the stored hash params (best-effort), then retry.
+  try {
+    const { GetObjectCommand } = await s3Mod();
+    const response = await s3.send(
+      new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${sha256}` }),
+    );
+    if (response.Body) {
+      const hashParams = await response.Body.transformToString();
+      await generateFaviconForSha256(sha256, hashParams);
+      const generated = await loadFavicon();
+      if (generated) return serve(generated);
+    }
   } catch {
-    // Not generated yet (or storage miss) — the default favicon applies.
-    return fallback();
+    // No stored frame / generation failed — the default favicon applies.
   }
+  return fallback();
 });
 
 // Short URL metaframe.json — computes effective definition from stored hash params
