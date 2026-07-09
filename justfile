@@ -104,8 +104,7 @@ deploy: build
     cp -r worker/cache-test-utils.js $deploy/
     cp -r worker/static $deploy/
     cd $deploy
-    # deno deploy --prod
-    deno deploy
+    deno deploy --prod
 
 # Checks and tests
 test:
