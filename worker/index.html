@@ -4,12 +4,24 @@
     <meta charset="utf-8" />
     <base target="_parent" />
     <title>
-      Create and share JavaScript visualizations and apps instantly
+      AI created shareable apps and visualizations
     </title>
     <meta
       name="description"
-      content="framejs.io lets you create interactive visualizations, dashboards, and apps with AI or by hand. Share via URL — no server, no login, no build step. Just write JavaScript and share the link."
+      content="AI creates and runs interactive browser apps and visualizations.
+      No build, server, or account required. Communicate complex ideas instantly."
     >
+    <meta name="theme-color" content="#F5F2EC" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="canonical" href="https://framejs.io" />
     <link
       rel="help"
       href="/llms.txt"
@@ -26,6 +38,7 @@
       title="JavaScript coding guide for LLMs"
     />
     <!-- OG_START -->
+    <meta property="og:locale" content="en_US" />
     <meta property="og:type" content="website">
     <meta
       property="og:title"
@@ -33,19 +46,23 @@
     >
     <meta
       property="og:description"
-      content="AI creates and runs interactive browser apps and visualizations.
-      No build, server, or account required. Communicate complex ideas instantly."
+      content="Create with AI: apps, interactive visualizations, and more. Communicate complex ideas anywhere, instantly. No account required, open-source"
     >
-
     <meta property="og:url" content="https://framejs.io">
     <meta property="og:site_name" content="framejs.io">
     <meta property="og:image" content="/share/og-image.png">
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt"
+      content="Four visually stunning scientific visualizations" />
     <meta property="og:logo" content="https://framejs.io" />
-    <meta name="twitter:card" content="summary">
+    <meta name="twitter:card" content="summary_large_image">
     <meta
       name="twitter:title"
       content="AI created shareable apps and visualizations"
     >
+    <meta name="twitter:site" content="@metapagesapp" />
+
     <meta
       name="twitter:description"
       content="AI created shareable apps and visualizations"
@@ -333,6 +350,8 @@
   </head>
 
   <body>
+    <h1
+      display="none">AI created apps and visualizations, shareable via URL</h1>
     <!-- framejs.io — Create and share interactive JavaScript apps instantly. Write code (or use AI), get a shareable URL. No server, no login, no build step. Docs: https://framejs.io/docs/ GitHub: https://github.com/metapages/framejs.io For AI/LLM tools: - Site overview + URL encoding scheme: https://framejs.io/llms.txt - Full CLI integration guide (encoding, opening, short URLs, file uploads): https://framejs.io/llms-claude-code.txt - JavaScript coding constraints and patterns: https://framejs.io/llms-prompt.md CLI tools: generate JS, encode into URL with btoa(encodeURIComponent(code)), open https://framejs.io/#?js={encoded} -->
 
     <button id="menu-button" class="invisible-until-hover">
