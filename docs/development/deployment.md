@@ -37,3 +37,7 @@ Push a git tag to trigger CI:
 ```bash
 git tag python-v0.1.0 && git push origin python-v0.1.0
 ```
+
+---
+
+**Developer docs:** [Index](./README.md) · [Local Setup](./local-setup.md) · [Architecture](./architecture.md) · [Editor](./editor.md) · [Worker](./worker.md) · **Deployment**

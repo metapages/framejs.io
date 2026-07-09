@@ -66,7 +66,7 @@ build: build-skill
 build-skill:
     node scripts/build-skill-artifacts.mjs
     # Format generated markdown so it matches `just fmt` output — keeps the two idempotent and prevents fmt from ever rewriting (or re-breaking) generated files
-    deno fmt worker/static/command-js.md worker/static/llms-prompt.md > /dev/null
+    deno fmt worker/static/llms-prompt.md > /dev/null
 
 # Validate the framejs Agent Skill (spec compliance + regenerates artifacts) and
 # exercise the helper's create/update/state/env flow against a local stub.

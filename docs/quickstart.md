@@ -1,6 +1,6 @@
 # Quickstart
 
-1. [Install](./ai/setup)
+1. [Install](./guide/ai)
 
 ```bash
 curl -fsSL https://framejs.io/skill/install.sh | sh

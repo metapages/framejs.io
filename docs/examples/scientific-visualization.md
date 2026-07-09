@@ -7,7 +7,7 @@ We want to create our own version of their [network visualization](https://docs.
 ![ligand-network](https://docs.openfree.energy/en/stable/_images/cookbook_ligandnetwork_vis_10_0.png)
 
 
-## [Prompt](../ai/setup#install-js-command)
+## [Prompt](../guide/ai#install-js-command)
 
 This prompt was not a single prompt, but many over time. 
 

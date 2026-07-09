@@ -21,7 +21,7 @@ curl -fsSL https://framejs.io/skill/install.sh | sh
 Then just ask: _"make a bouncing ball animation"_, _"visualize ./data.csv as a bar chart"_, or paste a `framejs.io/j/<sha256>` short URL to modify it.
 
 - Skill: <https://framejs.io/skill/framejs/SKILL.md>
-- Setup & per-harness install: <https://framejs.io/docs/ai/setup>
+- Setup & per-harness install: <https://framejs.io/docs/guide/ai>
 
 ## Edit with AI
 

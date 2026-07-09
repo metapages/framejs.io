@@ -329,6 +329,22 @@
       transition: background 0.15s, width 0.15s;
     }
 
+    /* Little horizontal caps at the very top and bottom that close the gap
+       between the divider's vertical line (this handle's center) and the
+       editor pane's left border (this handle's right edge). A single box
+       spanning that gap with only top/bottom borders draws both caps. */
+    #editor-resize-handle::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      right: 0;
+      height: 100%;
+      border-top: 1px solid #d0d0d0;
+      border-bottom: 1px solid #d0d0d0;
+      pointer-events: none;
+    }
+
     #editor-resize-handle:hover::after,
     #editor-resize-handle.dragging::after {
       background: #2563eb;
@@ -398,7 +414,7 @@
           style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 36px"
         >
           <a
-            href="/docs/ai/setup"
+            href="/docs/guide/ai"
             style="background: #f8f9fa; border: 1px solid #e2e5e9; border-radius: 8px; padding: 16px 18px; text-decoration: none; color: inherit; transition: border-color 0.2s"
             onmouseover='this.style.borderColor = "#93a3b8"'
             onmouseout='this.style.borderColor = "#e2e5e9"'
@@ -494,7 +510,7 @@
             onmouseout='this.style.textDecoration = "none"'
           >Examples</a>
           <a
-            href="/docs/ai/setup"
+            href="/docs/guide/ai"
             style="color: #4b7be5; text-decoration: none; font-weight: 500"
             onmouseover='this.style.textDecoration = "underline"'
             onmouseout='this.style.textDecoration = "none"'

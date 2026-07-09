@@ -42,4 +42,8 @@ graph LR
 
 State is encoded in the URL hash using [@metapages/hash-query](https://www.npmjs.com/package/@metapages/hash-query). The editor uses React hooks (`useHashParamBase64`, `useHashParamJson`) to read and write hash parameters.
 
-See [URL State](../guide/url-state) for the JavaScript API.
+See [URL State](../guide/url-state.md) for the JavaScript API.
+
+---
+
+**Developer docs:** [Index](./README.md) · [Local Setup](./local-setup.md) · **Architecture** · [Editor](./editor.md) · [Worker](./worker.md) · [Deployment](./deployment.md)

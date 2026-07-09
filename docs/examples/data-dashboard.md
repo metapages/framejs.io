@@ -2,7 +2,7 @@
 
 An interactive dashboard with charts and filters, built from a CSV file.
 
-## [Prompt](../ai/setup#install-js-command)
+## [Prompt](../guide/ai#install-js-command)
 
 <div class="wrap-code">
 

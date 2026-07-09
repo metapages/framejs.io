@@ -71,22 +71,6 @@ Modify an existing app by pasting its short URL
 https://framejs.io/j/<id> make the background white
 ```
 
-## Legacy: the `/js` Claude Code command
-
-The earlier Claude-Code-specific slash command still works and is generated from
-the same skill source:
-
-```bash
-mkdir -p ~/.claude/commands
-curl -sL https://framejs.io/command-js.md -o ~/.claude/commands/js.md
-```
-
-Then `/js make a bouncing ball animation`, `/js visualize ./data.csv`, or
-`/js https://framejs.io/j/<sha256> update the visualization`.
-
-> New setups should prefer the Agent Skill above — it is portable across harnesses
-> and avoids the Claude-Code-only install path.
-
 ## Using an AI chat interface via copy/pasting code
 
 From the component page:
@@ -144,7 +128,6 @@ at `worker/static/skill/framejs/`, so they never drift:
 | File | Purpose |
 |------|---------|
 | [`/skill/framejs/SKILL.md`](https://framejs.io/skill/framejs/SKILL.md) | Portable Agent Skill — combines all use cases, auto-routes by capability |
-| [`/command-js.md`](https://framejs.io/command-js.md) | Claude Code slash command — generates + opens a short URL |
 | [`/llms-prompt.md`](https://framejs.io/llms-prompt.md) | AI chat / API — outputs a JavaScript code block |
 | [`/llms-claude-code.txt`](https://framejs.io/llms-claude-code.txt) | CLI integration guide (short URLs, file uploads, coding guide) |
 | [`/skill/framejs.tar.gz`](https://framejs.io/skill/framejs.tar.gz) | Skill bundle |

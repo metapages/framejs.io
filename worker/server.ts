@@ -1249,13 +1249,6 @@ app.get("/f/:id", (c) => {
   }
 });
 
-// Shortened URL — fetches hash params from S3 and serves index.html with injected init script
-app.get("/command-js.md", async (c) => {
-  const content = await Deno.readTextFile("./static/command-js.md");
-  c.header("Content-Type", "text/plain; charset=utf-8");
-  return c.text(content);
-});
-
 // Static file serving
 app.use("/editor/*", serveStatic({ root: "./" }));
 // /docs (no trailing slash) → /docs/ so VitePress index.html is served

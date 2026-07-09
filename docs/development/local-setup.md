@@ -42,4 +42,8 @@ just jupyter-docker    # run JupyterLab with editable widget
 just marimo-docker     # run marimo with editable widget
 ```
 
-See [Jupyter](../integrations/jupyter) and [marimo](../integrations/marimo) for more details.
+See [Jupyter](../integrations/jupyter.md) and [marimo](../integrations/marimo.md) for more details.
+
+---
+
+**Developer docs:** [Index](./README.md) · **Local Setup** · [Architecture](./architecture.md) · [Editor](./editor.md) · [Worker](./worker.md) · [Deployment](./deployment.md)

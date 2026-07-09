@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitepress';
-import { withMermaid } from 'vitepress-plugin-mermaid';
+import { defineConfig } from "vitepress";
+import { withMermaid } from "vitepress-plugin-mermaid";
 
 export default withMermaid(
   defineConfig({
@@ -13,12 +13,16 @@ export default withMermaid(
 
     ignoreDeadLinks: [/^http:\/\/localhost/],
 
+    // Developer docs (docs/development/**) are intentionally NOT published to the
+    // public docs site — they live in the repo for GitHub navigation only.
+    // See docs/development/README.md.
+    srcExclude: ["development/**"],
+
     themeConfig: {
       nav: [
         { text: "Docs", link: "/quickstart" },
         { text: "Examples", link: "/examples/" },
         { text: "Integrations", link: "/integrations/jupyter" },
-        { text: "Development", link: "/development/local-setup" },
         { text: "Create", link: "https://framejs.io" },
       ],
 
@@ -28,7 +32,7 @@ export default withMermaid(
           text: "Guide",
           items: [
             { text: "Intro", link: "/guide/intro" },
-            
+            { text: "AI Integration", link: "/guide/ai" },
             { text: "Overview", link: "/guide/overview" },
             { text: "JavaScript API", link: "/guide/javascript-api" },
             { text: "URL State", link: "/guide/url-state" },
@@ -40,13 +44,11 @@ export default withMermaid(
         },
         {
           text: "AI",
-          items: [
-            { text: "Setup", link: "/ai/setup" },
-            
-          ],
+          items: [{ text: "Setup", link: "/guide/ai" }],
         },
         {
           text: "Examples",
+          collapsed: true,
           items: [
             { text: "Gallery", link: "/examples/" },
             { text: "Multi Demo", link: "/examples/multi-demo" },
@@ -63,6 +65,7 @@ export default withMermaid(
         },
         {
           text: "Integrations",
+          collapsed: true,
           items: [
             { text: "Jupyter", link: "/integrations/jupyter" },
             { text: "JupyterLite (Live)", link: "/integrations/jupyterlite" },
@@ -80,33 +83,6 @@ export default withMermaid(
             {
               text: "Open Infrastructure & FAIR",
               link: "/story/open-infrastructure",
-            },
-          ],
-        },
-        {
-          text: "Development",
-          items: [
-            { text: "Local Setup", link: "/development/local-setup" },
-            { text: "Architecture", link: "/development/architecture" },
-            { text: "Editor", link: "/development/editor" },
-            { text: "Worker", link: "/development/worker" },
-            { text: "Deployment", link: "/development/deployment" },
-          ],
-        },
-        {
-          text: "Reference Files",
-          items: [
-            {
-              text: "Agent Skill (SKILL.md)",
-              link: "https://framejs.io/skill/framejs/SKILL.md",
-            },
-            {
-              text: "command-js.md",
-              link: "https://framejs.io/command-js.md",
-            },
-            {
-              text: "llms-prompt.md",
-              link: "https://framejs.io/llms-prompt.md",
             },
           ],
         },
