@@ -60,7 +60,16 @@ export const App: React.FC = () => {
   if (shownPanel === "settings") content = <PanelSettings />;
   if (shownPanel === "ai") content = <PanelLlms />;
   return (
-    <VStack gap={0} w={"100%"} h="100vh" overflow={"hidden"} borderLeft={"1px"}>
+    <VStack
+      gap={0}
+      w={"100%"}
+      h="100vh"
+      overflow={"hidden"}
+      borderLeft={"1px"}
+      borderTop={"1px"}
+      borderRight={"1px"}
+      borderBottom={"1px"}
+    >
       <MainHeader />
       <Box flex={1} w="100%" overflow="hidden" position="relative">
         {content}

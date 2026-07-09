@@ -53,3 +53,7 @@ To type-check:
 ```bash
 just worker/check
 ```
+
+---
+
+**Developer docs:** [Index](./README.md) · [Local Setup](./local-setup.md) · [Architecture](./architecture.md) · [Editor](./editor.md) · **Worker** · [Deployment](./deployment.md)

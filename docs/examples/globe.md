@@ -1,7 +1,7 @@
 
 # 3D Interactivity
 
-## [Prompt](../ai/setup#install-js-command)
+## [Prompt](../guide/ai#install-js-command)
 
 > create an interactive 3D globe that highlights countries on hover with population and fertility, when none are selected use the global values
 

@@ -20,7 +20,7 @@ features:
   - title: Edit with AI
     details: |
       Simply describe what you want: visualization, data analysis, UIs, apps
-    link: /ai/setup
+    link: /guide/ai
   - title: Share via URL
     details: All state is embedded in the URL — no server storage. Copy the link and anyone can run your code.
     link: /guide/url-state

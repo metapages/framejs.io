@@ -43,3 +43,7 @@ just editor/build
 ```
 
 Output goes to `editor/dist/`, which is then copied into the deploy directory.
+
+---
+
+**Developer docs:** [Index](./README.md) · [Local Setup](./local-setup.md) · [Architecture](./architecture.md) · **Editor** · [Worker](./worker.md) · [Deployment](./deployment.md)

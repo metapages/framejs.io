@@ -1,6 +1,6 @@
 # Plot any data
 
-## [Prompt](../ai/setup#install-js-command)
+## [Prompt](../guide/ai#install-js-command)
 
 <div class="wrap-code">
 

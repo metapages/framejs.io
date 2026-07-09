@@ -17,7 +17,7 @@ You can embed code safely anywhere, creating custom, editable dashboards, widget
 
 Describe what you want in plain language — visualizations, dashboards, apps, games — and AI builds it for you. Works with Claude, ChatGPT, or any LLM.
 
-[After installation of the skill](../ai/setup):
+[After installation of the skill](../guide/ai):
 ```
 show a range of ways of visualization using framejs.io platform with a slider
 ```
@@ -28,7 +28,7 @@ show a range of ways of visualization using framejs.io platform with a slider
 />
 
 
-<p class="feature-link"><a href="/docs/ai/setup">Set up AI editing &rarr;</a></p>
+<p class="feature-link"><a href="/docs/guide/ai">Set up AI editing &rarr;</a></p>
 
 ---
 
