@@ -10,6 +10,10 @@ dev:
     deno run --allow-all HTTPS://deno.land/x/metapages@v0.0.17/exec/open_url.ts https://metapages.github.io/load-page-when-available/?url=http://${APP_FQDN}:${SERVER_PORT}
     DEV=true PORT={{SERVER_PORT}} APP_FQDN={{APP_FQDN}} deno run --watch -A ./server.ts
     
+# Generate all raster favicons / app icons + manifest from static/favicon.svg
+@generate-favicons:
+    deno run --allow-read --allow-write --allow-net ./scripts/generate-favicons.ts
+
 # Format TypeScript
 @fmt:
     deno fmt .

@@ -5,7 +5,7 @@ import {
   setHashParamValueInUrl,
   setHashParamValueJsonInUrl,
 } from "@metapages/hash-query";
-import {
+import type {
   HashParamsObject,
   HashParamType,
   MetaframeDefinition,
