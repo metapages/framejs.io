@@ -36,13 +36,10 @@ w = MetaframeWidget(url="https://framejs.io/#?js=...", height="300px")
 mo.ui.anywidget(w)
 ```
 
-## Create from inline JavaScript
-
-```python
-w = MetaframeWidget.from_code("""
-  setOutput("result", getInput("data") * 2);
-""", height="300px")
-```
+A widget is always created from a URL. To embed your own code, build and save it
+at [framejs.io](https://framejs.io/) — the editor mints a short URL you can paste
+into `url=`. The URL is the portable, saveable form of a metaframe; the code
+itself lives behind it rather than being inlined in your notebook.
 
 ## API reference
 
@@ -60,7 +57,7 @@ w = MetaframeWidget.from_code("""
 - **`set_inputs(d)`** — merge a dict into current inputs
 - **`set_input(key, value)`** — set a single input key
 - **`on_outputs_change(callback)`** — register a callback for output changes
-- **`from_code(js_code, **kwargs)`** — class method to create a widget from inline JS
+- **`on_saved_url_change(callback)`** — register a callback for when the user saves edits to a new short URL
 - **`pipe_to(target, output_key, input_key=None)`** — connect an output to another widget's input
 
 ## Piping widgets

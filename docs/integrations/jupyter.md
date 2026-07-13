@@ -68,7 +68,8 @@ You should see the metaframe editor rendered as an interactive iframe directly i
 
 ## Creating widgets
 
-There are three ways to create a widget:
+A widget is always created from a URL — the URL *is* the metaframe. There are two
+ways to get one:
 
 ### From a short URL
 
@@ -81,6 +82,10 @@ w
 
 This is the most compact way to embed a metaframe — the code lives behind the
 short URL instead of being inlined in the cell.
+
+A `https://framejs.app/j/<uuid>` URL works just as well — framejs.app resolves it
+to the same `framejs.io/j/<uuid>` metaframe internally, so you can drop in either
+form.
 
 #### Editing and saving back
 
@@ -110,21 +115,15 @@ w = MetaframeWidget(url="https://framejs.io/#?js=...")
 w
 ```
 
-### From inline code (recommended)
-
-Write JavaScript directly in Python — no URL needed. This is the most flexible approach:
-
-```python
-w = MetaframeWidget.from_code("""
-export const onInputs = (inputs) => {
-    document.getElementById("root").textContent = JSON.stringify(inputs);
-    setOutput("echo", inputs);
-};
-""")
-w
-```
-
-The JavaScript code runs inside the widget's iframe. You have access to the full metaframe API: `getInput()`, `setOutput()`, `onInputs()`, and a `<div id="root">` element for rendering.
+::: tip Writing your own code
+To embed custom JavaScript, build it in the [framejs.io](https://framejs.io/)
+editor and click **Save and Shorten URL** — that mints a short URL you paste into
+`url=`. Keeping the code behind a URL (rather than inlining it in a cell) is what
+makes a metaframe portable and saveable: the URL is the one thing you copy,
+share, and persist. Inside the editor you have the full metaframe API —
+`getInput()`, `setOutput()`, `onInputs()`, and a `<div id="root">` for rendering.
+The examples below use short URLs that were built this way.
+:::
 
 ## Sending data from Python to the widget
 
@@ -145,13 +144,12 @@ The widget receives these as inputs. If your widget code defines `onInputs`, it 
 ```python
 from metaframe_widget import MetaframeWidget
 
-# Create a widget that displays whatever inputs it receives
-display_widget = MetaframeWidget.from_code("""
-export const onInputs = (inputs) => {
-    const root = document.getElementById("root");
-    root.innerHTML = "<pre>" + JSON.stringify(inputs, null, 2) + "</pre>";
-};
-""", height="200px")
+# A widget that displays whatever inputs it receives
+# (built in the framejs.io editor, saved to this short URL)
+display_widget = MetaframeWidget(
+    url="https://framejs.io/j/6efd6a9385354048ae683f026646c1139a0d89733b5291253fa3bfa592b4c608",
+    height="200px",
+)
 display_widget
 ```
 
@@ -195,15 +193,10 @@ The callback receives a dict with `"new"` (the updated outputs) and `"old"` (the
 from metaframe_widget import MetaframeWidget
 
 # Widget that doubles every number in the "data" input
-doubler = MetaframeWidget.from_code("""
-export const onInputs = (inputs) => {
-    if (inputs.data) {
-        const doubled = inputs.data.map(x => x * 2);
-        document.getElementById("root").textContent = JSON.stringify(doubled);
-        setOutput("doubled", doubled);
-    }
-};
-""", height="100px")
+doubler = MetaframeWidget(
+    url="https://framejs.io/j/7099ba440f37b858bf33c5fd09ae04077a92318c7abc7f7669117db540d776c9",
+    height="100px",
+)
 doubler
 ```
 
@@ -230,19 +223,16 @@ Connect the output of one widget to the input of another to build processing pip
 from metaframe_widget import MetaframeWidget
 
 # Source widget: echoes inputs as outputs
-source = MetaframeWidget.from_code("""
-export const onInputs = (inputs) => {
-    document.getElementById("root").textContent = "Source: " + JSON.stringify(inputs);
-    Object.keys(inputs).forEach(key => setOutput(key, inputs[key]));
-};
-""", height="80px")
+source = MetaframeWidget(
+    url="https://framejs.io/j/470bc366690396d1d976dc8e259f146a49475f44fdb6bb770ebaad70ca24a22b",
+    height="80px",
+)
 
 # Sink widget: receives piped data
-sink = MetaframeWidget.from_code("""
-export const onInputs = (inputs) => {
-    document.getElementById("root").textContent = "Sink received: " + JSON.stringify(inputs);
-};
-""", height="80px")
+sink = MetaframeWidget(
+    url="https://framejs.io/j/572a76ea8bb83cb7258af857078fbc0b3821e5a3c23f282652147bbc3868e260",
+    height="80px",
+)
 
 # Connect: when source emits "data", push it to sink's "data" input
 source.pipe_to(sink, output_key="data", input_key="data")
@@ -278,42 +268,12 @@ with open("data.csv") as f:
     rows = list(csv.DictReader(f))
 print(f"Loaded {len(rows)} rows")
 
-# 2. Create a table widget
-table = MetaframeWidget.from_code("""
-export const onInputs = (inputs) => {
-    const rows = inputs.rows;
-    if (!rows || rows.length === 0) {
-        document.getElementById("root").textContent = "No data";
-        return;
-    }
-    const cols = Object.keys(rows[0]);
-    const table = document.createElement("table");
-    table.style.cssText = "border-collapse:collapse;width:100%;font-family:sans-serif;font-size:14px";
-
-    const thead = table.createTHead();
-    const hr = thead.insertRow();
-    cols.forEach(col => {
-        const th = document.createElement("th");
-        th.textContent = col;
-        th.style.cssText = "border:1px solid #ccc;padding:6px 10px;background:#f0f0f0;text-align:left";
-        hr.appendChild(th);
-    });
-
-    const tbody = table.createTBody();
-    rows.forEach(row => {
-        const tr = tbody.insertRow();
-        cols.forEach(col => {
-            const td = tr.insertCell();
-            td.textContent = row[col];
-            td.style.cssText = "border:1px solid #ccc;padding:6px 10px";
-        });
-    });
-
-    document.getElementById("root").replaceChildren(table);
-    setOutput("rows", rows);
-    setOutput("count", rows.length);
-};
-""", height="300px")
+# 2. Create a table widget (a small "render rows as an HTML table" metaframe,
+#    built in the framejs.io editor and saved to this short URL)
+table = MetaframeWidget(
+    url="https://framejs.io/j/9047247167a49aa06f205e26f4afc2db7955af55cecf4204336f7e94e67f0a36",
+    height="300px",
+)
 table
 ```
 
@@ -331,7 +291,7 @@ Control the widget dimensions with `width` and `height` (CSS values):
 w = MetaframeWidget(url="...", width="100%", height="400px")
 
 # Smaller widget
-w = MetaframeWidget.from_code("...", height="150px", width="50%")
+w = MetaframeWidget(url="https://framejs.io/j/...", height="150px", width="50%")
 ```
 
 ## Supported environments

@@ -41,12 +41,40 @@ test-jupyter:
     just test-jupyter-notebook
     just test-jupyter-browser
 
-# Run JupyterLab in Docker (editable metaframe-widget). http://localhost:${JUPYTER_PORT:-8888} — copy the access URL from the container logs (token in query string). Optional: JUPYTER_PORT=9999 just jupyter-docker
+# Pick a free host port: try the desired one, otherwise fall back to an OS-assigned free port.
+_free-port desired:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    python3 -c '
+    import socket, sys
+    desired = int(sys.argv[1])
+    def free(p):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("", p)); return True
+            except OSError:
+                return False
+    if free(desired):
+        print(desired)
+    else:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("", 0)); print(s.getsockname()[1])
+    ' "{{ desired }}"
+
+# Run JupyterLab in Docker (editable metaframe-widget). Uses JUPYTER_PORT (default 8888), or the next free port if that one is taken. Copy the access URL from the container logs.
 jupyter-docker: _build-jupyter-docker
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export JUPYTER_PORT="$(just _free-port "${JUPYTER_PORT:-8888}")"
+    echo -e "{{ green }}JupyterLab → http://localhost:${JUPYTER_PORT}{{ normal }} (token in the container logs below)"
     docker compose -f jupyter/docker-compose.yml up jupyter
 
 # Run test-jupyter, then start JupyterLab in Docker (same image as CI tests).
 jupyter-docker-check: test-jupyter
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export JUPYTER_PORT="$(just _free-port "${JUPYTER_PORT:-8888}")"
+    echo -e "{{ green }}JupyterLab → http://localhost:${JUPYTER_PORT}{{ normal }} (token in the container logs below)"
     docker compose -f jupyter/docker-compose.yml up jupyter
 
 # Build the marimo test Docker image
@@ -70,8 +98,12 @@ test-marimo:
     just test-marimo-unit
     just test-marimo-browser
 
-# Run marimo in Docker (editable metaframe-widget). http://localhost:${MARIMO_PORT:-2718}
+# Run marimo in Docker (editable metaframe-widget). Uses MARIMO_PORT (default 2718), or the next free port if that one is taken.
 marimo-docker:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export MARIMO_PORT="$(just _free-port "${MARIMO_PORT:-2718}")"
+    echo -e "{{ green }}marimo → http://localhost:${MARIMO_PORT}{{ normal }} (open the URL printed in the logs below)"
     docker compose -f marimo/docker-compose.yml up --build
 
 alias jupyterlite := _jupyterlite

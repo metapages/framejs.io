@@ -23,7 +23,7 @@ export default {
 
         // Inject CSS to remove iframe borders and inline gaps
         const style = document.createElement("style");
-        style.textContent = ".metaframe-widget-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .metaframe-widget-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
+        style.textContent = ".metaframe-widget-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .metaframe-widget-container * { box-sizing: border-box; } .metaframe-widget-container > div { height: 100%; } .metaframe-widget-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
         el.appendChild(style);
 
         const container = document.createElement("div");

@@ -1,19 +1,7 @@
-import base64
-import urllib.parse
-
 import anywidget
 import traitlets
 
 from ._esm import ESM
-
-import base64
-
-import urllib.parse
-
-# Equivalent to btoa(encodeURIComponent(value));
-def string_to_base64_string(value: str) -> str:
-    encoded_uri_component = urllib.parse.quote(value, safe="-_.!~*'()")
-    return base64.b64encode(encoded_uri_component.encode("ascii")).decode("ascii")
 
 
 class MetaframeWidget(anywidget.AnyWidget):
@@ -82,29 +70,6 @@ class MetaframeWidget(anywidget.AnyWidget):
         freshly-minted short URL.
         """
         self.observe(callback, names=["saved_url"])
-
-    @classmethod
-    def from_code(
-        cls,
-        js_code: str,
-        width: str = "100%",
-        height: str = "400px",
-        allow: str = "",
-        **kwargs,
-    ) -> "MetaframeWidget":
-        """Create a MetaframeWidget from raw JavaScript code.
-
-        Encodes the code into a framejs.io URL with the code in the hash.
-
-        Args:
-            js_code: JavaScript source for the metaframe.
-            width: CSS width for the widget container (default "100%").
-            height: CSS height for the widget container (default "400px").
-            allow: iframe allow attribute string (e.g. "camera; microphone").
-        """
-        encoded = string_to_base64_string(js_code)
-        url = f"https://framejs.io/#?js={encoded}"
-        return cls(url=url, width=width, height=height, allow=allow, **kwargs)
 
     def pipe_to(self, target: "MetaframeWidget", output_key: str, input_key: str = None):
         """Connect an output of this widget to an input of another.

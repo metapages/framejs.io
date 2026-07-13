@@ -230,17 +230,9 @@ w = MetaframeWidget(url="https://framejs.io/#?js=...")
 w  # renders the iframe in the notebook
 ```
 
-### Create from inline code
-
-```python
-w = MetaframeWidget.from_code("""
-export const onInputs = (inputs) => {
-    document.getElementById("root").textContent = JSON.stringify(inputs);
-    setOutput("echo", inputs);
-};
-""")
-w
-```
+A widget is always created from a URL. To embed your own code, build it at
+[framejs.io](https://framejs.io/) and use the short URL the editor mints when you
+save — the code lives behind the URL rather than being inlined in the notebook.
 
 ### Push inputs from Python
 
@@ -264,8 +256,8 @@ w.on_outputs_change(lambda change: print("Got:", change["new"]))
 Connect the output of one widget to the input of another:
 
 ```python
-source = MetaframeWidget.from_code("...")
-sink = MetaframeWidget.from_code("...")
+source = MetaframeWidget(url="https://framejs.io/j/...")
+sink = MetaframeWidget(url="https://framejs.io/j/...")
 
 # When source emits "doubled", push it to sink's "data" input
 source.pipe_to(sink, output_key="doubled", input_key="data")
