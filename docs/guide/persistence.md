@@ -37,7 +37,7 @@ option (see [Why](/story/why)).
 
 ### 2. Content-addressed short URL — `framejs.io/j/<sha256>`
 
-When a hash URL gets long, [Save & Shorten](/guide/short-urls) stores the hash
+When a hash URL gets long, [Create expiring snapshot](/guide/short-urls) stores the hash
 params as an immutable blob in object storage, keyed by the SHA-256 of their
 content, and gives you a compact `framejs.io/j/<sha256>` link. The same content
 always produces the same hash.

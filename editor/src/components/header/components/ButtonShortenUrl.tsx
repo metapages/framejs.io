@@ -167,7 +167,7 @@ export const ButtonShortenUrl: React.FC<{
   };
 
   return (
-    <Tooltip label="Save and Shorten URL">
+    <Tooltip label="Create expiring snapshot">
       <Box
         display="flex"
         alignItems="center"
@@ -177,7 +177,7 @@ export const ButtonShortenUrl: React.FC<{
         cursor={loading ? "not-allowed" : "pointer"}
       >
         <Icon
-          aria-label="shorten url"
+          aria-label="create expiring snapshot"
           _hover={{ bg: "gray.300" }}
           bg={"none"}
           p={iconPadding}

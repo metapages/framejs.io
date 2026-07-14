@@ -1,6 +1,3 @@
-import base64
-import urllib.parse
-
 from metaframe_widget import MetaframeWidget
 
 
@@ -26,22 +23,6 @@ def test_set_input():
     assert w.inputs == {"x": 42}
     w.set_input("y", "hello")
     assert w.inputs == {"x": 42, "y": "hello"}
-
-
-def test_from_code():
-    code = 'console.log("hello");'
-    w = MetaframeWidget.from_code(code)
-    # from_code does: encodeURIComponent(code) then base64
-    encoded_uri = urllib.parse.quote(code, safe="-_.!~*'()")
-    encoded = base64.b64encode(encoded_uri.encode("ascii")).decode("ascii")
-    expected_url = f"https://framejs.io/#?js={encoded}"
-    assert w.url == expected_url
-
-
-def test_from_code_with_kwargs():
-    w = MetaframeWidget.from_code("code", height="600px")
-    assert w.height == "600px"
-    assert "framejs.io" in w.url
 
 
 def test_on_outputs_change():

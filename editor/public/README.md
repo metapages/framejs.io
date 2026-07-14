@@ -230,17 +230,9 @@ w = MetaframeWidget(url="https://framejs.io/#?js=...")
 w  # renders the iframe in the notebook
 ```
 
-### Create from inline code
-
-```python
-w = MetaframeWidget.from_code("""
-export const onInputs = (inputs) => {
-    document.getElementById("root").textContent = JSON.stringify(inputs);
-    setOutput("echo", inputs);
-};
-""")
-w
-```
+A widget is always created from a URL. To embed your own code, build it at
+[framejs.io](https://framejs.io/) and use the short URL the editor mints when you
+save — the code lives behind the URL rather than being inlined in the notebook.
 
 ### Push inputs from Python
 
@@ -264,8 +256,8 @@ w.on_outputs_change(lambda change: print("Got:", change["new"]))
 Connect the output of one widget to the input of another:
 
 ```python
-source = MetaframeWidget.from_code("...")
-sink = MetaframeWidget.from_code("...")
+source = MetaframeWidget(url="https://framejs.io/j/...")
+sink = MetaframeWidget(url="https://framejs.io/j/...")
 
 # When source emits "doubled", push it to sink's "data" input
 source.pipe_to(sink, output_key="doubled", input_key="data")
@@ -299,12 +291,13 @@ source.widget.pipe_to(sink.widget, output_key="result", input_key="data")
 
 See `examples/marimo/demo.py` in the repo for a complete example.
 
-## Sharing: Copy URL and Shorten URL
+## Sharing: Copy URL and Create expiring snapshot
 
-The editor toolbar has two sharing buttons:
+The editor toolbar has these sharing buttons:
 
 - **Copy URL** — copies the full URL (with all code, config, and inputs in the hash) to your clipboard
-- **Shorten URL** — creates a compact `/j/{sha256}` short URL and copies it to your clipboard
+- **Create expiring snapshot** — creates a compact, temporary `/j/{sha256}` snapshot URL (kept ~a month) and copies it to your clipboard
+- **Save** — stores a durable, editable `framejs.app/j/{uuid}` frame for anything you want to keep
 
 Both buttons capture a **snapshot** of the current state, including:
 
@@ -469,17 +462,13 @@ curl -X POST https://framejs.io/api/shorten/json \
 
 ## Data persistence and storage lifetime
 
-### Code is stored forever
+### Snapshots expire; durable frames persist
 
-All code and configuration stored via URL shortening (`/j/{sha256}`) are **persisted indefinitely**. Every short URL you create is permanent — it will continue to resolve for as long as the service is running.
+Content saved via **Create expiring snapshot** (`/j/{sha256}`) is a free, best-effort snapshot — kept for about a month and then garbage-collected. It is content-addressed, so identical content dedupes to the same URL, which makes it great for quick sharing, previews, and QR codes — but it is **not** meant for anything you need to keep.
 
-This means:
+For a link that lasts, **Save** the metaframe to a durable `framejs.app/j/{uuid}` frame — durable and guaranteed while the account is active.
 
-- Every version of your code that you shorten is preserved forever
-- You can always go back to any previously shared short URL
-- Since storage is content-addressed (keyed by SHA-256), identical content is automatically deduplicated — shortening the same code twice produces the same URL, not a duplicate
-
-Full URLs (with code in the hash) are also permanent by nature since they carry their own data — they don't depend on any server storage at all.
+Full URLs (with code in the hash) don't depend on any server storage at all — they carry their own data and last as long as you keep the URL.
 
 ### Uploaded files (planned: 1 month expiry)
 

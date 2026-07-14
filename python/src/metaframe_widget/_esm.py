@@ -23,7 +23,7 @@ export default {
 
         // Inject CSS to remove iframe borders and inline gaps
         const style = document.createElement("style");
-        style.textContent = ".metaframe-widget-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .metaframe-widget-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
+        style.textContent = ".metaframe-widget-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .metaframe-widget-container * { box-sizing: border-box; } .metaframe-widget-container > div { height: 100%; } .metaframe-widget-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
         el.appendChild(style);
 
         const container = document.createElement("div");
@@ -116,10 +116,11 @@ export default {
             }
         }
 
-        // The embedded editor (same-origin to the URL-shortening worker) mints a
-        // short URL when the user clicks "Save and Shorten URL", then postMessages
-        // it here. We record it in `saved_url` WITHOUT touching `url`, so the live
-        // iframe the user is editing is never torn down and reloaded.
+        // The embedded editor (same-origin to the URL-shortening worker) mints an
+        // expiring /j/<sha256> snapshot when the user clicks "Create expiring
+        // snapshot", then postMessages it here. We record it in `saved_url`
+        // WITHOUT touching `url`, so the live iframe the user is editing is never
+        // torn down and reloaded.
         function expectedOrigin() {
             try {
                 return new URL(model.get("url") || "").origin;
