@@ -48,6 +48,22 @@ fmt:
     just editor/fmt
     just worker/fmt
 
+# Save a framejs.io URL to a readable dir (code.js + options/inputs.json) for git versioning — no server
+@frame-save url dir:
+    ./bin/framejs-frame.sh save "{{ url }}" "{{ dir }}"
+
+# Rebuild (print) a framejs.io URL from a saved dir — no server. Pass a base url to target local/staging.
+@frame-restore dir base="https://framejs.io/":
+    ./bin/framejs-frame.sh restore "{{ dir }}" "{{ base }}"
+
+# Browse & live-edit framejs frames on local disk (needs only deno). Root defaults to cwd.
+@local-server root="." port="4700" origin="https://framejs.io":
+    cd local-server && deno run \
+      --allow-read="{{ justfile_directory() }}/{{ root }}" \
+      --allow-write="{{ justfile_directory() }}/{{ root }}" \
+      --allow-net --allow-env \
+      server.ts --root "{{ justfile_directory() }}/{{ root }}" --port "{{ port }}" --origin "{{ origin }}"
+
 # DEV: generate TLS certs for HTTPS over localhost https://blog.filippo.io/mkcert-valid-https-certificates-for-localhost/
 @_mkcert: _delete-certs _hostcheck
     mkdir -p .traefik/certs
@@ -61,6 +77,9 @@ build: build-skill
     just docs/build
     # build the client in editor/dist
     just editor/build
+    # Publish the design-system CSS at a stable URL (https://framejs.io/blueprint.css)
+    # so the local-file-io server can load the live look. Source of truth: editor/src/styles.
+    cp editor/src/styles/blueprint.css worker/static/blueprint.css
 
 # Regenerate the legacy LLM/command files from the framejs Agent Skill (single source of truth)
 build-skill:

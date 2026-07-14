@@ -2,7 +2,7 @@
 
 ## Create and edit in AI chat
 
-Simply describe what you want, referencing local files or anything accessible to the agent. Other skills can be combined
+After installation, simply describe what you want, referencing local files or anything accessible to the agent. Other skills can be combined
 
 ```bash
 > visualize this data in this directory

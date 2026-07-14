@@ -1,0 +1,295 @@
+/* ---------------------------------------------------------------------------
+   Blueprint design system — copied from framejs.app (framejs-nhost
+   frontend/worker/assets/styles.css) so the two apps share one visual
+   language. Keep the CSS-variable names, component class names, and font
+   files identical across both repos: to restyle both apps in lockstep, edit
+   the same token here and there.
+
+   framejs.app uses Tailwind v4 (@theme inline maps these vars to utilities).
+   This app is Chakra UI, so this file is plain CSS: the design *tokens*
+   (custom properties), component *classes* (.btn / .plate / .eyebrow / …),
+   fonts, and animations. Chakra's theme (src/styles/theme.ts) is wired to the
+   same values so existing Chakra components adopt the palette automatically.
+
+   "Blueprint / drafting table": warm technical paper, cobalt blueprint ink,
+   hairline rules, mono callouts. IBM Plex Sans (display/body) + IBM Plex Mono
+   (wordmark/data/code).
+--------------------------------------------------------------------------- */
+
+/* Self-hosted from /public/fonts (Vite serves them at /fonts/…) so there's no
+   font-CDN round trip. Same filenames as framejs.app. */
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2");
+}
+
+/* --- Palette: light (default) ------------------------------------------- */
+:root,
+:root[data-theme="light"] {
+  --paper: #fbfaf7; /* warm drafting paper — app ground */
+  --surface: #ffffff; /* plates / cards */
+  --surface-2: #f4f2ec; /* recessed fills, hovers */
+  --ink: #1a1712; /* warm near-black — primary text */
+  --ink-2: #56514a; /* secondary text */
+  --ink-3: #8b857a; /* muted / captions */
+  --line: #e8e4da; /* hairline rules & borders */
+  --line-strong: #d5cfc3; /* emphasized rule / hover border */
+  --accent: #1f2edb; /* blueprint cobalt — the one bold move */
+  --accent-hover: #1824ae;
+  --accent-soft: #edeefe; /* accent-tinted fill */
+  --on-accent: #ffffff;
+  --good: #1f883d; /* live / running / success */
+  --good-soft: #e9f5ec;
+  --warning: #a86709;
+  --danger: #c0392b;
+  --danger-soft: #fbeceb;
+  --focus: #1f2edb;
+
+  /* type + shape tokens (framejs.app maps these via @theme; kept plain here) */
+  --font-sans:
+    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --radius-plate: 3px;
+  --radius-control: 4px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  color-scheme: light;
+}
+
+/* --- Palette: dark ------------------------------------------------------- */
+/* Dormant while the app is light-only (index.html pins data-theme="light"),
+   but kept verbatim so a future theme toggle matches framejs.app exactly. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1117; /* true-blueprint blue-black ground */
+    --surface: #151a22;
+    --surface-2: #1c222c;
+    --ink: #ece9e1;
+    --ink-2: #a8a99e;
+    --ink-3: #767c86;
+    --line: #262d38;
+    --line-strong: #38414f;
+    --accent: #6e82ff;
+    --accent-hover: #8a9aff;
+    --accent-soft: #1a2136;
+    --on-accent: #0b0e14;
+    --good: #3fb950;
+    --good-soft: #16241a;
+    --warning: #d0a215;
+    --danger: #f0776c;
+    --danger-soft: #2a1a19;
+    --focus: #6e82ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1117;
+  --surface: #151a22;
+  --surface-2: #1c222c;
+  --ink: #ece9e1;
+  --ink-2: #a8a99e;
+  --ink-3: #767c86;
+  --line: #262d38;
+  --line-strong: #38414f;
+  --accent: #6e82ff;
+  --accent-hover: #8a9aff;
+  --accent-soft: #1a2136;
+  --on-accent: #0b0e14;
+  --good: #3fb950;
+  --good-soft: #16241a;
+  --warning: #d0a215;
+  --danger: #f0776c;
+  --danger-soft: #2a1a19;
+  --focus: #6e82ff;
+  color-scheme: dark;
+}
+
+/* --- Base ---------------------------------------------------------------- */
+/* body bg/color are also set by the Chakra theme's global styles (Chakra's
+   reset would otherwise win); these back it up for non-Chakra surfaces. */
+::selection {
+  background-color: var(--accent);
+  color: var(--on-accent);
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 1px;
+}
+
+/* --- Components: the shared blueprint vocabulary ------------------------- */
+/* Mono uppercase micro-label — section eyebrows, field labels, meta. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* Buttons ----------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-control);
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1;
+  padding: 0.625rem 1rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 140ms var(--ease-out),
+    border-color 140ms var(--ease-out),
+    color 140ms var(--ease-out);
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn:disabled:active {
+  transform: none;
+}
+.btn-primary {
+  background-color: var(--accent);
+  color: var(--on-accent);
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+.btn-secondary {
+  background-color: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--ink-3);
+  background-color: var(--surface-2);
+}
+.btn-ghost {
+  background-color: transparent;
+  color: var(--ink-2);
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--ink);
+  background-color: var(--surface-2);
+}
+
+/* Text form control ------------------------------------------------------- */
+.field {
+  display: block;
+  width: 100%;
+  background-color: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  padding: 0.5625rem 0.75rem;
+  font-size: 0.9375rem;
+  transition:
+    border-color 140ms var(--ease-out),
+    box-shadow 140ms var(--ease-out);
+}
+.field::placeholder {
+  color: var(--ink-3);
+}
+.field:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* A drafting plate — the card/surface primitive. */
+.plate {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-plate);
+}
+
+/* --- Utilities ----------------------------------------------------------- */
+/* Blueprint drafting grid — for heroes and empty states. */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+/* Registration corner ticks — a small drafting-plate flourish.
+   Apply to a `position: relative` element. */
+.ticks::before,
+.ticks::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  color: var(--line-strong);
+}
+.ticks::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid currentColor;
+  border-left: 1px solid currentColor;
+}
+.ticks::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid currentColor;
+  border-right: 1px solid currentColor;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+}

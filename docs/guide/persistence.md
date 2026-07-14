@@ -64,20 +64,27 @@ The `<uuid>` always resolves to the **current** version of the Frame. Because a
 Frame is mutable, its history ages out on a **human-friendly** schedule (see
 [How data ages out](#how-data-ages-out)) — the current version is always kept.
 
-### 4. Pinned version — `framejs.app/j/<uuid>?sha256=<version>`
+### 4. Published version — `framejs.app/j/<uuid>?v=<sha256>`
 
-Every version of a Frame has its own content hash. Appending
-`?sha256=<version-hash>` **pins** the URL to that exact, immutable snapshot,
-even as the Frame keeps evolving. This is the way to hand someone a link that
-will show precisely what you see today, forever.
+Every version of a Frame has its own content hash. **Publishing** a version
+(from the Frame menu → **Publish version**) pins the URL to that exact, immutable
+snapshot at `?v=<sha256>`, even as the Frame keeps evolving. This is the way to
+hand someone a link that will show precisely what you see today, forever.
 
-If the Frame is **public**, a pinned version is placed on the **long-term
-("human-permanent") lifecycle** — we commit to keeping public, pinned content
-for the long haul, the same way a citation or DOI is expected to keep resolving.
+A published version is **permanently public and citable — like a DOI**. Once you
+publish it, that exact snapshot keeps resolving **even if you later make the Frame
+private or delete it** (much like a public commit or gist on GitHub). You publish
+from a **public** Frame, and the pin stays public for the long haul on the
+**"human-permanent" lifecycle**. Publishing is a **Pro** capability (it's part of
+the optional persistence service that funds the free, open core).
 
-> **Status:** version pinning via `?sha256=` is the committed persistence model.
-> The UI affordance for copying a pinned link is rolling out; the current
-> version at `framejs.app/j/<uuid>` is always available today.
+Both apps serve it: `framejs.app/j/<uuid>?v=<sha256>` renders the pinned version
+in the account UI (with a link back to the latest version), and
+`framejs.io/j/<uuid>?v=<sha256>` renders the same snapshot on the runtime.
+
+> **Status:** shipped. Open a public Frame, choose **Publish version**, and share
+> the `?v=` link. The current version at `framejs.app/j/<uuid>` is always
+> available too.
 
 ## Retention at a glance
 
@@ -87,8 +94,8 @@ for the long haul, the same way a citation or DOI is expected to keep resolving.
 | Short URL `/j/<sha256>` | framejs.io | No | **~30 days**, best-effort, then garbage-collected |
 | Uploaded file `/f/<sha256>` | framejs.io | No | **~30 days**, best-effort (same free tier as short URLs) |
 | Frame (current version) `/j/<uuid>` | framejs.app | Yes | **Durable while the account is active** (free tier included) |
-| Frame version history | framejs.app | Append-only | Current version always kept; **older versions pruned after 12 months** (pinned versions exempt) |
-| Pinned **public** version `?sha256=` | framejs.app | No | **Long-term ("human-permanent")** |
+| Frame version history | framejs.app | Append-only | Current version always kept; **older versions pruned after 12 months** (published versions exempt) |
+| Published version `?v=<sha256>` (Pro) | framejs.app | No | **Permanent ("human-permanent")** — stays public even if the Frame is later made private or deleted |
 | Anonymous (unclaimed) Frame | framejs.app | Yes | **90 days**, then garbage-collected if never claimed by an account |
 | Soft-deleted Frame | framejs.app | — | Hidden immediately; **hard-deleted after a 30-day recovery window** |
 
@@ -111,12 +118,12 @@ The platform ages out data in a small number of predictable ways:
   owned Frame; otherwise it is garbage-collected.
 - **Frame version history** is pruned after **12 months** to keep histories
   tidy. The **current** version is always retained, and any version you have
-  **pinned** (`?sha256=`) is exempt from pruning.
+  **published** (`?v=<sha256>`) is exempt from pruning.
 - **Deleting a Frame is a soft delete first.** It disappears from your dashboard
   immediately but is recoverable for **30 days**, after which it is permanently
   removed along with its versions.
 - **Closing your account** removes your Frames and personal data on the same
-  30-day schedule. Public, pinned versions others depend on may be retained as
+  30-day schedule. Published versions others depend on are retained as
   ownerless content to keep shared links working.
 
 Because the URL is the program, the strongest guarantee is always the one you

@@ -30,6 +30,13 @@ import {
   jsonToHashParams,
   stripDefaultHashParams,
 } from "./src/metaframe-definition.ts";
+import {
+  brandingScript,
+  extractBranding,
+  pinnedBannerScript,
+  pinnedVersionFromQuery,
+  pinnedVersionSuffix,
+} from "./src/pinned-version.ts";
 
 /** Escape a string for safe use inside an HTML attribute (double-quoted). */
 function escapeHtmlAttr(s: string): string {
@@ -790,13 +797,25 @@ app.post("/api/frame", async (c) => {
 // `${FRAMEJS_APP_ORIGIN}/<uuid>`, expecting a 200 JSON object of hash-param values
 // (e.g. {js, modules, inputs, og}), and encodes it to a hash-param string.
 // Returns null when the backend has no frame for that uuid (non-200 response).
-async function fetchUuidHashParams(uuid: string): Promise<string | null> {
+//
+// framejs.app also returns a reserved `branding` field for a free-tier frame's
+// LIVE version (the "Made with framejs" overlay HTML). It is NOT frame content,
+// so it's split out here and never encoded into the hash params — the caller
+// injects it separately. Pinned (?v=) versions never carry it.
+async function fetchUuidHashParams(
+  uuid: string,
+  // When set, fetch a specific PUBLISHED version (permanent pin) instead of the
+  // current one: framejs.app serves /j/<uuid>.json?v=<sha256> for a retention>0
+  // version even if the frame is later made private or deleted.
+  version?: string,
+): Promise<{ hashParams: string; branding?: string } | null> {
+  const suffix = pinnedVersionSuffix(version);
   console.log(
     "uuid fetch url",
-    `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json`,
+    `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json${suffix}`,
   );
   const response = await fetch(
-    `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json`,
+    `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json${suffix}`,
   );
   console.log("response", response.status);
   if (response.status !== 200) {
@@ -804,8 +823,9 @@ async function fetchUuidHashParams(uuid: string): Promise<string | null> {
     await response.body?.cancel();
     return null;
   }
-  const json = await response.json();
-  return jsonToHashParams(json as Record<string, unknown>);
+  const json = await response.json() as Record<string, unknown>;
+  const branding = extractBranding(json);
+  return { hashParams: jsonToHashParams(json), branding };
 }
 
 // Shortened URL — fetches hash params and serves index.html with injected init
@@ -823,7 +843,12 @@ app.get("/j/:sha256", async (c) => {
       return c.json({ error: "Invalid frame id" }, 400);
     }
     try {
-      const upstream = `${FRAMEJS_APP_ORIGIN}/j/${uuid}.json`;
+      // Forward ?v=<sha256> (or the ?sha256= alias) so a pinned version
+      // proxies through too.
+      const suffix = pinnedVersionSuffix(
+        pinnedVersionFromQuery((k) => c.req.query(k)),
+      );
+      const upstream = `${FRAMEJS_APP_ORIGIN}/j/${uuid}.json${suffix}`;
       const response = await fetch(upstream);
       return new Response(response.body, {
         status: response.status,
@@ -849,19 +874,40 @@ app.get("/j/:sha256", async (c) => {
         track(c, { name: "embed", source: "browser", embedOrigin });
       }
 
-      const hashParams = await fetchUuidHashParams(id);
-      if (hashParams === null) {
+      // A pinned request /j/<uuid>?v=<sha256> (or the ?sha256= alias) renders
+      // one exact PUBLISHED version (immutable, permanently public — resolves
+      // even if the frame is now private or deleted). Absent a pin, render the
+      // current version.
+      const pinnedVersion = pinnedVersionFromQuery((k) => c.req.query(k));
+      const fetched = await fetchUuidHashParams(id, pinnedVersion);
+      if (fetched === null) {
         return c.json({ error: "Shortened URL not found" }, 404);
       }
+      const { hashParams, branding } = fetched;
 
       const decoded = decodeHashParamsToJson(hashParams);
       const ogMetaTags = buildOgMetaTags(decoded);
       // This is a framejs.app-owned frame; its derived favicon lives there. Point
       // the tab icon at framejs.app's endpoint (cross-origin) when it has an og
-      // image; degrades to the default if unreachable/not yet generated.
+      // image; degrades to the default if unreachable/not yet generated. For a
+      // pin, request the pinned version's favicon so the tab icon matches it.
       const favicon = (decoded.og as { image?: string } | undefined)?.image
-        ? `<link rel="icon" type="image/png" sizes="any" href="${FRAMEJS_APP_ORIGIN}/j/${id}/favicon.png" />\n`
+        ? `<link rel="icon" type="image/png" sizes="any" href="${FRAMEJS_APP_ORIGIN}/j/${id}/favicon.png${
+          pinnedVersionSuffix(pinnedVersion)
+        }" />\n`
         : "";
+
+      // For a pin, overlay a small banner marking it a fixed published version
+      // with a link back to the current (latest) version at /j/<uuid>.
+      const pinnedBanner = pinnedVersion
+        ? pinnedBannerScript(id, pinnedVersion)
+        : "";
+
+      // Free-tier "Made with framejs" overlay: framejs.app returns the exact HTML
+      // as the `branding` field of the LIVE version (Pro removes it; pinned
+      // versions never carry it). Inject it as innerHTML immediately after #root,
+      // bottom-right. Self-contained markup from our own origin — safe to inject.
+      const brandingOverlay = branding ? brandingScript(branding) : "";
       const canonicalKeysJson = JSON.stringify(CANONICAL_HASH_PARAM_KEYS);
 
       // Strip edit=true so the app doesn't immediately exit short-URL mode on load.
@@ -890,7 +936,11 @@ app.get("/j/:sha256", async (c) => {
           JSON.stringify(cleanedHashParams)
         };window.__SHORT_URL_READY=Promise.resolve();(function(){var stored=window.__SHORT_URL_HASH_PARAMS;var C=window.__SHORT_URL_CANONICAL_KEYS;var ss=stored.charAt(0)==="?"?stored.slice(1):stored;var sp=ss.split("&");var pm={},po=[];for(var i=0;i<sp.length;i++){var ei=sp[i].indexOf("=");var ki=ei===-1?sp[i]:sp[i].substring(0,ei);if(ki){pm[ki]=sp[i];po.push(ki);}}var h=window.location.hash;if(h){var s=h.charAt(0)==="#"?h.slice(1):h;if(s.charAt(0)==="?")s=s.slice(1);if(s){var up=s.split("&");for(var j=0;j<up.length;j++){var ej=up[j].indexOf("=");var kj=ej===-1?up[j]:up[j].substring(0,ej);if(kj&&!C.has(kj)){if(!(kj in pm))po.push(kj);pm[kj]=up[j];}}}}var m="?";for(var x=0;x<po.length;x++){if(x>0)m+="&";m+=pm[po[x]];}(function(od){try{if(od&&od.configurable){window.__sfhod=od;window.__sfhs=m;Object.defineProperty(Location.prototype,'hash',{get:function(){return window.__sfhs!==undefined?'#'+window.__sfhs:od.get.call(this)},set:function(v){od.set.call(this,v)},configurable:true})}else{history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}}catch(e){history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}})(Object.getOwnPropertyDescriptor(Location.prototype,'hash'));})();</script>`;
 
-      return await serveShortUrlHtml(ogMetaTags, injectedScript, favicon);
+      return await serveShortUrlHtml(
+        ogMetaTags,
+        injectedScript + pinnedBanner + brandingOverlay,
+        favicon,
+      );
     } catch (error) {
       console.error("UUID shortened URL error:", error);
       return c.json({ error: "Failed to retrieve shortened URL" }, 500);
@@ -1084,10 +1134,16 @@ app.get("/j/:sha256/metaframe.json", async (c) => {
     const id = c.req.param("sha256");
 
     if (id && UUID_REGEX.test(id)) {
-      const hashParams = await fetchUuidHashParams(id);
-      if (hashParams === null) {
+      // Honor a pin so an embedded PUBLISHED version's definition stays fixed to
+      // that snapshot rather than tracking the current version.
+      const fetched = await fetchUuidHashParams(
+        id,
+        pinnedVersionFromQuery((k) => c.req.query(k)),
+      );
+      if (fetched === null) {
         return c.json({ error: "Shortened URL not found" }, 404);
       }
+      const hashParams = fetched.hashParams;
       return c.json(computeMetaframeDefinition(hashParams));
     }
 
@@ -1131,10 +1187,15 @@ app.get("/api/j/:sha256", async (c) => {
     const id = c.req.param("sha256");
 
     if (id && UUID_REGEX.test(id)) {
-      const hashParams = await fetchUuidHashParams(id);
-      if (hashParams === null) {
+      // Honor a pin so a PUBLISHED version's decoded params stay fixed.
+      const fetched = await fetchUuidHashParams(
+        id,
+        pinnedVersionFromQuery((k) => c.req.query(k)),
+      );
+      if (fetched === null) {
         return c.json({ error: "Shortened URL not found" }, 404);
       }
+      const hashParams = fetched.hashParams;
       track(c, { name: "fetch", source: detectSource(c) });
       return c.json({ id, hashParams: decodeHashParamsToJson(hashParams) });
     }
@@ -1180,10 +1241,15 @@ app.get("/api/j/:sha256/url", async (c) => {
     const id = c.req.param("sha256");
 
     if (id && UUID_REGEX.test(id)) {
-      const hashParams = await fetchUuidHashParams(id);
-      if (hashParams === null) {
+      // Honor a pin so a PUBLISHED version expands to that exact snapshot.
+      const fetched = await fetchUuidHashParams(
+        id,
+        pinnedVersionFromQuery((k) => c.req.query(k)),
+      );
+      if (fetched === null) {
         return c.json({ error: "Shortened URL not found" }, 404);
       }
+      const hashParams = fetched.hashParams;
       const protocol = c.req.header("x-forwarded-proto") || "https";
       const host = c.req.header("host");
       c.header("Content-Type", "text/plain; charset=utf-8");
