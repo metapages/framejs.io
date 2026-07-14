@@ -57,7 +57,7 @@ itself lives behind it rather than being inlined in your notebook.
 - **`set_inputs(d)`** — merge a dict into current inputs
 - **`set_input(key, value)`** — set a single input key
 - **`on_outputs_change(callback)`** — register a callback for output changes
-- **`on_saved_url_change(callback)`** — register a callback for when the user saves edits to a new short URL
+- **`on_saved_url_change(callback)`** — register a callback for when the user creates an expiring snapshot (`/j/<sha256>`) inside the widget
 - **`pipe_to(target, output_key, input_key=None)`** — connect an output to another widget's input
 
 ## Piping widgets

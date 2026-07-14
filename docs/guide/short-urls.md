@@ -8,7 +8,7 @@ There are two forms of short URL persistence:
 
 ## Howto: Expiring immutable URLs
 
-1. Click the **Save and Shorten** button in the editor header ![](./shorten-url-sha256-button.png)
+1. Click the **Create expiring snapshot** button in the editor header ![](./shorten-url-sha256-button.png)
 2. The current hash parameters (code, inputs, options) are stored in [R2](https://www.cloudflare.com/developer-platform/products/r2/) 
 3. You get a short URL `framejs.io/j/<SHA256-based short ID>`
 4. Title, description, and image are supported for nice bookmarks and previews
@@ -31,9 +31,9 @@ across every kind of URL.
 ## Longer discussion between the two short-URL forms: `/j/<sha256>` vs `/j/<uuid>`
 
 Both forms look alike — `framejs.io/j/…` and `framejs.app/j/…` — but they make
-**very different persistence promises**. The **Save & Shorten** button above
-creates the ephemeral `sha256` form; saving into an account creates the durable
-`uuid` form.
+**very different persistence promises**. The **Create expiring snapshot** button
+above creates the ephemeral `sha256` form; saving into an account creates the
+durable `uuid` form.
 
 | | `framejs.io/j/<sha256>` | `framejs.app/j/<uuid>` |
 |--|--------------------------|-------------------------|

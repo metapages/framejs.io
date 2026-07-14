@@ -76,35 +76,48 @@ ways to get one:
 If you have a saved metaframe, use its [short url](../guide/short-urls):
 
 ```python
-w = MetaframeWidget(url="https://framejs.io/j/xxx")
+w = MetaframeWidget(url="https://framejs.io/j/<uuid>")
 w
 ```
 
 This is the most compact way to embed a metaframe — the code lives behind the
 short URL instead of being inlined in the cell.
 
-A `https://framejs.app/j/<uuid>` URL works just as well — framejs.app resolves it
-to the same `framejs.io/j/<uuid>` metaframe internally, so you can drop in either
-form.
+There are two kinds of short URL, created by two different toolbar buttons:
+
+- **`/j/<uuid>`** — a durable, editable frame, created when you **Save** the
+  metaframe. This is the form to keep in a notebook. `framejs.io/j/<uuid>` and
+  `framejs.app/j/<uuid>` are equivalent — framejs.app resolves to the same
+  metaframe internally, so either drops in fine.
+- **`/j/<sha256>`** — a temporary, content-addressed snapshot, created with
+  **Create expiring snapshot**. It is kept for about a month and then
+  garbage-collected, so use it for quick shares — not for anything you want to
+  keep.
 
 #### Editing and saving back
 
-You can edit the code directly inside the widget. When you click **Save and
-Shorten URL** in the editor toolbar, a new short URL is minted and shown in the
-"Saved:" bar at the bottom of the widget. It is also available in Python:
+You can edit the code directly inside the widget. Two toolbar buttons persist
+your work:
+
+- **Save** — stores a durable, editable frame and gives you a permanent
+  `framejs.io/j/<uuid>` URL. Paste that into your cell (replacing the old URL) so
+  the notebook always reloads your saved version.
+- **Create expiring snapshot** — mints a temporary `/j/<sha256>` snapshot without
+  leaving the notebook. It is pushed back to Python, so you can read it directly:
 
 ```python
-w.saved_url  # → "https://framejs.io/j/yyy"
+w.saved_url  # → "https://framejs.io/j/<sha256>"
 ```
 
-Copy that value into your cell (replacing the old URL) to persist your edits
-across notebook re-runs. To react to saves programmatically:
+Or react to it programmatically:
 
 ```python
-w.on_saved_url_change(lambda change: print("Saved:", change["new"]))
+w.on_saved_url_change(lambda change: print("Snapshot:", change["new"]))
 ```
 
-Saving does not reload the iframe, so your editing session is never interrupted.
+A snapshot does not reload the iframe, so your editing session is never
+interrupted — but because it expires, copy anything you want to keep into a
+durable **Save** (`/j/<uuid>`).
 
 ### From a full URL
 
@@ -117,12 +130,13 @@ w
 
 ::: tip Writing your own code
 To embed custom JavaScript, build it in the [framejs.io](https://framejs.io/)
-editor and click **Save and Shorten URL** — that mints a short URL you paste into
-`url=`. Keeping the code behind a URL (rather than inlining it in a cell) is what
-makes a metaframe portable and saveable: the URL is the one thing you copy,
-share, and persist. Inside the editor you have the full metaframe API —
-`getInput()`, `setOutput()`, `onInputs()`, and a `<div id="root">` for rendering.
-The examples below use short URLs that were built this way.
+editor and click **Save** — that stores a durable frame and gives you a permanent
+`framejs.io/j/<uuid>` URL to paste into `url=`. (For a quick throwaway link,
+**Create expiring snapshot** mints a temporary `/j/<sha256>` instead.) Keeping the
+code behind a URL rather than inlining it in a cell is what makes a metaframe
+portable and saveable: the URL is the one thing you copy, share, and persist.
+Inside the editor you have the full metaframe API — `getInput()`, `setOutput()`,
+`onInputs()`, and a `<div id="root">` for rendering.
 :::
 
 ## Sending data from Python to the widget

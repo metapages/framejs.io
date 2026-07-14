@@ -116,10 +116,11 @@ export default {
             }
         }
 
-        // The embedded editor (same-origin to the URL-shortening worker) mints a
-        // short URL when the user clicks "Save and Shorten URL", then postMessages
-        // it here. We record it in `saved_url` WITHOUT touching `url`, so the live
-        // iframe the user is editing is never torn down and reloaded.
+        // The embedded editor (same-origin to the URL-shortening worker) mints an
+        // expiring /j/<sha256> snapshot when the user clicks "Create expiring
+        // snapshot", then postMessages it here. We record it in `saved_url`
+        // WITHOUT touching `url`, so the live iframe the user is editing is never
+        // torn down and reloaded.
         function expectedOrigin() {
             try {
                 return new URL(model.get("url") || "").origin;

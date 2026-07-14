@@ -14,9 +14,10 @@ class MetaframeWidget(anywidget.AnyWidget):
         width: CSS width for the widget container (default "100%").
         height: CSS height for the widget container (default "400px").
         allow: iframe allow attribute string (e.g. "camera; microphone").
-        saved_url: Latest short URL minted by editing+saving inside the widget
-            (read-only). Copy this into your cell to persist edits across
-            notebook re-runs.
+        saved_url: Latest expiring snapshot URL (/j/<sha256>) minted by the
+            "Create expiring snapshot" button inside the widget (read-only).
+            Handy for a quick capture; for anything you want to keep, Save a
+            durable /j/<uuid> frame and use that URL instead.
     """
 
     _esm = ESM
@@ -27,7 +28,7 @@ class MetaframeWidget(anywidget.AnyWidget):
     width = traitlets.Unicode("100%").tag(sync=True)
     height = traitlets.Unicode("400px").tag(sync=True)
     allow = traitlets.Unicode("").tag(sync=True)
-    # Set by the ESM when the user clicks "Save and Shorten URL" inside the
+    # Set by the ESM when the user clicks "Create expiring snapshot" inside the
     # embedded editor. Read-only from Python's perspective; updating it does not
     # reload the iframe (so editing is not interrupted).
     saved_url = traitlets.Unicode("").tag(sync=True)
@@ -63,11 +64,11 @@ class MetaframeWidget(anywidget.AnyWidget):
         self.observe(callback, names=["outputs"])
 
     def on_saved_url_change(self, callback):
-        """Register a callback for when the user saves edits to a new short URL.
+        """Register a callback for when the user creates an expiring snapshot.
 
-        Fires after the user clicks "Save and Shorten URL" inside the embedded
-        editor. The callback receives a change dict whose 'new' key holds the
-        freshly-minted short URL.
+        Fires after the user clicks "Create expiring snapshot" inside the
+        embedded editor. The callback receives a change dict whose 'new' key
+        holds the freshly-minted /j/<sha256> snapshot URL.
         """
         self.observe(callback, names=["saved_url"])
 
