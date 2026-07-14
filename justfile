@@ -21,8 +21,9 @@ cyan := "\\e[36m"
 @_help:
     just --list --unsorted
     echo -e ""
-    echo -e "    Production URL 🔗     {{ green }}https://framejs.io/{{ normal }}"
     echo -e "    Github  URL 🔗        {{ green }}https://github.com/metapages/framejs.io{{ normal }}"
+    echo -e "    Production URL 🔗     {{ green }}https://framejs.io/{{ normal }}"
+    echo -e "    Python Package URL 🔗 {{ green }}https://pypi.org/project/metaframe-widget/{{ normal }}"
     echo -e "    Local develop URL 🔗  {{ green }}https://{{ APP_FQDN }}:{{ APP_PORT }}/{{ normal }}"
     echo -e "    Deploy Console URL 🔗 {{ green }}https://console.deno.com/metapage/metaframe-js{{ normal }}"
     echo -e "    Analytics Dashboard 🔗{{ green }}https://cloud.umami.is/analytics/us/websites/774a7551-b487-4691-a52a-9b2b79a20872{{ normal }}"
