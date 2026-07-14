@@ -18,6 +18,10 @@ curl -fsSL https://framejs.io/skill/install.sh | sh
 
 </div>
 
+::: warning Tip:
+You can reference local files, and combine with other skills
+:::
+
 3. Result automatically opens in the browser
 
 <BrowserFrame
@@ -25,5 +29,29 @@ curl -fsSL https://framejs.io/skill/install.sh | sh
   :height="500"
 />
 
+4. Edit an **existing** URL in AI chat:
 
+
+::: warning Note:
+This only works in the framejs.app site, **not** the framejs.io renderer, as it needs a persistent URL to post updates
+:::
+
+`framejs.app/j/<uuid>` -> `Menu` (right) -> `Copy URL for AI Session`
+
+<img
+  src="https://framejs.app/share/copy-url-screenshot.png"
+  alt="Copy URL for AI session"
+  style="max-width: 300px;"
+/>
+
+Paste into an AI chat session, and tell the AI the changes you want:
+
+<div class="wrap-code">
+
+```bash
+> https://framejs.app/j/xxx?token=yyy
+render an interactive 3d surface plot visualization
+```
+
+</div>
 

@@ -37,6 +37,7 @@ export default withMermaid(
             { text: "JavaScript API", link: "/guide/javascript-api" },
             { text: "URL State", link: "/guide/url-state" },
             { text: "Short URLs", link: "/guide/short-urls" },
+            { text: "Local File I/O", link: "/guide/local-file-io" },
             { text: "Persistence & Retention", link: "/guide/persistence" },
             { text: "Embedding", link: "/guide/embedding" },
             { text: "Rendering in a Website", link: "/guide/rendering" },

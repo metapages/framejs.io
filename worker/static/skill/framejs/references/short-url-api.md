@@ -42,10 +42,16 @@ node scripts/framejs.mjs fetch "$DEV"                       # read current code 
 cat app.js | node scripts/framejs.mjs create --id "$DEV"    # update it on the dev stack
 ```
 
-Only the framejs.app **app origin** is carried on a frame URL. The framejs.io
-runtime origin (uploads, screenshots, the `/j/<sha256>` snapshot) stays on the
-env/production baseline unless you also pass `--io-origin <url>` (or point
-`FRAMEJS_IO_ORIGIN` at your dev runtime).
+A frame URL's origin is resolved by layer. An **app-layer** origin
+(`framejs.app`, a `framejs-app.localhost` dev host, a self-hosted app host)
+becomes `APP_ORIGIN` and the framejs.io runtime origin (uploads, screenshots,
+the `/j/<sha256>` snapshot) stays on the env/production baseline. A **runtime**
+origin (`framejs.io` — e.g. a "Copy frame for AI session" URL) becomes
+`IO_ORIGIN` and maps `APP_ORIGIN` to its paired app layer (`framejs.app` in
+production, or your `FRAMEJS_APP_ORIGIN`) so the frame POST still lands on the
+account layer that accepts it. Pass `--io-origin <url>` / `--app-origin <url>`
+(or set `FRAMEJS_IO_ORIGIN` / `FRAMEJS_APP_ORIGIN`) to override either
+explicitly.
 
 ## One frame per session
 
@@ -106,20 +112,26 @@ session via the app's **"Copy frame for AI session"** menu action, which mints a
 token and copies a URL of the form:
 
 ```
-https://framejs.app/j/<uuid>?token=<key>
+https://framejs.io/j/<uuid>?token=<key>     # runtime domain — what the action actually copies
+https://framejs.app/j/<uuid>?token=<key>    # app domain — also accepted
 ```
 
-When you're given any framejs URL, extract the uuid from its `/j/<uuid>` path
-and target that frame. If the URL carries `?token=<key>`, pass the whole URL to
-`--id` — the helper parses out both the uuid and the token, stores the token,
-and uses it as the bearer credential on updates:
+The copied URL is typically on the **framejs.io runtime** domain, not
+framejs.app. Either works: pass the whole URL — domain, uuid, and `?token=` — to
+`--id` (or `fetch`). The helper parses out the uuid and token, and routes the
+frame POST to the app layer even when the URL names the runtime domain (a
+`framejs.io/j/<uuid>` URL used to 404 the update because the POST went to the
+runtime, which does not accept it; it is now mapped to `framejs.app`
+automatically):
 
 ```bash
-node scripts/framejs.mjs fetch "https://framejs.app/j/<uuid>?token=<key>"   # read current code
-cat app.js | node scripts/framejs.mjs create --id "https://framejs.app/j/<uuid>?token=<key>"  # authenticated update
+node scripts/framejs.mjs fetch "https://framejs.io/j/<uuid>?token=<key>"   # read current code
+cat app.js | node scripts/framejs.mjs create --id "https://framejs.io/j/<uuid>?token=<key>"  # authenticated update
 ```
 
-(`--token <key>` sets the credential explicitly if you have the key separately.)
+(`--token <key>` sets the credential explicitly if you have the key separately.
+`--app-origin`/`--io-origin` still override the resolved origins for a
+dev/self-hosted stack.)
 
 ### With the helper script
 

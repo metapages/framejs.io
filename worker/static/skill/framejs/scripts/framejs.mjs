@@ -357,22 +357,63 @@ function flagValue(argv, name) {
   return i >= 0 ? argv[i + 1] : undefined;
 }
 
+// Is `origin` the runtime (framejs.io) layer rather than the account/app layer?
+// A frame URL's origin can name EITHER layer: the app's "Copy frame for AI
+// session" action emits a runtime URL — https://framejs.io/j/<uuid>?token=… —
+// while the /j/<uuid> page URL and dev/self-hosted URLs name the app layer.
+// Frame POSTs (create/update, token mint) only work on the app layer, so a
+// runtime origin must NOT be used as APP_ORIGIN (that 404s the POST). Matches
+// the configured io baseline and production framejs.io (any scheme/port).
+function isRuntimeOrigin(origin) {
+  const o = stripSlash(String(origin)).toLowerCase();
+  if (o === stripSlash(IO_ORIGIN).toLowerCase()) return true;
+  try {
+    return new URL(o).hostname === "framejs.io";
+  } catch {
+    return false;
+  }
+}
+
+// Given a runtime origin, the paired account/app origin that accepts frame
+// POSTs. An explicit FRAMEJS_APP_ORIGIN (already in APP_ORIGIN) wins; otherwise
+// the production runtime framejs.io pairs with framejs.app. Returns undefined
+// when no pairing is known, in which case APP_ORIGIN keeps its env/default
+// baseline (framejs.app) — the correct account layer for production.
+function pairedAppOrigin(runtimeOrigin) {
+  if (process.env.FRAMEJS_APP_ORIGIN) return stripSlash(APP_ORIGIN);
+  try {
+    if (new URL(stripSlash(String(runtimeOrigin))).hostname === "framejs.io") {
+      return "https://framejs.app";
+    }
+  } catch { /* unparseable — fall through */ }
+  return undefined;
+}
+
 // Narrow the backend origins for this run, most specific first:
 //   explicit --app-origin/--io-origin flag
-//   > origin carried on a full frame URL (--id / the fetch arg) — app only
+//   > origin carried on a full frame URL (--id / the fetch arg)
 //   > origin recorded in --state for a reused session frame
 //   > the env/.env/production baseline already in APP_ORIGIN / IO_ORIGIN.
-// This lets a dev/self-hosted frame URL (e.g.
-// https://framejs-app.localhost:13747/j/<uuid>?token=…) drive its own stack for
-// full local testing, and keeps a session's repeated in-place updates on the
-// same backend the frame was first created against.
+// A full frame URL's origin is split by layer: an app-layer origin (framejs.app,
+// framejs-app.localhost, a self-hosted app host) becomes APP_ORIGIN, while a
+// runtime-layer origin (framejs.io — e.g. the "Copy frame for AI session" URL)
+// becomes IO_ORIGIN and maps APP_ORIGIN to its paired app layer. This lets a
+// dev/self-hosted frame URL (e.g. https://framejs-app.localhost:13747/j/<uuid>)
+// drive its own stack, keeps a session's repeated in-place updates on the same
+// backend, and — critically — routes a runtime frame URL's POST to the app layer
+// that actually accepts it instead of 404ing against the runtime.
 function resolveOrigins(
   { flagApp, flagIo, urlOrigin, stateApp, stateIo } = {},
 ) {
+  const urlIsRuntime = urlOrigin && isRuntimeOrigin(urlOrigin);
   if (flagApp) APP_ORIGIN = stripSlash(flagApp);
-  else if (urlOrigin) APP_ORIGIN = stripSlash(urlOrigin);
+  else if (urlIsRuntime) {
+    const paired = pairedAppOrigin(urlOrigin);
+    if (paired) APP_ORIGIN = paired; // else keep the env/default app baseline
+  } else if (urlOrigin) APP_ORIGIN = stripSlash(urlOrigin);
   else if (stateApp) APP_ORIGIN = stripSlash(stateApp);
   if (flagIo) IO_ORIGIN = stripSlash(flagIo);
+  else if (urlIsRuntime) IO_ORIGIN = stripSlash(urlOrigin);
   else if (stateIo) IO_ORIGIN = stripSlash(stateIo);
 }
 

@@ -35,21 +35,23 @@ In both modes the JavaScript you write follows the same rules — read
 ## What the request can be
 
 1. **Create from a prompt** — "a bouncing ball animation", "plot y = sin(x)".
-2. **Modify an existing app** — the request contains a frame URL
-   (`https://framejs.app/j/<uuid>`) or a bare 32-char hex id (or a legacy
-   `https://framejs.io/j/<sha256>` / 64-char id). Whenever you see a framejs
-   URL, extract the uuid from its `/j/<uuid>` path and target THAT frame (pass
-   the URL straight to `--id`). You MUST fetch the existing code first and
-   modify it — see [references/short-url-api.md](references/short-url-api.md) (§
-   Modify). If the URL carries a `?token=<key>` query param (from the app's
-   "Copy frame for AI session" action), pass the whole URL to `--id` (or the key
-   to `--token`): the helper stores it and sends it as the bearer credential so
-   your updates keep working even after the frame's owner has claimed it.
-   Passing the **whole URL** also targets the backend the URL names — so a dev
-   or self-hosted frame URL (e.g.
-   `https://framejs-app.localhost:13747/j/<uuid>?token=<key>`) updates its own
-   stack with no env preconfigured. `--app-origin <url>` / `--io-origin <url>`
-   set the backend explicitly. See
+2. **Modify an existing app** — the request contains a frame URL. It may be a
+   `https://framejs.app/j/<uuid>` **or** a `https://framejs.io/j/<uuid>?token=…`
+   URL (the "Copy frame for AI session" action copies the framejs.io runtime
+   form), a bare 32-char hex id, or a legacy `https://framejs.io/j/<sha256>` /
+   64-char id snapshot. Whenever you see a framejs URL, extract the uuid from
+   its `/j/<uuid>` path and target THAT frame (pass the URL straight to `--id` —
+   the helper routes the update to the app layer even for a framejs.io URL). You
+   MUST fetch the existing code first and modify it — see
+   [references/short-url-api.md](references/short-url-api.md) (§ Modify). If the
+   URL carries a `?token=<key>` query param (from the app's "Copy frame for AI
+   session" action), pass the whole URL to `--id` (or the key to `--token`): the
+   helper stores it and sends it as the bearer credential so your updates keep
+   working even after the frame's owner has claimed it. Passing the **whole
+   URL** also targets the backend the URL names — so a dev or self-hosted frame
+   URL (e.g. `https://framejs-app.localhost:13747/j/<uuid>?token=<key>`) updates
+   its own stack with no env preconfigured. `--app-origin <url>` /
+   `--io-origin <url>` set the backend explicitly. See
    [references/short-url-api.md](references/short-url-api.md) (§ Local / dev
    origins).
 3. **Visualize local files** — the request references file paths (`./data.csv`,

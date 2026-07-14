@@ -45,11 +45,14 @@ durable `uuid` form.
 | **Best for** | Quick sharing, previews, QR codes, paste-into-chat | Anything you need to keep, keep editing, or make private |
 
 In short: **`sha256` is a disposable snapshot; `uuid` is a durable document.**
-You get the best of both by pinning an exact immutable version of a durable Frame
-with `framejs.app/j/<uuid>?sha256=<version>` — a stable handle *and* an
-unchanging snapshot. Public pinned versions are kept on the long-term
-("human-permanent") lifecycle. See
-[Persistence & Data Retention](/guide/persistence) for the complete model.
+You get the best of both by **publishing** an exact immutable version of a
+durable Frame (Frame menu → **Publish version**), which mints
+`framejs.app/j/<uuid>?v=<sha256>` — a stable handle *and* an unchanging snapshot.
+A published version is **permanently public and citable, like a DOI**: it keeps
+resolving even if you later make the Frame private or delete it, and both apps
+serve it (`framejs.io/j/<uuid>?v=<sha256>` renders the same snapshot on the
+runtime). See [Persistence & Data Retention](/guide/persistence) for the
+complete model.
 
 ## Example
 

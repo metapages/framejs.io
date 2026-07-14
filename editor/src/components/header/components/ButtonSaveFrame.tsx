@@ -101,6 +101,7 @@ export const ButtonSaveFrame: React.FC<{
   };
 
   const handleSave = async () => {
+    console.log("handleSave");
     // With no code in the editor there's nothing to persist — the save API
     // rejects an empty frame (which used to surface a "Failed to save" toast).
     // Send the user to framejs.app (the account/home app) instead. Uses the

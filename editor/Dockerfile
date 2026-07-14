@@ -1,5 +1,5 @@
 # deno not node because long-term deno will be used for all non-trivial scripting
-FROM denoland/deno:ubuntu-2.8.1
+FROM denoland/deno:ubuntu-2.9.1
 
 # Update package list and install essential packages
 RUN apt-get update && apt-get install -y \

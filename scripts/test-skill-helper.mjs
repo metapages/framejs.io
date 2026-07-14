@@ -38,11 +38,19 @@ const HELPER = join(ROOT, "worker/static/skill/framejs/scripts/framejs.mjs");
 // --- stub framejs.app: records POSTs, serves the latest body back on GET ------
 // Also stands in for the framejs.io snapshot shortener (POST /api/shorten/json),
 // returning a content-addressed /j/<sha256> id for the posted body.
+// The app layer (framejs.app) and runtime layer (framejs.io) are DISTINCT
+// origins in every real deployment. The helper's origin resolution keys off
+// that distinction (isRuntimeOrigin compares a frame URL's origin to
+// FRAMEJS_IO_ORIGIN), so the fixture must expose two different origins — else an
+// app-layer /j/<uuid> URL whose origin happens to equal IO_ORIGIN is
+// misclassified as a runtime URL. Both origins route to the SAME shared handler
+// (and thus the same posts/store/shortens), so a single stub still backs every
+// endpoint; only the origin strings differ.
 function startStub() {
   const posts = [];
   const shortens = []; // { id, params } per POST /api/shorten/json
   const store = new Map(); // slug -> latest params
-  const server = createServer((req, res) => {
+  const handler = (req, res) => {
     const m = req.url.match(/^\/j\/([0-9a-f]+)\.json$/i);
     let body = "";
     req.on("data", (c) => (body += c));
@@ -80,19 +88,24 @@ function startStub() {
         res.writeHead(405).end();
       }
     });
-  });
-  return new Promise((resolve) => {
-    server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address();
-      resolve({
-        server,
-        posts,
-        shortens,
-        store,
-        origin: `http://127.0.0.1:${port}`,
-      });
-    });
-  });
+  };
+  const appServer = createServer(handler);
+  const ioServer = createServer(handler);
+  const listen = (srv) =>
+    new Promise((r) =>
+      srv.listen(0, "127.0.0.1", () =>
+        r(`http://127.0.0.1:${srv.address().port}`))
+    );
+  return Promise.all([listen(appServer), listen(ioServer)]).then(
+    ([appOrigin, ioOrigin]) => ({
+      servers: [appServer, ioServer],
+      posts,
+      shortens,
+      store,
+      appOrigin,
+      ioOrigin,
+    }),
+  );
 }
 
 const SRC = "export function onInputs(inputs){ return inputs; }\n";
@@ -160,8 +173,9 @@ const check = (name, fn) => {
   }
 };
 
-const { server, posts, shortens, origin } = await startStub();
-const IO = origin; // reuse the stub as a stand-in framejs.io origin for run URLs
+const { servers, posts, shortens, appOrigin, ioOrigin } = await startStub();
+const origin = appOrigin; // framejs.app (account) layer origin
+const IO = ioOrigin; // framejs.io (runtime) origin — DISTINCT from the app origin
 const tmp = mkdtempSync(join(tmpdir(), "framejs-skill-test-"));
 const env = { FRAMEJS_APP_ORIGIN: origin, FRAMEJS_IO_ORIGIN: IO };
 
@@ -386,7 +400,7 @@ try {
   });
   vserver.close();
 } finally {
-  server.close();
+  for (const s of servers) s.close();
   rmSync(tmp, { recursive: true, force: true });
   rmSync(openBinDir, { recursive: true, force: true });
 }

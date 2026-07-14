@@ -51,8 +51,8 @@ that data should be **F**indable, **A**ccessible, **I**nteroperable, and
 ### Findable
 
 - Every saved artifact has a **persistent identifier**: a content-addressed
-  SHA-256 for short URLs and files, a stable UUID for Frames, and a pinned
-  `?sha256=` hash for an exact version.
+  SHA-256 for short URLs and files, a stable UUID for Frames, and a published
+  `?v=<sha256>` hash for an exact, permanent version.
 - Frames carry **Open Graph metadata** (title, description, image), so links are
   self-describing wherever they are shared, and each has a scannable QR code.
 
@@ -80,8 +80,8 @@ that data should be **F**indable, **A**ccessible, **I**nteroperable, and
 
 - The **MIT license** and self-contained format mean anyone can view, fork,
   edit, embed, or self-host any Frame — the code is right there in the URL.
-- **Immutable, content-addressed versions** give clear provenance: a pinned
-  `?sha256=` link always shows exactly the content it names.
+- **Immutable, content-addressed versions** give clear provenance: a published
+  `?v=<sha256>` link always shows exactly the content it names, permanently.
 - Frames are **editable in place**, so reuse is the default: open someone's
   link, change it, and share your own — no accounts, no gatekeeping.
 
@@ -91,8 +91,8 @@ that data should be **F**indable, **A**ccessible, **I**nteroperable, and
 |--|------------------------|-------------------------------------|
 | **License** | MIT, open source, permanent | Hosted service; open client libraries |
 | **Accounts** | Never required | Optional (free tier included) |
-| **Persistence** | Content-addressed URLs kept ~30 days; hash URLs you hold last forever | Durable Frames; public pinned versions kept long-term ("human-permanent") |
-| **Findability** | SHA-256 identifiers, Open Graph, QR | Stable UUIDs, pinned versions, dashboards |
+| **Persistence** | Content-addressed URLs kept ~30 days; hash URLs you hold last forever | Durable Frames; published versions kept permanently ("human-permanent"), even after the Frame goes private or is deleted |
+| **Findability** | SHA-256 identifiers, Open Graph, QR | Stable UUIDs, published `?v=` versions, dashboards |
 | **Access** | Public, no auth, open runtime | Public read via `/j/<uuid>.json`; owner-scoped writes |
 | **Portability** | Self-hostable; URL is the source of truth | Export any version back to a self-contained URL |
 | **FAIR** | Findable · Accessible · Interoperable · Reusable | Adds durable, citable, long-term identifiers |
