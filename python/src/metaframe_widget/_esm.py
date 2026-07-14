@@ -13,22 +13,31 @@ async function loadRenderMetapage() {
 
 export default {
     async render({ model, el }) {
-        // Lay out el as a column: the metapage fills the space, an optional
-        // "saved URL" footer sits beneath it (only when there is one to show).
-        el.style.display = "flex";
-        el.style.flexDirection = "column";
+        // el's own `display` is managed by the notebook host — JupyterLab's
+        // ipywidgets layer resets el.style.display to "block" AFTER render, which
+        // silently kills a flex column set directly on el (that's why the widget
+        // renders full-height standalone but collapses to ~40px in a notebook).
+        // So we don't lay out el itself; we only give it a definite size, then own
+        // an inner `root` wrapper. root's height:100% resolves against el's definite
+        // height regardless of el's display, and root's flex column (which the host
+        // never touches) lets the metapage fill the space with an optional
+        // "saved URL" footer beneath it.
         el.style.boxSizing = "border-box";
         el.style.width = model.get("width") || "100%";
         el.style.height = model.get("height") || "400px";
 
+        const root = document.createElement("div");
+        root.style.cssText = "display: flex; flex-direction: column; width: 100%; height: 100%; box-sizing: border-box;";
+        el.appendChild(root);
+
         // Inject CSS to remove iframe borders and inline gaps
         const style = document.createElement("style");
         style.textContent = ".metaframe-widget-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .metaframe-widget-container * { box-sizing: border-box; } .metaframe-widget-container > div { height: 100%; } .metaframe-widget-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
-        el.appendChild(style);
+        root.appendChild(style);
 
         const container = document.createElement("div");
         container.className = "metaframe-widget-container";
-        el.appendChild(container);
+        root.appendChild(container);
 
         // Footer showing the latest short URL produced by editing + saving.
         const footer = document.createElement("div");
@@ -46,7 +55,7 @@ export default {
         footer.appendChild(footerLabel);
         footer.appendChild(footerLink);
         footer.appendChild(footerCopy);
-        el.appendChild(footer);
+        root.appendChild(footer);
 
         function renderSavedUrl() {
             const savedUrl = model.get("saved_url") || "";
