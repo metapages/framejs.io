@@ -32,7 +32,14 @@ export default {
 
         // Inject CSS to remove iframe borders and inline gaps
         const style = document.createElement("style");
-        style.textContent = ".metaframe-widget-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .metaframe-widget-container * { box-sizing: border-box; } .metaframe-widget-container > div { height: 100%; } .metaframe-widget-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
+        // renderMetapage lays the metaframe out in a react-grid-layout grid and
+        // stamps an inline `min-height` floor on the grid container (default h=3 *
+        // rowHeight 100 + margins => 350px) and on the item wrapper (300px). The
+        // grid rows are `1fr`, so nothing else pins the size — only those floors.
+        // When the widget's height is set below 350px, the floor wins and the
+        // content is cut off at 350px. Override the floors so the metaframe fills
+        // our explicit height at any size (large heights already fill via 1fr).
+        style.textContent = ".metaframe-widget-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .metaframe-widget-container * { box-sizing: border-box; min-height: 0 !important; } .metaframe-widget-container > div { height: 100%; } .metaframe-widget-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
         root.appendChild(style);
 
         const container = document.createElement("div");
