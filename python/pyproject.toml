@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "metaframe-widget"
-version = "0.3.8"
+version = "0.3.9"
 description = "anywidget for embedding metaframe URLs in Jupyter and marimo notebooks"
 license = "MIT"
 requires-python = ">=3.8"
