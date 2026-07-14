@@ -20,6 +20,23 @@ w = mo.ui.anywidget(MetaframeWidget(url="https://framejs.io/"))
 w
 ```
 
+The `url` can be any metaframe URL form:
+
+```python
+# Raw / full URL — code inlined in the hash
+MetaframeWidget(url="https://framejs.io/#?js=...")
+
+# Expiring snapshot — content-addressed, kept ~30 days (editor: "Create expiring snapshot")
+MetaframeWidget(url="https://framejs.io/j/<sha256>")
+
+# Durable, editable frame — permanent (editor: "Save")
+# framejs.io/j/<uuid> and framejs.app/j/<uuid> are equivalent
+MetaframeWidget(url="https://framejs.io/j/<uuid>")
+```
+
+Prefer the durable `/j/<uuid>` form in notebooks you keep — see
+[Short URLs](../guide/short-urls) for the full comparison.
+
 Then in a separate cell, `w.outputs` will reactively update when the metaframe emits output — any cell referencing it re-runs automatically.
 
 ```python

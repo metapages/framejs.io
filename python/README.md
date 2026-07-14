@@ -41,6 +41,26 @@ at [framejs.io](https://framejs.io/) — the editor mints a short URL you can pa
 into `url=`. The URL is the portable, saveable form of a metaframe; the code
 itself lives behind it rather than being inlined in your notebook.
 
+### URL forms
+
+Any of these work as `url=`:
+
+```python
+# Raw / full URL — the code is inlined in the hash (can get very long)
+MetaframeWidget(url="https://framejs.io/#?js=...")
+
+# Expiring snapshot — content-addressed, kept ~30 days, then garbage-collected
+# (editor: "Create expiring snapshot")
+MetaframeWidget(url="https://framejs.io/j/<sha256>")
+
+# Durable, editable frame — permanent, tied to your account (editor: "Save")
+# framejs.io/j/<uuid> and framejs.app/j/<uuid> resolve to the same frame
+MetaframeWidget(url="https://framejs.io/j/<uuid>")
+```
+
+Prefer the durable `/j/<uuid>` form in notebooks you keep. See
+[Short URLs](https://framejs.io/docs/guide/short-urls) for the full comparison.
+
 ## API reference
 
 | Parameter | Type | Default | Description |
