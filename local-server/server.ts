@@ -228,6 +228,55 @@ async function urlToFrame(abs: string, url: string): Promise<void> {
   }
 }
 
+/**
+ * Expand a pasted framejs URL into a full hash-param URL that `urlToFrame` can
+ * consume. Two shapes are accepted:
+ *   - a short URL  https://framejs.io/j/<id>  or  https://framejs.app/j/<id>
+ *     (id = uuid or legacy sha256) — resolved via the runtime's
+ *     `/api/j/<id>/url` endpoint, trying the pasted origin first then our
+ *     configured ORIGIN as a fallback.
+ *   - a full frame URL that already carries the params in its `#hash`.
+ */
+async function expandFrameUrl(input: string): Promise<string> {
+  let u: URL;
+  try {
+    u = new URL(input.trim());
+  } catch {
+    throw new Error("invalid URL");
+  }
+
+  const m = u.pathname.match(/^\/j\/([^/?#]+)/);
+  if (!m) {
+    // Not a short URL — it must already carry the frame in its hash.
+    if (!u.hash || u.hash === "#") throw new Error("not a framejs frame URL");
+    return u.href;
+  }
+
+  const id = m[1];
+  // Preserve a version pin (?v= / ?sha256=) if present so a published snapshot
+  // resolves to that exact version.
+  const qs = u.searchParams.toString();
+  const suffix = qs ? `?${qs}` : "";
+  const origins = [u.origin, ORIGIN].filter((o, i, a) => a.indexOf(o) === i);
+
+  let lastErr = "resolve failed";
+  for (const origin of origins) {
+    try {
+      const res = await fetch(`${origin}/api/j/${id}/url${suffix}`);
+      if (res.ok) {
+        const full = (await res.text()).trim();
+        if (full) return full;
+        lastErr = "empty response";
+      } else {
+        lastErr = `HTTP ${res.status} from ${origin}`;
+      }
+    } catch (e) {
+      lastErr = String(e instanceof Error ? e.message : e);
+    }
+  }
+  throw new Error(`could not resolve short URL: ${lastErr}`);
+}
+
 // ---------------------------------------------------------------------------
 // Blueprint CSS — loaded from the live website, cached, with offline fallback
 // ---------------------------------------------------------------------------
@@ -336,6 +385,24 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true, path: relFromRoot(abs) });
     }
 
+    // --- API: import a framejs URL into a frame, replacing its contents -----
+    // Accepts a short /j/:id URL (framejs.io or framejs.app) or a full
+    // hash-param URL. Expands short URLs, then reconciles the frame dir to the
+    // incoming params — any managed file not present in the incoming is deleted.
+    if (path === "/api/import" && req.method === "POST") {
+      const abs = safePath(url.searchParams.get("path") ?? "");
+      const body = await req.json().catch(() => ({}));
+      const raw = typeof body?.url === "string" ? body.url.trim() : "";
+      if (!raw) return json({ error: "missing url" }, 400);
+      const full = await expandFrameUrl(raw);
+      await urlToFrame(abs, full);
+      return json({
+        ok: true,
+        path: relFromRoot(abs),
+        savedAt: new Date().toISOString(),
+      });
+    }
+
     if (path === "/blueprint.css") {
       return new Response(await blueprintCss(), {
         headers: { "content-type": "text/css; charset=utf-8" },
@@ -442,9 +509,23 @@ const PAGE = /* html */ `<!doctype html>
   </div>
 </div>
 
+<div class="modal-backdrop" id="importModal">
+  <div class="modal">
+    <h3>Import from URL</h3>
+    <p class="hint" id="importHint"></p>
+    <input id="importUrlInput" placeholder="https://framejs.io/j/…" autocomplete="off" spellcheck="false" />
+    <div class="modal-error" id="importError"></div>
+    <div class="modal-actions">
+      <button class="btn" id="importCancel">Cancel</button>
+      <button class="btn primary" id="importConfirm">Import</button>
+    </div>
+  </div>
+</div>
+
 <section id="frameView">
   <div id="frameBar">
     <button class="btn" id="backBtn">← Back</button>
+    <button class="btn" id="importBtn" title="Replace this frame from a framejs.io / framejs.app URL">⤓ Import URL</button>
     <span class="path" id="framePath"></span>
     <span class="spacer" style="flex:1"></span>
     <span id="saveStatus" style="font:500 12px 'IBM Plex Mono',monospace;opacity:.8"></span>
@@ -615,6 +696,75 @@ $("modal").onclick = (e) => { if (e.target === $("modal")) closeModal(); };
 $("folderName").addEventListener("keydown", (e) => {
   if (e.key === "Enter") { e.preventDefault(); submitCreate(); }
   else if (e.key === "Escape") { e.preventDefault(); closeModal(); }
+});
+
+// ---- import-from-URL: replace the current frame's files from a framejs URL ----
+// Accepts a short /j/:id URL (framejs.io / framejs.app) or a full hash-param
+// URL; the server expands it and reconciles the frame dir, deleting any managed
+// file the incoming frame doesn't use.
+function isFrameishUrl(text) {
+  try {
+    const u = new URL(text.trim());
+    return /^\\/j\\/[^/?#]+/.test(u.pathname) || /(?:^|[#&?])js=/.test(u.hash);
+  } catch { return false; }
+}
+
+async function importIntoFrame(path, rawUrl) {
+  const r = await fetch("/api/import?path=" + encodeURIComponent(path), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url: rawUrl }),
+  });
+  const d = await r.json();
+  if (!r.ok || d.error) throw new Error(d.error || "import failed");
+  return d;
+}
+
+function openImport() {
+  $("importHint").textContent = "replaces the frame at  /" + (currentFramePath || "");
+  $("importError").textContent = "";
+  $("importUrlInput").value = "";
+  $("importModal").classList.add("open");
+  $("importUrlInput").focus();
+}
+function closeImport() { $("importModal").classList.remove("open"); }
+async function submitImport() {
+  if (!currentFramePath) { $("importError").textContent = "Open a frame first"; return; }
+  const raw = $("importUrlInput").value.trim();
+  if (!raw) { $("importError").textContent = "Paste a framejs URL"; return; }
+  $("importError").textContent = "importing…";
+  try {
+    await importIntoFrame(currentFramePath, raw);
+    closeImport();
+    openFrame(currentFramePath); // reload the embed with the imported content
+  } catch (err) { $("importError").textContent = String(err.message || err); }
+}
+$("importBtn").onclick = openImport;
+$("importCancel").onclick = closeImport;
+$("importConfirm").onclick = submitImport;
+$("importModal").onclick = (e) => { if (e.target === $("importModal")) closeImport(); };
+$("importUrlInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); submitImport(); }
+  else if (e.key === "Escape") { e.preventDefault(); closeImport(); }
+});
+
+// Paste a framejs URL anywhere in the parent page while viewing a frame to
+// import it straight into the open frame. (Pastes that land inside the embedded
+// iframe stay with the editor; use the Import button for those.)
+document.addEventListener("paste", (e) => {
+  if (!currentFramePath) return;
+  if ($("importModal").classList.contains("open")) return; // let the field handle it
+  const text = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+  if (!isFrameishUrl(text)) return;
+  e.preventDefault();
+  (async () => {
+    setSave("importing…");
+    try {
+      await importIntoFrame(currentFramePath, text.trim());
+      setSave("imported ✓");
+      openFrame(currentFramePath);
+    } catch (err) { setSave("✗ " + (err.message || err)); }
+  })();
 });
 
 function render() {
