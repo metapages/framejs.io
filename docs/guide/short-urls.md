@@ -15,6 +15,13 @@ There are two forms of short URL persistence:
 
 The short URL is automatically copied to your clipboard.
 
+If any input points at a local address (`http://localhost:…`, `127.0.0.1`),
+its content is uploaded to the file store first and the reference rewritten to a
+permanent `framejs.io/f/<sha256>` URL — a snapshot has to work for whoever you
+send it to, and nobody else can reach your machine. If one of those inputs can't
+be fetched, no snapshot is created and you get an error naming the URL. See
+[Inputs served from your own machine](/guide/local-file-io#inputs-served-from-your-own-machine).
+
 The content is immutable — the same content always produces the same short URL.
 Short URLs are a **free convenience snapshot, kept for a month** and then garbage-collected. They are perfect for quick sharing, previews, and QR codes. If you need a link that lasts, save the content to a durable **Frame** on [framejs.app](https://framejs.app) — see below and 
 [Persistence & Data Retention](/guide/persistence) for the full retention model

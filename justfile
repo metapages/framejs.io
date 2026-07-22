@@ -2,7 +2,8 @@ set shell := ["bash", "-c"]
 set dotenv-load := true
 set export := true
 
-APP_FQDN := env_var_or_default("APP_FQDN", "framejs-io.localhost")
+DEFAULT_APP_FQDN := "framejs-io.localhost"
+APP_FQDN := env_var_or_default("APP_FQDN", DEFAULT_APP_FQDN)
 APP_PORT := env_var_or_default("APP_PORT", "4430")
 APP_PORT_BROWSER := env_var_or_default("APP_PORT_BROWSER", "4440")
 DENO_DEPLOY_TOKEN := env_var_or_default("DENO_DEPLOY_TOKEN", "")
@@ -147,8 +148,20 @@ build-python:
 publish-python: build-python
     cd python && hatch publish
 
+# The default host is *.localhost, which makes the page origin itself "local".
+# Running on a hostname that isn't is how you check behaviour keyed off
+# localhost (e.g. inputs pointing at http://localhost:<port>) the way production
+# sees it. The hostname must map to 127.0.0.1 in /etc/hosts.
+# Run the integration tests with the stack on a NON-localhost hostname
+test-nonlocal fqdn="framejs-io.dev" +args="":
+    APP_FQDN={{ fqdn }} just _integration-test {{ args }}
+
+# Bring the dev stack up on a NON-localhost hostname (see test-nonlocal)
+dev-nonlocal fqdn="framejs-io.dev" +args="":
+    APP_FQDN={{ fqdn }} just dev {{ args }}
+
 # Run integration tests: starts the dev stack, runs vitest unit + playwright integration tests, tears down
-_integration-test: _mkcert
+_integration-test +args="": _mkcert
     #!/usr/bin/env bash
     set -uo pipefail
 
@@ -185,7 +198,7 @@ _integration-test: _mkcert
     echo "Dev server ready."
 
     # Run playwright integration tests
-    (cd test && npx playwright test)
+    (cd test && npx playwright test {{ args }})
 
 # Delete all cached and generated files, and docker volumes
 clean: _delete-certs
@@ -256,22 +269,27 @@ alias examples := _examples
 @_examples +args="":
     just examples/{{ args }}
 
-# Verify the dev host resolves: the dev server binds to framejs.localhost, which
-# macOS does NOT resolve to loopback automatically (browsers do, the OS resolver
-# doesn't), so without an /etc/hosts entry the server fails with
-# `getaddrinfo ENOTFOUND framejs.localhost`.
+# Verify the dev host resolves: the dev server binds to APP_FQDN, and neither
+# a *.localhost name nor a custom one like framejs-io.dev is resolved to
+# loopback by macOS automatically (browsers do, the OS resolver doesn't), so
+# without an /etc/hosts entry the server fails with `getaddrinfo ENOTFOUND`.
 _hostcheck:
     #!/usr/bin/env bash
     set -euo pipefail
-    if ! grep -qE '^[[:space:]]*127\.0\.0\.1[[:space:]]+([^#]*[[:space:]])?framejs-io\.localhost([[:space:]]|$)' /etc/hosts; then
-        echo -e "\033[1m[hostcheck] Missing /etc/hosts entry for framejs-io.localhost\033[0m" >&2
+    if [ "{{ APP_FQDN }}" != "{{ DEFAULT_APP_FQDN }}" ]; then
+        echo -e "{{ yellow }}[hostcheck] APP_FQDN override in effect: {{ bold }}{{ APP_FQDN }}\033[0m{{ yellow }} (default: {{ DEFAULT_APP_FQDN }})\033[0m" >&2
+        echo -e "{{ yellow }}            The whole stack — certs, routing, tests — runs on this host.\033[0m" >&2
+    fi
+    escaped=$(printf '%s' '{{ APP_FQDN }}' | sed 's/\./\\./g')
+    if ! grep -qE "^[[:space:]]*127\.0\.0\.1[[:space:]]+([^#]*[[:space:]])?${escaped}([[:space:]]|$)" /etc/hosts; then
+        echo -e "\033[1m[hostcheck] Missing /etc/hosts entry for {{ APP_FQDN }}\033[0m" >&2
         echo "" >&2
-        echo "The dev server binds to 'framejs-io.localhost', but your OS can't resolve it," >&2
-        echo "so it will fail with: getaddrinfo ENOTFOUND framejs-io.localhost" >&2
+        echo "The dev server binds to '{{ APP_FQDN }}', but your OS can't resolve it," >&2
+        echo "so it will fail with: getaddrinfo ENOTFOUND {{ APP_FQDN }}" >&2
         echo "" >&2
         echo "Fix it by adding the loopback mapping to /etc/hosts:" >&2
         echo "" >&2
-        echo "    echo '127.0.0.1 framejs-io.localhost' | sudo tee -a /etc/hosts" >&2
+        echo "    echo '127.0.0.1 {{ APP_FQDN }}' | sudo tee -a /etc/hosts" >&2
         echo "" >&2
         exit 1
     fi

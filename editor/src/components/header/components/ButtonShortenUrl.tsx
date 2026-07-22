@@ -6,6 +6,10 @@ import {
   getAllowedHashParams,
   stripDisallowedHashParams,
 } from "/@/utils/hashParams";
+import {
+  LocalInputUploadError,
+  uploadLocalUrlInputs,
+} from "/@/utils/localInputs";
 
 import {
   Box,
@@ -84,6 +88,13 @@ export const ButtonShortenUrl: React.FC<{
           newInputs || undefined,
         );
       }
+      // Inputs pointing at http://localhost:<port> are only reachable from the
+      // machine that authored the frame. A snapshot is a shared, immutable
+      // artifact, so copy that content into the remote file store and rewrite
+      // the reference to the canonical /f/<sha256> URL. This must happen before
+      // the hash string is built: the snapshot's sha256 is computed from it.
+      newInputs = await uploadLocalUrlInputs(newInputs || undefined);
+
       if (newInputs && Object.keys(newInputs).length > 0) {
         hash = setHashParamValueJsonInHashString(hash, "inputs", newInputs);
       }
@@ -154,6 +165,16 @@ export const ButtonShortenUrl: React.FC<{
       }, 0);
     } catch (error) {
       console.error("Shorten URL error:", error);
+      if (error instanceof LocalInputUploadError) {
+        toast({
+          title: "Local input could not be uploaded",
+          description: `${error.url} (input "${error.key}") could not be fetched, so the snapshot was not created. Is the local server still running?`,
+          status: "error",
+          duration: 8000,
+          isClosable: true,
+        });
+        return;
+      }
       toast({
         title: "Failed to shorten URL",
         description: "Please try again later",

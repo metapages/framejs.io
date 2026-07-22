@@ -6,8 +6,18 @@ import { VitePWA } from "vite-plugin-pwa";
 
 import react from "@vitejs/plugin-react";
 
+const DEFAULT_APP_FQDN = "framejs-io.localhost";
 const APP_PORT: number = parseInt(process.env.APP_PORT || "443");
-const HOST: string = process.env.HOST || "framejs-io.localhost";
+const HOST: string = process.env.HOST || DEFAULT_APP_FQDN;
+
+// APP_FQDN can be overridden to a non-localhost hostname (see .env) to test code
+// paths that key off "localhost". Say so, otherwise a stack answering on an
+// unexpected host is a confusing thing to debug.
+if (HOST !== DEFAULT_APP_FQDN) {
+  console.log(
+    `⚠️  APP_FQDN override: editor dev server bound to ${HOST} (default: ${DEFAULT_APP_FQDN})`,
+  );
+}
 const PORT: string = process.env.PORT || "4440";
 const CERT_FILE: string | undefined = process.env.CERT_FILE;
 const CERT_KEY_FILE: string | undefined = process.env.CERT_KEY_FILE;
