@@ -99,6 +99,51 @@ state and omitted otherwise. Because these are plain files, they diff and merge
 like any other source.
 
 
+## Inputs served from your own machine
+
+An input can point at a server running on your own machine, by giving it a URL
+value in `inputs`:
+
+```json
+{ "data": { "type": "url", "value": "http://localhost:8000/data.json" } }
+```
+
+The frame fetches it at run time like any other URL input, so a big dataset
+never has to go into the URL. `localhost`, `127.0.0.1` and `*.localhost` all
+work.
+
+::: warning Your server must send CORS headers
+The frame page is served from `https://framejs.io`, so reading your local server
+is a **cross-origin** request and the server has to opt in:
+
+```
+Access-Control-Allow-Origin: *
+```
+
+Without it the fetch is blocked, and **the failure is quiet**: the input simply
+arrives as `undefined` and the only trace is an error in the browser console.
+If a local input looks like it "isn't arriving", check there first.
+
+This rules out `python -m http.server`, which sends no CORS headers. Something
+like `npx http-server --cors` does. Recent Chrome versions may additionally
+require `Access-Control-Allow-Private-Network: true` (or prompt for local
+network access) before a public site may read a local address.
+:::
+
+Local inputs are for **you, on this machine** — nobody else can reach your
+`localhost`. When you click **Create expiring snapshot**, framejs therefore
+copies the content of each local input into the file store first and rewrites
+the reference to the permanent `https://framejs.io/f/<sha256>` URL, so the
+snapshot works for everyone you send it to. Points worth knowing:
+
+- **Content leaves your machine at that moment.** Only the inputs that point at
+  a local address, and only when you snapshot. Ordinary editing uploads nothing.
+- **The snapshot is abandoned if a local input can't be fetched**, with an error
+  toast naming the URL — better than minting a link that is broken for everyone
+  but you.
+- **It happens before the URL is computed**, so the snapshot's sha256 covers the
+  rewritten inputs, and re-snapshotting doesn't upload the same bytes again.
+
 ## Notes
 
 - **Write scope is the mounted root only.** The server refuses any path that
@@ -108,4 +153,5 @@ like any other source.
   system stack if the live fonts aren't reachable).
 - **Independent of framejs persistence.** This is unrelated to short URLs and
   durable Frames — see [Persistence & Retention](./persistence). Local files are
-  yours alone; nothing is uploaded.
+  yours alone; editing uploads nothing. (The one exception is deliberate:
+  snapshotting a frame with local inputs, above.)
