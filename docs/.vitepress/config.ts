@@ -3,8 +3,9 @@ import { withMermaid } from "vitepress-plugin-mermaid";
 
 export default withMermaid(
   defineConfig({
-    title: "framejs.io",
-    description: "Run and edit JavaScript in the browser, embedded in the URL",
+    title: "framejs.io — share interactive visualizations in a URL",
+    description:
+      "Create and share interactive JavaScript visualizations, charts, dashboards, and apps in the browser. The code lives in the URL — no server, build, or account. Generate it with AI or write it by hand.",
     base: "/docs/",
     // Generate links without the .html suffix (e.g. /docs/guide/intro instead of
     // /docs/guide/intro.html). Requires the server to serve `foo.html` when `/foo`
