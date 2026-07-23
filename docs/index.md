@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: framejs.io
-  text: URL with editable javascript embedded
-  tagline: Interactive visualizations that live in a URL. Prompt AI to build them, embed or share anywhere, add to notebooks
+  text: Share interactive visualizations in a URL
+  tagline: Create interactive charts, dashboards, and apps in the browser — the code lives in the URL, so anyone with the link can run it. No server, no build, no account. Generate with AI or write by hand, then embed or share anywhere.
   actions:
     - theme: brand
       text: Quickstart

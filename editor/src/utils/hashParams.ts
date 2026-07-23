@@ -6,10 +6,17 @@ import { MetaframeDefinition } from "@metapages/metapage";
 
 // The default allowed hash parameters, matching the hashParams declared
 // in the worker's metaframe.json (DEFAULT_METAFRAME_DEFINITION).
-// NOTE: This list is also defined in worker/server.ts (CANONICAL_HASH_PARAM_KEYS).
-// Keep both lists in sync.
+// NOTE: The canonical subset is also defined in worker/server.ts
+// (CANONICAL_HASH_PARAM_KEYS). Keep the canonical entries in sync.
+//
+// `checklist` is intentionally allowed here but is NOT a canonical key: it holds
+// user-mutable runtime state that a frame writes to the URL (e.g. an interactive
+// checklist). Being allowed keeps the editor from stripping it on copy / shorten
+// / save; being non-canonical keeps the worker from baking it into the /j/ hash
+// or cleaning it from the URL bar after load, so live toggles persist.
 export const DEFAULT_ALLOWED_HASH_PARAMS: readonly string[] = [
   "bgColor",
+  "checklist",
   "definition",
   "edit",
   "editorWidth",
