@@ -35,3 +35,35 @@ features:
     details: Wire inputs and outputs between metaframes to build apps, workflows, and dashboards.
     link: /guide/overview
 ---
+
+<div class="home-video">
+
+## See it in 1 minute
+
+<YouTube id="7brz6Z111Eo" vertical title="framejs.io in 1 minute" />
+
+<p class="home-video-link"><a href="/docs/quickstart">Quickstart &rarr;</a></p>
+
+</div>
+
+<style>
+.home-video {
+  padding-bottom: 64px;
+  text-align: center;
+}
+
+/* The features grid above already provides the separation, so drop VitePress'
+   default h2 divider rule and keep just the breathing room. */
+.home-video h2 {
+  border-top: none;
+  margin: 0 0 8px;
+  padding-top: 0;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.home-video-link a {
+  color: var(--vp-c-brand-1);
+  font-weight: 500;
+}
+</style>
