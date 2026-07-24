@@ -1,0 +1,1200 @@
+/**
+ * OMSF — reveal.js Theme
+ * Mirrors the visual language of https://omsf.io/ for presentation slides.
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js/dist/reveal.css">
+ *   <link rel="stylesheet" href="reveal-omsf.css">            <!-- this theme -->
+ *   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css">
+ *
+ * Icons: any Font Awesome icon picks up the mint accent, e.g.
+ *   <i class="fa-solid fa-flask omsf-icon"></i>
+ *
+ * Signature OMSF cues reproduced here:
+ *   • Barlow type, weight 100 headings / 400 body
+ *   • Near-monochrome palette with soft mint (#b5f2e1) accent
+ *   • 10px mint strip across the top of every slide deck
+ *   • 12px border-radius, generous whitespace
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,100;0,400;0,500;1,100;1,400&display=swap");
+
+/* ═══════════════════════════════════════════
+   Design tokens (reveal.js v4+ theme variables)
+   ═══════════════════════════════════════════ */
+:root {
+  /* OMSF palette */
+  --omsf-bg: #f6f6f6;
+  --omsf-bg-alt: #efefef;
+  --omsf-bg-warm: #faf9f5;
+  --omsf-bg-mint: #ebfaf7;
+  --omsf-accent: #b5f2e1;
+  --omsf-accent-dark: #6fdebe;
+  --omsf-text: #000000;
+  --omsf-text-soft: #141413;
+  --omsf-text-muted: #555555;
+  --omsf-border: #d4d4d4;
+  --omsf-border-dark: #141413;
+  --omsf-radius: 12px;
+
+  /* reveal.js core overrides */
+  --r-background-color: var(--omsf-bg);
+  --r-main-font: "Barlow", sans-serif;
+  --r-main-font-size: 38px;
+  --r-main-color: var(--omsf-text);
+  --r-block-margin: 24px;
+
+  --r-heading-margin: 0 0 28px 0;
+  --r-heading-font: "Barlow", sans-serif;
+  --r-heading-color: var(--omsf-text);
+  --r-heading-line-height: 1.2;
+  --r-heading-letter-spacing: normal;
+  --r-heading-text-transform: none;
+  --r-heading-text-shadow: none;
+  --r-heading-font-weight: 100;
+  --r-heading1-text-shadow: none;
+
+  --r-heading1-size: 3.2em;
+  --r-heading2-size: 2.0em;
+  --r-heading3-size: 1.4em;
+  --r-heading4-size: 1.05em;
+
+  --r-code-font: "Barlow", monospace;
+  --r-link-color: var(--omsf-text);
+  --r-link-color-dark: var(--omsf-accent-dark);
+  --r-link-color-hover: var(--omsf-text);
+  --r-selection-background-color: var(--omsf-accent);
+  --r-selection-color: var(--omsf-text);
+  --r-overlay-element-bg-color: 0, 0, 0;
+  --r-overlay-element-fg-color: 240, 240, 240;
+}
+
+/* ═══════════════════════════════════════════
+   Backdrop + signature mint top strip
+   ═══════════════════════════════════════════ */
+.reveal-viewport {
+  background: var(--omsf-bg);
+}
+
+/* 10px mint strip across the very top — the OMSF house signature */
+.reveal-viewport::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: var(--omsf-accent);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════
+   Typography
+   ═══════════════════════════════════════════ */
+.reveal {
+  font-family: var(--r-main-font);
+  font-size: var(--r-main-font-size);
+  font-weight: 400;
+  color: var(--omsf-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.reveal h1,
+.reveal h2,
+.reveal h3,
+.reveal h4,
+.reveal h5,
+.reveal h6 {
+  font-family: var(--r-heading-font);
+  font-weight: 100;
+  line-height: var(--r-heading-line-height);
+  color: var(--omsf-text);
+  text-transform: none;
+  text-shadow: none;
+  word-wrap: break-word;
+}
+
+.reveal h1 {
+  font-size: var(--r-heading1-size);
+}
+.reveal h2 {
+  font-size: var(--r-heading2-size);
+}
+.reveal h3 {
+  font-size: var(--r-heading3-size);
+}
+.reveal h4 {
+  font-size: var(--r-heading4-size);
+  font-weight: 400;
+}
+
+.reveal p {
+  line-height: 1.4;
+}
+
+/* Thin mint underline accent under section titles */
+.reveal h2.omsf-underline,
+.reveal h1.omsf-underline {
+  display: inline-block;
+  padding-bottom: 0.25em;
+  border-bottom: 6px solid var(--omsf-accent);
+}
+
+.reveal strong,
+.reveal b {
+  font-weight: 500;
+}
+
+.reveal em {
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════
+   Links
+   ═══════════════════════════════════════════ */
+.reveal a {
+  color: var(--omsf-text);
+  text-decoration: none;
+  box-shadow: inset 0 -0.12em 0 0 var(--omsf-accent);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.reveal a:hover {
+  color: var(--omsf-text);
+  background-color: var(--omsf-accent);
+  box-shadow: inset 0 -1.1em 0 0 var(--omsf-accent);
+}
+
+/* ═══════════════════════════════════════════
+   Lists — mint markers
+   ═══════════════════════════════════════════ */
+.reveal ul,
+.reveal ol {
+  display: inline-block;
+  text-align: left;
+  margin: 0 0 0 1em;
+}
+.reveal ul {
+  list-style: none;
+  padding-left: 1.2em;
+}
+.reveal ul li {
+  position: relative;
+}
+.reveal ul li::before {
+  content: "";
+  position: absolute;
+  left: -1.1em;
+  top: 0.55em;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 9999px;
+  background: var(--omsf-accent-dark);
+}
+.reveal li {
+  margin-bottom: 0.4em;
+}
+
+/* ═══════════════════════════════════════════
+   Icons (Font Awesome / generic <i>)
+   ═══════════════════════════════════════════ */
+.reveal .omsf-icon {
+  color: var(--omsf-accent-dark);
+}
+.reveal .omsf-icon-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 9999px;
+  background: var(--omsf-bg-mint);
+  color: var(--omsf-text);
+}
+.reveal .omsf-icon-lg {
+  font-size: 2.4em;
+}
+
+/* ═══════════════════════════════════════════
+   Components: cards, pills, buttons
+   ═══════════════════════════════════════════ */
+.reveal .omsf-card {
+  background: var(--omsf-bg-warm);
+  border-radius: var(--omsf-radius);
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  text-align: left;
+}
+
+.reveal .omsf-pill {
+  display: inline-block;
+  background: var(--omsf-accent);
+  color: var(--omsf-text);
+  border-radius: 9999px;
+  padding: 0.2em 0.9em;
+  font-size: 0.6em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.reveal .omsf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  background: var(--omsf-accent);
+  color: var(--omsf-text);
+  border: none;
+  border-radius: var(--omsf-radius);
+  padding: 0.5em 1.2em;
+  box-shadow: none;
+  transition: background 0.2s ease;
+}
+.reveal .omsf-btn:hover {
+  background: var(--omsf-accent-dark);
+}
+
+/* Mint background slide variant: add class="omsf-mint" to a <section> */
+.reveal .omsf-mint,
+.reveal section.omsf-mint {
+  background: var(--omsf-bg-mint);
+}
+
+/* ═══════════════════════════════════════════
+   Code blocks
+   ═══════════════════════════════════════════ */
+.reveal code {
+  font-family: var(--r-code-font);
+  background: var(--omsf-bg-alt);
+  border-radius: 6px;
+  padding: 0.1em 0.35em;
+}
+.reveal pre {
+  font-family: var(--r-code-font);
+  font-size: 0.55em;
+  box-shadow: none;
+}
+.reveal pre code {
+  background: var(--omsf-bg-warm);
+  border: 1px solid var(--omsf-border);
+  border-radius: var(--omsf-radius);
+  padding: 1.25em 1.5em;
+  max-height: 500px;
+}
+
+/* Pin a slide's content to the top instead of vertically centering it, so its
+   title lines up with neighbouring (taller) slides. Overrides the inline `top`
+   reveal sets in center mode. */
+.reveal .slides section.top-align {
+  top: 0 !important;
+}
+
+/* CLI/terminal slide: code block flush-left and full width, matching the iframe
+   below it (overrides reveal's default 90%-centered <pre>). */
+.reveal section.cli-slide pre {
+  width: 100%;
+  margin: 0 0 var(--r-block-margin) 0;
+}
+
+/* ── Jupyter-style notebook: stacked cells sharing one width ──────────────────
+   <div class="notebook"> wraps <div class="nb-cell"> rows, each a prompt gutter
+   (In [n]:) plus a grey input body. Use class "frame" on a cell whose body is an
+   iframe so the embed reads as a live widget cell in the same notebook. */
+.reveal .notebook {
+  background: #fff;
+  border: 1px solid var(--omsf-border);
+  border-radius: var(--omsf-radius);
+  padding: 16px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.12);
+  text-align: left;
+}
+.reveal .notebook .nb-cell {
+  display: flex;
+  align-items: flex-start;
+  background: #f4f4f4;
+  border: 1px solid #e2e2e2;
+  border-radius: 4px;
+  margin: 0 0 14px 0;
+}
+.reveal .notebook .nb-cell:last-child {
+  margin-bottom: 0;
+}
+.reveal .notebook .nb-prompt {
+  flex: none;
+  width: 92px;
+  padding: 14px 12px 0 0;
+  font-family: var(--r-code-font);
+  font-size: 0.5em;
+  line-height: 1.5;
+  color: #303f9f;
+  text-align: right;
+  white-space: nowrap;
+  user-select: none;
+}
+.reveal .notebook .nb-body {
+  flex: 1;
+  min-width: 0;
+}
+/* fenced code blends into the grey cell — no inner box of its own */
+.reveal .notebook .nb-body pre {
+  font-size: 0.62em;
+  margin: 0;
+}
+.reveal .notebook .nb-body pre code {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 12px 14px;
+  max-height: none;
+}
+/* iframe cell: the live widget, padded so the grey frames it */
+.reveal .notebook .nb-cell.frame .nb-body {
+  padding: 12px;
+}
+.reveal .notebook .nb-body iframe {
+  width: 100%;
+  height: 560px;
+  border: 0;
+  border-radius: 3px;
+  background: #fff;
+  display: block;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════
+   Tables
+   ═══════════════════════════════════════════ */
+.reveal table {
+  border-collapse: collapse;
+}
+.reveal table th {
+  font-weight: 400;
+  background: var(--omsf-bg-mint);
+  border-bottom: 2px solid var(--omsf-accent-dark);
+}
+.reveal table th,
+.reveal table td {
+  padding: 0.4em 0.8em;
+  border-bottom: 1px solid var(--omsf-border);
+}
+
+/* ═══════════════════════════════════════════
+   Blockquote
+   ═══════════════════════════════════════════ */
+.reveal blockquote {
+  background: var(--omsf-bg-warm);
+  border-left: 6px solid var(--omsf-accent);
+  border-radius: 0 var(--omsf-radius) var(--omsf-radius) 0;
+  box-shadow: none;
+  font-style: normal;
+  padding: 0.75em 1em;
+}
+
+/* ═══════════════════════════════════════════
+   Chrome: controls, progress, slide number
+   ═══════════════════════════════════════════ */
+.reveal .controls {
+  color: var(--omsf-accent-dark);
+}
+.reveal .progress {
+  color: var(--omsf-accent-dark);
+  height: 6px;
+  background: rgba(0, 0, 0, 0.1);
+}
+.reveal .slide-number {
+  background: transparent;
+  color: var(--omsf-text-muted);
+  font-family: var(--r-main-font);
+}
+
+/* Muted helper text */
+.reveal .omsf-muted {
+  color: var(--omsf-text-muted);
+}
+
+/* Divider */
+.reveal hr.omsf-divider {
+  border: none;
+  border-top: 1px solid var(--omsf-border);
+  margin: 1em 0;
+}
+
+/* ═══════════════════════════════════════════
+   Workshop layout helpers (framejs.io · OMSF)
+   ═══════════════════════════════════════════ */
+
+/* Inline text accents */
+.reveal .accent {
+  color: var(--omsf-accent-dark);
+}
+.reveal .muted {
+  color: var(--omsf-text-muted);
+  font-weight: 400;
+}
+.reveal .nowrap {
+  white-space: nowrap;
+}
+
+/* Small uppercase eyebrow / kicker pill above a title */
+.reveal .kicker {
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.45em;
+  color: var(--omsf-text-muted);
+  margin-bottom: 1.1em;
+  padding: 0.35em 1em;
+  border: 1px solid var(--omsf-border);
+  border-radius: 9999px;
+  background: var(--omsf-bg-mint);
+}
+
+/* OMSF logo above everything on the title slides */
+.reveal img.deck-logo {
+  display: block;
+  margin: 0 auto 0.6em;
+  height: 150px;
+  width: auto;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* Title slide */
+.reveal section.title-slide {
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+}
+.reveal section.title-slide h1 {
+  margin: 0 0 0.1em 0;
+}
+.reveal section.title-slide h3 {
+  color: var(--omsf-text-soft);
+  font-weight: 100;
+}
+.reveal .byline {
+  color: var(--omsf-text-muted);
+  font-size: 0.8em;
+  margin-top: 1.4em;
+}
+
+/* A large single statement */
+.reveal .lead {
+  font-size: 1.45em;
+  font-weight: 100;
+  line-height: 1.25;
+}
+
+/* Concluding takeaway bar */
+.reveal .concl {
+  margin-top: 1em;
+  display: inline-block;
+  background: var(--omsf-bg-mint);
+  border-left: 6px solid var(--omsf-accent-dark);
+  border-radius: 0 var(--omsf-radius) var(--omsf-radius) 0;
+  padding: 0.6em 1em;
+  font-weight: 500;
+  text-align: left;
+}
+
+/* Footnote: mark a word with <sup class="fn">†</sup>, then add a matching
+   <p class="footnote"><sup>†</sup> …</p> near the bottom of the slide. The marker
+   is a small raised dagger; the note is muted, small, set off by a thin rule. */
+.reveal sup.fn {
+  font-size: 0.6em;
+  font-weight: 600;
+  color: var(--omsf-border-dark);
+  margin-left: 0.1em;
+}
+.reveal .footnote {
+  margin-top: 1.4em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--omsf-border);
+  max-width: 60ch;
+  font-size: 0.42em;
+  line-height: 1.45;
+  color: var(--omsf-text-muted);
+  text-align: left;
+}
+.reveal .footnote sup {
+  font-weight: 600;
+  color: var(--omsf-border-dark);
+}
+
+/* Source credit / citation — a small attribution line under a slide's text
+   content. Set off from the body by a hair-thin rule and a leading em-dash, in
+   the muted footnote register; the name itself is lightly emphasised. Mark up as
+   <p class="cite">Created by <span class="who">Name</span>, Affiliation</p>. */
+.reveal .cite {
+  margin-top: 1.1em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--omsf-border);
+  max-width: 48ch;
+  font-size: 0.46em;
+  font-style: italic;
+  line-height: 1.4;
+  color: var(--omsf-text-muted);
+  text-align: left;
+}
+.reveal .cite::before {
+  content: "\2014\00a0"; /* em-dash + nbsp */
+}
+.reveal .cite .who {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--omsf-text-soft);
+}
+
+/* Two-column grid */
+.reveal .two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 44px;
+  align-items: center;
+  text-align: left;
+}
+.reveal .two-col.top {
+  align-items: start;
+}
+/* Right column always aligns its content to the top (left column keeps the
+   grid's default vertical alignment). */
+.reveal .two-col > *:nth-child(2) {
+  align-self: start;
+}
+/* Give the right column more room. Stack the modifiers by how hard you want to
+   lean: lean-left (mild) → lean-left-xl (more) → lean-left-xxl (most). */
+.reveal .two-col.lean-left {
+  grid-template-columns: 0.85fr 1.15fr;
+}
+.reveal .two-col.lean-left-xl {
+  grid-template-columns: 0.65fr 1.35fr;
+}
+.reveal .two-col.lean-left-xxl {
+  grid-template-columns: 0.5fr 1.5fr;
+}
+/* NOTE: put `two-col` on a wrapping <div>, NOT on the <section> via
+   <!-- .slide: class="two-col" -->. Reveal writes `display:block` as an INLINE
+   style on every section (to show/hide slides), and inline styles beat any
+   stylesheet rule — so a grid on the section silently collapses to one column.
+   A <div> has no such inline style, so this rule just works, no overrides. */
+
+/* Embedded framejs iframe — two height behaviours, same look.
+
+   A framejs embed always sizes its app to FILL the host iframe (its inner frame
+   is min-height:100vh / max-height:100% / overflow:hidden) and the Plotly/3Dmol
+   panels swallow the mouse wheel, so the iframe never makes its own scrollbar.
+   Whatever scrolling we want has to live on this WRAPPER — drag the mint
+   scrollbar, the wheel is captured by the charts.
+
+   1. .embed-frame          FIT — never taller than the slide, so it can't
+                                  overflow; if its content is taller than the cap
+                                  the wrapper scrolls. Cap with --embed-fit-h
+                                  (defaults to the usable slide height).
+   2. .embed-frame.scroll   FIXED — a fixed-height viewport over a deliberately
+                                  TALL iframe, for data-dense apps you scroll
+                                  through (--embed-scroll-h = viewport height,
+                                  --embed-frame-h = the iframe's real height). */
+.reveal .embed-frame {
+  border: 1px solid var(--omsf-border);
+  border-radius: var(--omsf-radius);
+  background: #fff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  max-height: var(--embed-fit-h, 880px); /* never run past the slide */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--omsf-accent-dark) var(--omsf-bg-alt);
+}
+.reveal .embed-frame iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+.reveal .embed-frame::-webkit-scrollbar {
+  width: 14px;
+}
+.reveal .embed-frame::-webkit-scrollbar-track {
+  background: var(--omsf-bg-alt);
+}
+.reveal .embed-frame::-webkit-scrollbar-thumb {
+  background: var(--omsf-accent-dark);
+  border-radius: 8px;
+  border: 3px solid var(--omsf-bg-alt);
+}
+
+/* FIXED-height scrolling variant: swap the cap for a fixed viewport and give the
+   iframe its own tall height; the difference is what you scroll through. */
+.reveal .embed-frame.scroll {
+  max-height: var(--embed-scroll-h, 960px);
+}
+.reveal .embed-frame.scroll iframe {
+  height: var(--embed-frame-h, 1280px);
+}
+
+/* ── Two no-think iframe wrappers ──────────────────────────────────────────
+   Pick one and drop it on the <div> around an <iframe>:
+
+   .iframe-contained  this iframe must stay inside the slide. The wrapper is
+                      capped to the slide height and the iframe fills it; nothing
+                      ever overflows.  <div class="iframe-contained">
+   .iframe-scroll     this iframe can be taller than the slide. The wrapper is a
+                      fixed window; the iframe runs past it and you scroll the
+                      wrapper to see the rest (drag the mint scrollbar — framejs
+                      charts eat the mouse wheel). Set its real height with
+                      --iframe-h.            <div class="iframe-scroll">
+
+   Shared look matches .embed-frame above. Tunables: --iframe-h (height the
+   wrapper/iframe should be; defaults to the usable slide height). */
+.reveal .iframe-contained,
+.reveal .iframe-scroll {
+  border: 1px solid var(--omsf-border);
+  border-radius: var(--omsf-radius);
+  background: #fff;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--omsf-accent-dark) var(--omsf-bg-alt);
+}
+.reveal .iframe-contained iframe,
+.reveal .iframe-scroll iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+}
+.reveal .iframe-contained::-webkit-scrollbar,
+.reveal .iframe-scroll::-webkit-scrollbar {
+  width: 14px;
+}
+.reveal .iframe-contained::-webkit-scrollbar-track,
+.reveal .iframe-scroll::-webkit-scrollbar-track {
+  background: var(--omsf-bg-alt);
+}
+.reveal .iframe-contained::-webkit-scrollbar-thumb,
+.reveal .iframe-scroll::-webkit-scrollbar-thumb {
+  background: var(--omsf-accent-dark);
+  border-radius: 8px;
+  border: 3px solid var(--omsf-bg-alt);
+}
+
+/* CONTAINED — never taller than the slide; the iframe is held inside.
+   Standalone, it's capped by --iframe-h. Inside a `class="fit"` slide (below)
+   it flexes instead, absorbing whatever height is left so it can't overflow. */
+.reveal .iframe-contained {
+  flex: 1 1 0; /* in a .fit slide: take the leftover height */
+  min-height: 0; /* allow it to shrink below the iframe's height */
+  max-height: var(--iframe-h, 880px);
+  overflow-y: auto;
+}
+.reveal .iframe-contained iframe {
+  height: var(--iframe-h, 880px);
+  max-height: 100%;
+}
+
+/* SCROLL — fixed window; iframe runs past it and the wrapper scrolls. */
+.reveal .iframe-scroll {
+  max-height: var(--iframe-window-h, 820px);
+  overflow-y: auto;
+}
+.reveal .iframe-scroll iframe {
+  height: var(--iframe-h, 1280px);
+}
+
+/* ── class="fit" — a slide that can't overflow ────────────────────────────────
+   Add  <!-- .slide: class="fit" -->  to a slide and it becomes a fixed-height
+   flex column exactly one canvas tall. Headings/text take their natural height;
+   a child .iframe-contained (or .two-col) flexes to fill the rest. Because the
+   column never grows past the canvas, nothing spills past the slide edge — no
+   matter the iframe's dimensions. (top:0 !important overrides reveal's vertical
+   centering, which only matters when content is short enough to center.) */
+.reveal .slides section.fit {
+  height: 100%;
+  top: 0 !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+/* A two-column layout inside a fit slide stretches to fill and its cells too,
+   so an .iframe-contained in a column gets real height to flex into. */
+.reveal section.fit .two-col {
+  flex: 1 1 0;
+  min-height: 0;
+  align-items: stretch;
+}
+.reveal section.fit .two-col > * {
+  min-height: 0;
+}
+.reveal section.fit .two-col .iframe-contained {
+  max-height: 100%;
+}
+
+/* Side-by-side embed gallery */
+.reveal .gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.reveal .gallery figure {
+  margin: 0;
+}
+.reveal .gallery figcaption {
+  font-size: 0.55em;
+  color: var(--omsf-text-muted);
+  margin-top: 0.6em;
+  text-align: center;
+}
+
+/* Terminal / prompt block */
+.reveal .prompt {
+  text-align: left;
+  background: var(--omsf-border-dark);
+  color: #ededed;
+  border-radius: var(--omsf-radius);
+  padding: 1em 1.2em;
+  font-family: var(--r-code-font);
+  font-size: 0.62em;
+  line-height: 1.7;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+.reveal .prompt .p {
+  color: var(--omsf-accent);
+} /* user-typed prompt */
+.reveal .prompt .o {
+  color: #9aa6b0;
+} /* agent output */
+.reveal .prompt .u {
+  color: #ffffff;
+  box-shadow: inset 0 -0.12em 0 0 var(--omsf-accent-dark);
+}
+
+/* ── Two ways a URL is saved: side-by-side URL cards ──────────────────────────
+   <div class="url-ways"> with two <div class="url-card"> children. The middle
+   span gets class "var" to highlight the distinguishing part of the URL. */
+.reveal .url-ways {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.4em;
+  align-items: stretch;
+  margin: 0.6em 0 0;
+}
+.reveal .url-card {
+  text-align: left;
+  border: 1px solid var(--omsf-border);
+  border-radius: var(--omsf-radius);
+  padding: 1.1em 1.2em 1em;
+  background: var(--omsf-bg-warm);
+}
+.reveal .url-card.live {
+  background: var(--omsf-bg-mint);
+  border-color: var(--omsf-accent-dark);
+}
+.reveal .url-card .state {
+  display: inline-block;
+  font-size: 0.6em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--omsf-text-muted);
+  margin-bottom: 0.6em;
+}
+.reveal .url-card .url {
+  font-family: var(--r-code-font);
+  font-size: 0.74em;
+  line-height: 1.4;
+  word-break: break-all;
+  color: var(--omsf-text-soft);
+  margin: 0 0 0.7em;
+}
+.reveal .url-card .url .var {
+  background: var(--omsf-accent);
+  border-radius: 4px;
+  padding: 0.05em 0.25em;
+}
+.reveal .url-card ul {
+  margin: 0;
+  font-size: 0.78em;
+}
+
+/* ── Share/embed hub: a central visualization radiating to destinations ───────
+   <div class="hub"> with an <svg class="spokes"> for the connector lines, a
+   <div class="hub-core"> in the middle, and <div class="embed-card"> windows
+   placed absolutely at the pentagon points (n1..n5). Each card is a little UI
+   window with an image placeholder — drop a real screenshot in as
+   <img class="screenshot"> to replace the placeholder. */
+.reveal .hub {
+  position: relative;
+  width: 1640px;
+  height: 860px;
+  margin: 0 auto;
+}
+.reveal .hub .spokes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+.reveal .hub .spokes line {
+  stroke: var(--omsf-accent-dark);
+  stroke-width: 3;
+  stroke-dasharray: 2 10;
+  stroke-linecap: round;
+}
+.reveal .hub .hub-core {
+  position: absolute;
+  left: 580px;
+  top: 340px;
+  width: 480px;
+  height: 300px;
+  border-radius: var(--omsf-radius);
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--omsf-border);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.2);
+  z-index: 3;
+}
+.reveal .hub .hub-core img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  margin: 0;
+}
+
+/* Destination embed-preview cards. The .shot fills the card with the embed
+   screenshot; the .brand-badge is a separate circular service tag clipped onto
+   the card's top-right corner. */
+.reveal .hub .embed-card {
+  position: absolute;
+  width: 384px;
+  height: 228px;
+  z-index: 2;
+}
+/* the screenshot area — replace the .ph placeholder with
+   <img class="screenshot" src="..."> to drop in a real embed screenshot */
+.reveal .hub .embed-card .shot {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--omsf-radius);
+  overflow: hidden;
+  background: var(--omsf-bg-mint);
+  border: 1px solid var(--omsf-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reveal .hub .embed-card .shot .ph {
+  width: 56px;
+  height: 56px;
+  margin: 0;
+  color: var(--omsf-text-muted);
+  opacity: 0.5;
+}
+.reveal .hub .embed-card .shot img.screenshot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  margin: 0;
+}
+/* service tag — separate, connected to the screenshot at the corner */
+.reveal .hub .embed-card .brand-badge {
+  position: absolute;
+  top: -22px;
+  right: -22px;
+  width: 88px;
+  height: 88px;
+  border-radius: 9999px;
+  background: #fff;
+  border: 1px solid var(--omsf-border);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+}
+.reveal .hub .embed-card .brand-badge img,
+.reveal .hub .embed-card .brand-badge svg {
+  width: 46px;
+  height: 46px;
+  margin: 0;
+  color: var(--omsf-text-soft);
+}
+/* URL caption directly under a card (e.g. the QR link) */
+.reveal .hub .embed-card .url-caption {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  font-family: var(--r-code-font);
+  font-size: 19px;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--omsf-text-muted);
+}
+.reveal .hub .embed-card .url-caption .var {
+  color: var(--omsf-text-soft);
+  background: var(--omsf-accent);
+  border-radius: 4px;
+  padding: 0.05em 0.3em;
+}
+
+.reveal .hub .embed-card.n1 { left: 628px; top: 36px; }    /* top — notebooks */
+.reveal .hub .embed-card.n2 { left: 1228px; top: 246px; }  /* upper-right — slack */
+.reveal .hub .embed-card.n3 { left: 1228px; top: 606px; }  /* lower-right — website */
+.reveal .hub .embed-card.n4 { left: 28px; top: 606px; }    /* lower-left — email/QR */
+.reveal .hub .embed-card.n5 { left: 28px; top: 246px; }    /* upper-left — linkedin */
+
+/* Numbered step cards */
+.reveal ol.steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6em;
+  text-align: left;
+}
+.reveal ol.steps li {
+  counter-increment: step;
+  position: relative;
+  background: var(--omsf-bg-warm);
+  border: 1px solid var(--omsf-border);
+  border-radius: var(--omsf-radius);
+  padding: 0.7em 1em 0.7em 3em;
+}
+.reveal ol.steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0.7em;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.5em;
+  height: 1.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--omsf-accent);
+  color: var(--omsf-text);
+  font-size: 0.8em;
+}
+
+/* Scan-to-open QR block (placeholder images for now) */
+.reveal .scan {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  margin-top: 1em;
+}
+.reveal .scan img {
+  width: 150px;
+  height: 150px;
+  border-radius: var(--omsf-radius);
+  background: #fff;
+  flex: none;
+}
+.reveal .scan .scan-label {
+  text-align: left;
+  font-size: 0.62em;
+  line-height: 1.4;
+  color: var(--omsf-text-muted);
+}
+.reveal .scan .scan-label strong {
+  color: var(--omsf-text);
+  font-weight: 500;
+}
+.reveal .scan .scan-label code {
+  font-size: 0.85em;
+}
+
+/* Bullets with the QR sitting to their right — keeps the column short so the
+   embedded iframe gets the vertical space. */
+.reveal .bullets-qr {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.4em;
+}
+.reveal .bullets-qr .bullets {
+  flex: 1;
+  min-width: 0;
+}
+.reveal .bullets-qr .bullets ul {
+  margin-left: 0;
+}
+.reveal .bullets-qr .scan {
+  flex: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin-top: 0.2em;
+}
+.reveal .bullets-qr .scan img {
+  width: 150px;
+  height: 150px;
+}
+
+/* Pipeline: horizontal stages with mint arrows */
+.reveal .pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 0.4em 0 0.2em;
+  text-align: left;
+}
+.reveal .pipeline .stage {
+  flex: 1;
+  background: var(--omsf-bg-warm);
+  border: 1px solid var(--omsf-border);
+  border-radius: var(--omsf-radius);
+  padding: 0.7em 0.9em;
+}
+.reveal .pipeline .stage h4 {
+  margin: 0 0 0.3em 0;
+  font-size: 0.62em;
+  font-weight: 500;
+}
+.reveal .pipeline .stage .who {
+  display: block;
+  font-size: 0.42em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--omsf-accent-dark);
+  margin-bottom: 0.5em;
+}
+.reveal .pipeline .stage p {
+  font-size: 0.5em;
+  line-height: 1.35;
+  margin: 0;
+  color: var(--omsf-text-muted);
+}
+.reveal .pipeline .arrow {
+  align-self: center;
+  color: var(--omsf-accent-dark);
+  font-size: 0.9em;
+  padding: 0 0.35em;
+  flex: none;
+}
+
+/* ── Browser chrome wrapper ───────────────────────────────────────────────────
+   Wrap an .embed-frame (or bare iframe) in <div class="browser-frame"> to give
+   it a realistic browser shell: macOS-style traffic lights + address bar. */
+.reveal .browser-frame {
+  border: 1px solid var(--omsf-border);
+  border-radius: var(--omsf-radius);
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+.reveal .browser-frame .browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.45em 0.75em;
+  background: var(--omsf-bg-alt);
+  border-bottom: 1px solid var(--omsf-border);
+}
+.reveal .browser-frame .browser-dots {
+  display: flex;
+  gap: 0.32em;
+  flex: none;
+}
+.reveal .browser-frame .browser-dots .dot {
+  display: block;
+  width: 0.52em;
+  height: 0.52em;
+  border-radius: 9999px;
+}
+.reveal .browser-frame .browser-dots .dot.red    { background: #ff5f57; }
+.reveal .browser-frame .browser-dots .dot.yellow { background: #febc2e; }
+.reveal .browser-frame .browser-dots .dot.green  { background: #28c840; }
+.reveal .browser-frame .browser-address {
+  flex: 1;
+  background: #fff;
+  border: 1px solid var(--omsf-border);
+  border-radius: 6px;
+  padding: 0.18em 0.7em;
+  font-family: var(--r-code-font);
+  font-size: 0.46em;
+  color: var(--omsf-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Strip the inner .embed-frame's own border/shadow since the outer shell provides them */
+.reveal .browser-frame .embed-frame {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Any slide that contains an image strip: pin it to the canvas so the strip
+   lands at the true slide bottom (not the bottom of a vertically-centered
+   section), and leave padding-bottom so the flex content stays above it. */
+.reveal .slides section:has(.image-strip) {
+  top: 0 !important;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-bottom: var(--image-strip-h, 160px);
+}
+
+/* ── Image strip pinned to the bottom of a slide ─────────────────────────────
+   Drop a <div class="image-strip"> anywhere inside a slide (typically the title
+   slide) and it locks to the bottom edge, full-width. Each child <img> shares
+   equal width and fills the strip height.  Tune height via --image-strip-h. */
+.reveal .image-strip {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--image-strip-h, 160px);
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 8px;
+  overflow: hidden;
+}
+.reveal .image-strip .strip-arrow {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.3em;
+  font-size: 1.6em;
+  color: var(--omsf-accent-dark);
+  line-height: 1;
+}
+.reveal .image-strip img {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  border-radius: 8px;
+  margin: 0;
+  border: 1px solid var(--omsf-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+}
+
+/* Pill row of embed targets */
+.reveal .targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin: 0.6em 0;
+}
+.reveal .targets span {
+  background: var(--omsf-bg-warm);
+  border: 1px solid var(--omsf-border);
+  border-radius: 9999px;
+  padding: 0.3em 1em;
+  font-size: 0.7em;
+}

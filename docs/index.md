@@ -15,6 +15,10 @@ hero:
     - theme: alt
       text: Create new
       link: https://framejs.io#?edit=true
+    - theme: alt
+      text: Latest slides
+      link: /presentations/2026-07-omsf-office-hours/
+      target: _blank
 
 features:
   - title: Edit with AI

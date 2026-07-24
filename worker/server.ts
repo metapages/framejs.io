@@ -1319,6 +1319,13 @@ app.get("/f/:id", (c) => {
 app.use("/editor/*", serveStatic({ root: "./" }));
 // /docs (no trailing slash) → /docs/ so VitePress index.html is served
 app.get("/docs", (c) => c.redirect("/docs/", 301));
+// Standalone slide decks live in docs/public/presentations/<deck>/index.html.
+// They are directories, not cleanUrl pages, so a missing trailing slash would
+// otherwise be rewritten to `<deck>.html` and 404.
+app.get(
+  "/docs/presentations/:deck",
+  (c) => c.redirect(`/docs/presentations/${c.req.param("deck")}/`, 301),
+);
 // Docs are built by VitePress with cleanUrls (links have no .html suffix).
 // Serve `foo.html` for a request to `/docs/foo` so those clean URLs resolve.
 // Leave paths with an extension (.html, .js, .css, …) and directory paths

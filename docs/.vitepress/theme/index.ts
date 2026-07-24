@@ -2,6 +2,7 @@ import DefaultTheme from "vitepress/theme";
 import HomeLayout from "./HomeLayout.vue";
 import ExamplesGrid from "./ExamplesGrid.vue";
 import BrowserFrame from "./BrowserFrame.vue";
+import YouTube from "./YouTube.vue";
 // Blueprint design system — mirrors framejs.app (see `framejs-css-sync` skill).
 import "./blueprint.css";
 
@@ -11,5 +12,6 @@ export default {
   enhanceApp({ app }) {
     app.component("ExamplesGrid", ExamplesGrid);
     app.component("BrowserFrame", BrowserFrame);
+    app.component("YouTube", YouTube);
   },
 };

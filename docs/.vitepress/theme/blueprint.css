@@ -192,6 +192,17 @@
   color: var(--on-accent);
 }
 
+/* --- Navbar title: full tagline only when there is no sidebar ---
+   The navbar site title is just "framejs.io" (config `siteTitle`). On pages
+   with no sidebar (home) there is room for the full pitch, so append it here.
+   VitePress adds `.has-sidebar` to `.VPNavBarTitle` on doc pages, where the
+   navbar is narrower and the tagline would overlap the search box — suppress
+   it there so only the brand shows. */
+.VPNavBarTitle:not(.has-sidebar) .title span::after {
+  content: " — share interactive visualizations in a URL";
+  font-weight: 400;
+}
+
 /* --- Opt-in word-wrap for a single code block ---
    Wrap a fenced block in <div class="wrap-code">…</div> to make its
    long lines wrap instead of scroll. Formatting/highlighting preserved. */
