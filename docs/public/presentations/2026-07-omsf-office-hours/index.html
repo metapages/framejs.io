@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <!-- Authored as a root <base> so the deck works with a plain static server rooted in this directory. When served by the app it is rewritten to /2026-omsf-workshop-slides/ so relative assets (theme.css, slides.md) resolve (see ../../lib/deck-base.ts, main.ts, vite.config.ts). Must be a literal element (not document.write'd): the browser's preload scanner only honors a <base> present in the source, so a scripted one fetches ./theme.css twice (404 then 304). -->
+    <!-- This copy is served from the docs site, so the base is pinned to its docs path. Re-pin it if the deck is re-copied from its source repo. -->
+    <base href="/docs/presentations/2026-07-omsf-office-hours/">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>
+      framejs.io — Interactive scientific visualizations that live in a URL
+    </title>
+    <meta
+      name="description"
+      content="framejs.io workshop (OMSF 2026): build interactive scientific visualizations from a prompt. Editable JavaScript encoded in a shareable URL — no build, no server, no account. Create with AI, embed anywhere, drop into notebooks."
+    >
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Open Molecular Software Foundation">
+    <meta
+      property="og:title"
+      content="framejs.io — Interactive scientific visualizations that live in a URL"
+    >
+    <meta
+      property="og:description"
+      content="Describe a visualization in plain language, an agent builds it, and the whole app is encoded into a shareable URL. Create with AI, embed anywhere, drop into notebooks."
+    >
+    <meta
+      property="og:url"
+      content="https://framejs.io/slides-omsf-workshop-2026/"
+    >
+    <!-- Add a 1200x630 preview image when available: <meta property="og:image" content="https://framejs.io/slides-omsf-workshop-2026/og.png"> -->
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta
+      name="twitter:title"
+      content="framejs.io — Interactive scientific visualizations that live in a URL"
+    >
+    <meta
+      name="twitter:description"
+      content="Describe a visualization in plain language, an agent builds it, and the whole app is encoded into a shareable URL. Create with AI, embed anywhere, drop into notebooks."
+    >
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/reveal.css"
+    >
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/theme/black.css"
+    >
+    <link rel="stylesheet" href="./theme.css">
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section
+          data-markdown="slides.md"
+          data-separator="^\r?\n---\r?\n$"
+          data-separator-notes="^Note:"
+        >
+        </section>
+      </div>
+    </div>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/reveal.js"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/plugin/markdown.js"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/plugin/notes.js"
+    ></script>
+    <script>
+      Reveal.initialize({
+        width: 1920,
+        height: 1080,
+        margin: 0.08,
+        hash: true,
+        slideNumber: true,
+        showNotes: false,
+        transition: "none",
+        backgroundTransition: "none",
+        plugins: [RevealMarkdown, RevealNotes],
+      });
+
+      // Lazy-load any iframe[data-src] only once its slide becomes current.
+      function loadSlideIframes(slide) {
+        slide?.querySelectorAll("iframe[data-src]")
+          .forEach((iframe) => {
+            if (!iframe.src) {
+              iframe.src = iframe.dataset.src;
+            }
+          });
+      }
+
+      Reveal.on("ready", () => loadSlideIframes(Reveal.getCurrentSlide()));
+      Reveal.on(
+        "slidechanged",
+        (event) => loadSlideIframes(event.currentSlide),
+      );
+    </script>
+  </body>
+</html>

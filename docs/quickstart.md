@@ -1,5 +1,9 @@
 # Quickstart
 
+Watch the 1-minute walkthrough, then follow the steps below.
+
+<YouTube id="7brz6Z111Eo" vertical title="framejs.io in 1 minute" />
+
 1. [Install](./guide/ai)
 
 ```bash
