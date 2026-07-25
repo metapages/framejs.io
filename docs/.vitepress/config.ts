@@ -108,6 +108,7 @@ export default withMermaid(
           text: "Integrations",
           collapsed: true,
           items: [
+            { text: "Claude Connector (MCP)", link: "/integrations/claude-mcp" },
             { text: "Jupyter", link: "/integrations/jupyter" },
             { text: "JupyterLite (Live)", link: "/integrations/jupyterlite" },
             { text: "marimo", link: "/integrations/marimo" },
