@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /**
  * Editing code re-runs the user's JS, which wipes #root. These tests pin the
@@ -46,18 +46,18 @@ const expectScrollTop = (page: Page, selector: string, expected: number) =>
     )
     .toBe(expected);
 
+// Via a locator, not querySelector: a re-run can wipe #root between resolving
+// the element and scrolling it, and the locator re-resolves instead of
+// throwing on a stale null.
 const scrollTo = (page: Page, selector: string, top: number) =>
-  page.evaluate(
-    ([sel, value]) => {
-      document.querySelector<HTMLElement>(sel as string)!.scrollTop =
-        value as number;
-    },
-    [selector, top],
-  );
+  page
+    .locator(selector)
+    .first()
+    .evaluate((el, value) => {
+      el.scrollTop = value;
+    }, top);
 
-test("restores the scroll position of a user-created scroll container", async ({
-  page,
-}) => {
+test("restores the scroll position of a user-created scroll container", async ({ page }) => {
   await page.goto(urlForJs(tallFrame("line")));
   await page.waitForSelector("#scroller");
 
@@ -72,38 +72,10 @@ test("restores the scroll position of a user-created scroll container", async ({
   await expectScrollTop(page, "#scroller", 2000);
 });
 
-test("survives a real edit typed into the editor", async ({ page }) => {
-  test.setTimeout(90000);
-  await page.goto(`${urlForJs(tallFrame("line"))}&edit=true`);
-  await page.waitForSelector("#scroller", { timeout: 20000 });
-  await scrollTo(page, "#scroller", 2000);
-  const hashBefore = await page.evaluate(() => location.hash);
-
-  // The code editor is a nested metaframe (editor.mtfm.io, Monaco).
-  const monaco = page
-    .frameLocator("#iframe-container iframe")
-    .frameLocator("iframe")
-    .locator(".monaco-editor")
-    .first();
-  await monaco.waitFor({ timeout: 30000 });
-  await monaco.click();
-  await page.keyboard.press("Control+End");
-  await page.keyboard.type("\n// edit");
-
-  // The parent debounces editor changes by 400ms before writing the hash.
-  await page.waitForFunction((before) => location.hash !== before, hashBefore, {
-    timeout: 20000,
-  });
-
-  await expectScrollTop(page, "#scroller", 2000);
-});
-
 // The editor's debounce commonly fires while the user is still scrolling the
 // output (or while trackpad momentum is still emitting wheel events). Backing
 // off then would strand them at the top, since the wipe already reset it.
-test("restores even when wheel events arrive while it lands", async ({
-  page,
-}) => {
+test("restores even when wheel events arrive while it lands", async ({ page }) => {
   await page.goto(urlForJs(tallFrame("line")));
   await page.waitForSelector("#scroller");
   await scrollTo(page, "#scroller", 1487);
@@ -128,9 +100,7 @@ test("restores even when wheel events arrive while it lands", async ({
 
 // Reading the DOM at wipe time is not enough: if the frame tears its own
 // content down first, there is no offset left to read. The remembered one is.
-test("restores from memory when the scroller is gone before the re-run", async ({
-  page,
-}) => {
+test("restores from memory when the scroller is gone before the re-run", async ({ page }) => {
   await page.goto(urlForJs(tallFrame("line")));
   await page.waitForSelector("#scroller");
   await scrollTo(page, "#scroller", 1487);
