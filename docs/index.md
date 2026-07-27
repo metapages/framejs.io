@@ -9,6 +9,9 @@ hero:
     - theme: brand
       text: Quickstart
       link: /quickstart
+    - theme: brand
+      text: Use it in Claude
+      link: /integrations/claude-mcp
     - theme: alt
       text: Intro
       link: /guide/intro
@@ -21,9 +24,14 @@ hero:
       target: _blank
 
 features:
-  - title: Edit with AI
+  - title: Use it in Claude — no install
     details: |
-      Simply describe what you want: visualization, data analysis, UIs, apps
+      Paste one connector URL into Claude Desktop, web, or mobile. Claude then builds, edits, and finds your visualizations in the conversation. No terminal, no build, nothing to download.
+    link: /integrations/claude-mcp
+    linkText: Add the connector
+  - title: Edit with AI in your coding agent
+    details: |
+      One-line skill install for Claude Code, Cursor, Gemini CLI and ~40 others — describe what you want, and reference local files.
     link: /guide/ai
   - title: Share via URL
     details: All state is embedded in the URL — no server storage. Copy the link and anyone can run your code.

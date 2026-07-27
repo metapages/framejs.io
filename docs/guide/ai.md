@@ -1,12 +1,14 @@
 # AI Usage and Installation
 
-This page covers the **Agent Skill** — for coding agents with a shell (Claude
-Code, Cursor, Gemini CLI, …).
+There are two on-ramps. This page covers the **Agent Skill** — for coding agents
+with a shell (Claude Code, Cursor, Gemini CLI, …).
 
-::: tip Using the Claude apps instead?
-On Claude web, desktop, or mobile (no shell), add the
-[Claude Connector (MCP)](../integrations/claude-mcp) — it creates, edits, and
-finds the frames on your framejs account with no install.
+::: tip No terminal? Use the Claude connector instead — nothing to install
+In Claude Desktop, [claude.ai](https://claude.ai), or mobile, go to
+**Settings → Connectors → Add custom connector** and paste
+`https://framejs.app/mcp`. That's the whole setup — Claude then creates and
+edits the frames on your framejs account in the conversation.
+[Full connector guide →](../integrations/claude-mcp)
 :::
 
 ## Create and edit in AI chat
