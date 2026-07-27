@@ -17,7 +17,10 @@ You can embed code safely anywhere, creating custom, editable dashboards, widget
 
 Describe what you want in plain language — visualizations, dashboards, apps, games — and AI builds it for you. Works with Claude, ChatGPT, or any LLM.
 
-[After installation of the skill](../guide/ai):
+In the **Claude apps**, add the connector URL `https://framejs.app/mcp` — no
+install, no terminal. In a **coding agent**, install the skill with one line.
+Either way, then just ask:
+
 ```
 show a range of ways of visualization using framejs.io platform with a slider
 ```
@@ -28,7 +31,7 @@ show a range of ways of visualization using framejs.io platform with a slider
 />
 
 
-<p class="feature-link"><a href="/docs/guide/ai">Set up AI editing &rarr;</a></p>
+<p class="feature-link"><a href="/docs/integrations/claude-mcp">Use it in Claude (no install) &rarr;</a> &nbsp;·&nbsp; <a href="/docs/guide/ai">Install the agent skill &rarr;</a></p>
 
 ---
 

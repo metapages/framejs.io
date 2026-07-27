@@ -59,6 +59,7 @@ export default withMermaid(
 
       nav: [
         { text: "Docs", link: "/quickstart" },
+        { text: "Use in Claude", link: "/integrations/claude-mcp" },
         { text: "Examples", link: "/examples/" },
         { text: "Integrations", link: "/integrations/jupyter" },
         { text: "Talks", link: "/talks" },
@@ -68,11 +69,23 @@ export default withMermaid(
       sidebar: [
         { text: "Quickstart", link: "/quickstart" },
 
+        // The two AI on-ramps, at the top of the sidebar rather than buried in
+        // the collapsed Integrations group — they are how most people start.
+        {
+          text: "Use with AI",
+          items: [
+            {
+              text: "Claude Connector (MCP)",
+              link: "/integrations/claude-mcp",
+            },
+            { text: "Agent Skill (CLI)", link: "/guide/ai" },
+          ],
+        },
+
         {
           text: "Guide",
           items: [
             { text: "Intro", link: "/guide/intro" },
-            { text: "AI Integration", link: "/guide/ai" },
             { text: "Overview", link: "/guide/overview" },
             { text: "Embedding", link: "/guide/embedding" },
             { text: "Rendering in a Website", link: "/guide/rendering" },
@@ -82,10 +95,6 @@ export default withMermaid(
             { text: "Persistence & Retention", link: "/guide/persistence" },
             { text: "Local File I/O", link: "/guide/local-file-io" },
           ],
-        },
-        {
-          text: "AI",
-          items: [{ text: "Setup", link: "/guide/ai" }],
         },
         {
           text: "Examples",
