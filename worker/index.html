@@ -1777,6 +1777,248 @@
     };
     setupEditorResizeHandle();
 
+    /**
+     * Re-running the user's JS wipes #root, taking every scrolled element with
+     * it — while editing that yanks the view back to the top on each debounce.
+     * Offsets are therefore remembered as the user scrolls, and re-applied
+     * after the re-run.
+     *
+     * A scroller is identified by how it looks (`div.list`) plus which
+     * same-looking scroller it is, because the element itself does not survive
+     * the wipe. Only boxes that actually scroll are considered: an element can
+     * report plenty of content and still refuse `scrollTop`, and matching on
+     * name alone picks that one.
+     */
+    const SCROLL_RESTORE_TIMEOUT_MS = 4000;
+    // How long to keep re-asserting the offset after it first lands
+    const SCROLL_HOLD_MS = 1500;
+    // Frames to let the fresh render settle before the first restore attempt
+    const SCROLL_RESTORE_DELAY_TICKS = 3;
+    // getComputedStyle is not free, so the scroller scan is cached this long
+    const SCROLL_RESCAN_MS = 200;
+    // Subtrees that are ours, not the user's rendered output
+    const SCROLL_SKIP_IDS = new Set(["editor-root", "menu-button"]);
+    const DOCUMENT_SCROLLER = "document";
+
+    // Gated on the `options.debug` hash param, like the rest of this file
+    const scrollLog = (...args) => {
+      if (globalThis.serviceWorkerConfig?.enableLogging) {
+        console.log("[scroll]", ...args);
+      }
+    };
+
+    const describeElement = (el) =>
+      `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}${
+        el.className && typeof el.className === "string"
+          ? "." + el.className.trim().split(/\s+/).join(".")
+          : ""
+      }`;
+
+    // Cheap layout test first: only overflowing boxes are worth a style lookup
+    const canScroll = (el) =>
+      (el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth) &&
+      /auto|scroll|overlay/.test(getComputedStyle(el).overflow);
+
+    let scrollerCache = { at: -Infinity, elements: [] };
+    // `fresh` skips the cache where a stale list would be wrong rather than
+    // merely slow: a re-run replaces the whole tree in well under the cache
+    // window, so both ends of a restore have to look at the DOM as it is now.
+    const scrollers = (fresh) => {
+      const now = performance.now();
+      if (!fresh && now - scrollerCache.at < SCROLL_RESCAN_MS) {
+        return scrollerCache.elements;
+      }
+      const elements = [];
+      const walk = (el) => {
+        if (SCROLL_SKIP_IDS.has(el.id)) return;
+        if (canScroll(el)) elements.push(el);
+        for (let i = 0; i < el.children.length; i++) walk(el.children[i]);
+      };
+      walk(document.body);
+      scrollerCache = { at: now, elements };
+      return elements;
+    };
+
+    // Null for anything that is not one of the user's scrolling boxes — that
+    // also filters out our own chrome, which the scan prunes.
+    const scrollerKey = (el, fresh) => {
+      if (el === document.scrollingElement) return DOCUMENT_SCROLLER;
+      const desc = describeElement(el);
+      const peers = scrollers(fresh).filter(
+        (peer) => describeElement(peer) === desc,
+      );
+      const nth = peers.indexOf(el);
+      return nth === -1 ? null : `${desc}#${nth}`;
+    };
+
+    const scrollerForKey = (key) => {
+      if (key === DOCUMENT_SCROLLER) return document.scrollingElement;
+      const desc = key.slice(0, key.lastIndexOf("#"));
+      const nth = Number(key.slice(key.lastIndexOf("#") + 1));
+      const peers = scrollers().filter((peer) => describeElement(peer) === desc);
+      return peers[nth] ?? peers[0] ?? null;
+    };
+
+    // Remembered as it happens: by the time the re-run wipes the DOM the
+    // position can be gone, and a frame that tears down its own scroller first
+    // leaves nothing to read at all.
+    const scrollMemory = new Map();
+    // Keys are resolved once per element — the scan behind them is not free
+    const scrollKeyCache = new WeakMap();
+    // Our own writes fire scroll events; recording those would overwrite the
+    // remembered offset with whatever the half-rendered content clamps to.
+    let scrollTrackingSuspended = false;
+
+    globalThis.addEventListener("scroll", (event) => {
+      if (scrollTrackingSuspended) return;
+      const el = event.target === document
+        ? document.scrollingElement
+        : event.target;
+      if (!el || el.nodeType !== 1) return;
+
+      let key = scrollKeyCache.get(el);
+      if (!key) {
+        // Once per element, so the rescan here is affordable
+        key = scrollerKey(el, true);
+        if (!key) return;
+        scrollKeyCache.set(el, key);
+      }
+      if (!el.scrollTop && !el.scrollLeft) {
+        if (scrollMemory.delete(key)) scrollLog(`forgot ${key} (back at the top)`);
+        return;
+      }
+      const known = scrollMemory.get(key);
+      scrollMemory.set(key, { key, top: el.scrollTop, left: el.scrollLeft });
+      if (!known) scrollLog(`tracking ${key} @${el.scrollTop},${el.scrollLeft}`);
+    }, { capture: true, passive: true }); // scroll does not bubble
+
+    // Scroll events are delivered asynchronously, so the DOM can be ahead of
+    // the memory (a scroll in the same tick as the edit). Sweep the live
+    // scrollers and let them win; memory covers whatever is already gone.
+    const rememberedScrollPositions = () => {
+      const merged = new Map(scrollMemory);
+      const doc = document.scrollingElement;
+      const live = scrollers(true).concat(doc ? [doc] : []);
+      live.forEach((el) => {
+        if (!el.scrollTop && !el.scrollLeft) return;
+        const key = scrollerKey(el);
+        if (key) merged.set(key, { key, top: el.scrollTop, left: el.scrollLeft });
+      });
+
+      const entries = [...merged.values()];
+      scrollLog(
+        entries.length
+          ? `remembered ${entries.length}: ${
+            entries.map((e) => `${e.key} @${e.top},${e.left}`).join(" | ")
+          }`
+          : "no remembered scroll positions",
+      );
+      return entries;
+    };
+
+    const restoreScrollPositions = (remembered) => {
+      if (!remembered.length) return;
+      const started = performance.now();
+      const deadline = started + SCROLL_RESTORE_TIMEOUT_MS;
+      const userEvents = ["wheel", "touchstart", "keydown"];
+      // Under `scroll-behavior: smooth` a plain assignment only *starts* an
+      // animation: the read-back is still the old position, and re-asserting
+      // each frame restarts it from there, pinning the element at the top. An
+      // inline override beats the frame's stylesheet; put its own value back
+      // when we are done.
+      const smoothSuspended = new Map();
+      let userGesture = null;
+      let arrivedAt = null;
+
+      const noteGesture = (event) => {
+        userGesture = event.type;
+      };
+      scrollTrackingSuspended = true;
+      const stop = () => {
+        scrollTrackingSuspended = false;
+        smoothSuspended.forEach((previous, el) => {
+          el.style.scrollBehavior = previous;
+        });
+        userEvents.forEach((name) =>
+          globalThis.removeEventListener(name, noteGesture, true)
+        );
+      };
+      // Capture phase, so we see the gesture even if the frame stops it.
+      // NOTE: a gesture only ends the restore *after* the offset has landed.
+      // Backing off before that would strand the user at the top — the wipe
+      // already took their position away, so there is nothing to protect yet.
+      // In practice the editor's debounce commonly fires while the user is
+      // still scrolling around looking at the output.
+      userEvents.forEach((name) =>
+        globalThis.addEventListener(name, noteGesture, {
+          capture: true,
+          passive: true,
+        })
+      );
+
+      const step = () => {
+        if (arrivedAt && userGesture) {
+          stop();
+          scrollLog(`released: user ${userGesture} took over`);
+          return;
+        }
+        userGesture = null;
+
+        // Landing the offset once is not enough: frames that lay out in stages
+        // (fonts, images, charts, a ResizeObserver pass) knock it back after.
+        const missing = [];
+        remembered.forEach(({ key, top, left }) => {
+          const el = scrollerForKey(key);
+          if (!el) {
+            missing.push(key);
+            return;
+          }
+          if (!smoothSuspended.has(el)) {
+            smoothSuspended.set(el, el.style.scrollBehavior);
+            el.style.scrollBehavior = "auto";
+          }
+          // Assigning clamps to the current content size, so this is a no-op
+          // until the re-rendered content is big enough to scroll that far.
+          el.scrollTop = top;
+          el.scrollLeft = left;
+          if (el.scrollTop !== top || el.scrollLeft !== left) missing.push(key);
+        });
+
+        if (!missing.length && !arrivedAt) {
+          arrivedAt = performance.now();
+          scrollLog(
+            `restored ${remembered.length} in ${
+              Math.round(arrivedAt - started)
+            }ms, holding ${SCROLL_HOLD_MS}ms`,
+          );
+        }
+        if (arrivedAt && performance.now() - arrivedAt > SCROLL_HOLD_MS) {
+          stop();
+          scrollLog("hold released");
+          return;
+        }
+        if (!arrivedAt && performance.now() > deadline) {
+          stop();
+          scrollLog(
+            `gave up after ${SCROLL_RESTORE_TIMEOUT_MS}ms on ${
+              missing.join(" | ")
+            } — scrollable now: ${
+              scrollers().map(describeElement).join(" | ") || "nothing"
+            }`,
+          );
+          return;
+        }
+        requestAnimationFrame(step);
+      };
+
+      // Let the fresh render put its content up before the first attempt, so
+      // the offset is not clamped against a still-empty page.
+      let ticks = SCROLL_RESTORE_DELAY_TICKS;
+      const waitTicks = () =>
+        ticks-- > 0 ? requestAnimationFrame(waitTicks) : step();
+      requestAnimationFrame(waitTicks);
+    };
+
     const runJsFromUrl = async () => {
       // if there is a scriptUnload function, run it
       // The previous script has the option to put a cleanup function on the window
@@ -1820,6 +2062,7 @@
       applyEditorLayout();
 
       if (js) {
+        const previousScrollPositions = rememberedScrollPositions();
         // clear all children of root (landing content or previous user code)
         root.textContent = "";
         try {
@@ -1855,6 +2098,8 @@
           if (!module) {
             return;
           }
+
+          restoreScrollPositions(previousScrollPositions);
 
           // Move the user scriptUnload from global to local since we create our own
           const userCleanup = globalThis.scriptUnload;
