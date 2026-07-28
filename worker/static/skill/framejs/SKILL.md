@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.5"
+  version: "1.6"
 ---
 
 # framejs
@@ -151,6 +151,13 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
 
 - Browser JavaScript only — it runs in an iframe, NOT Node.js.
 - MUST use ES6 module syntax: `export function onInputs(inputs) {}`.
+- If the app generates, hard-codes, or fetches its own data: put that in a
+  separate function that only returns the data, do all **data-driven** rendering
+  inside `onInputs` (interaction/animation/resize rendering stays in its own
+  handlers), and make the LAST line of the module seed it —
+  `onInputs({ "data.json": generateData() })` — so external inputs can later
+  replace the generated data with no other code change. See
+  [references/coding-guide.md](references/coding-guide.md).
 - NEVER create HTML files. NEVER write local `.js` files. NEVER use your own
   visualization/rendering/widget tools to render the result.
 - NEVER modify `root.style.position`, `root.style.height`, or

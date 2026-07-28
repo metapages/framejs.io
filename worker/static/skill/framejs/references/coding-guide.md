@@ -83,6 +83,88 @@ import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 d3.select(root).append("svg").attr("width", 500);
 ```
 
+## Generated data MUST be fed through `onInputs`
+
+Whenever the app produces its own data — random/simulated values, a hard-coded
+sample dataset, a computed series, or a `fetch()` from an API — you MUST NOT
+render it directly. Route it through `onInputs` so that generated data and
+external data take the exact same path. Later, real data can be attached to the
+frame as an input and the app keeps working with **zero code changes**: the
+runtime calls `onInputs` the same way, so the only edit is deleting the seed
+call.
+
+Three rules, always applied together:
+
+1. **All rendering that responds to data happens in `onInputs(inputs)`**,
+   reading the data from `inputs[<key>]` — never from a generator's return value
+   directly. Rendering driven by anything other than data — user interaction,
+   animation frames, `onResize` — stays in its own handler; it must not move
+   into `onInputs`, and event listeners must be bound once (in the module body),
+   not re-bound on every `onInputs` call.
+2. **Data generation or gathering lives in its own dedicated function** that
+   only returns the data — no DOM, no rendering, no side effects. This keeps the
+   generated-data block trivial to find and replace.
+3. **The LAST statement of the module calls `onInputs`** with that data, under
+   the key that external data would arrive with.
+
+```js
+const INPUT_KEY = "data.json"; // the key external data would arrive under
+
+root.innerHTML = `<div id="chart" style="width:100%;height:100%"></div>`;
+
+// (2) data generation, isolated — returns data, renders nothing
+function generateData() {
+  return Array.from({ length: 50 }, (_, i) => ({ x: i, y: Math.sin(i / 5) }));
+}
+
+// (1) the single render path — identical for generated and external data
+export function onInputs(inputs) {
+  const data = inputs?.[INPUT_KEY];
+  if (!data) return;
+  renderChart(data);
+}
+
+// (3) LAST line: seed the app with the generated data via the same entry point
+onInputs({ [INPUT_KEY]: generateData() });
+```
+
+- Interaction, animation, and resize handlers keep their own render calls — they
+  just read the latest data from a module-level variable that `onInputs`
+  updates, so they work identically for generated and external data:
+
+  ```js
+  let currentData = null;
+  export function onInputs(inputs) {
+    currentData = inputs?.[INPUT_KEY] ?? currentData;
+    renderChart(currentData);
+  }
+  // bound ONCE, in the module body — never re-bound inside onInputs
+  chartEl.addEventListener("click", (e) => highlight(currentData, e));
+  export function onResize() {
+    renderChart(currentData);
+  }
+  ```
+
+- Async generation or fetching: top-level `await` is supported, so the seed line
+  becomes `onInputs({ [INPUT_KEY]: await fetchData() })`.
+- Multiple datasets: use one key and one generator function per dataset, and
+  seed them in a single call —
+  `onInputs({ "series.json": generateSeries(), "config.json": defaultConfig() })`.
+- Name keys the way a real input would be named (`data.json`, `series.csv`), and
+  declare each key in a constant at the top so swapping to external data is
+  obvious.
+- If external inputs are already attached to the frame, the runtime calls
+  `onInputs` with them right after the module loads, so real data replaces the
+  seeded data.
+- ❌ `renderChart(generateData())` — bypasses `onInputs`; external data can
+  never be swapped in.
+- ❌ Generating the data _inside_ `onInputs` (e.g. `inputs.data ?? generate()`)
+  — mixes the two paths and hides what must be replaced.
+- ❌ Moving click/keyboard/animation handling into `onInputs`, or binding
+  listeners there — only the data-driven render belongs in `onInputs`.
+- This does not apply to apps with no data at all (pure animation, a
+  self-contained interactive tool).
+
 ## Key details
 
 - No need to wait for `DOMContentLoaded` — code runs after the page loads.
@@ -116,6 +198,9 @@ d3.select(root).append("svg").attr("width", 500);
 - ❌ Including `"use strict"` — added automatically.
 - ❌ Changing `root.style.position` / `height` / `width`.
 - ❌ Writing a Node.js script — this runs in the BROWSER.
+- ❌ Rendering generated/fetched data directly instead of seeding it through
+  `onInputs` on the last line — see "Generated data MUST be fed through
+  `onInputs`".
 
 ## CDN libraries (use `/+esm` ES6 imports unless noted)
 
