@@ -42,6 +42,11 @@ const HowTo: React.FC = () => (
   </div>
 );
 
+// How long to wait after the last keystroke before committing the code to the
+// hash param (which re-runs the frame). Long enough to type a line without the
+// frame reloading under you.
+const CODE_COMMIT_DEBOUNCE_MS = 800;
+
 const LocalEditor: React.FC<{
   code: string;
   setCode: (code: string) => void;
@@ -72,10 +77,21 @@ const LocalEditor: React.FC<{
     return `https://editor.mtfm.io/#?hm=disabled&options=${options}`;
   }, [themeOptions]);
 
+  // Debounce commits: the embedded editor emits on every keystroke, and each
+  // commit rewrites the URL and reloads the running frame.
+  const commitTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(commitTimer.current), []);
+
   const onCodeOutputsUpdate = useCallback(
     (outputs: MetaframeInputMap) => {
+      // Record immediately so the external-change effect above doesn't bounce
+      // our own in-flight edit back into the editor.
       lastEditorOutput.current = outputs.text;
-      setCode(outputs.text);
+      clearTimeout(commitTimer.current);
+      commitTimer.current = setTimeout(
+        () => setCode(outputs.text),
+        CODE_COMMIT_DEBOUNCE_MS,
+      );
     },
     [setCode],
   );
