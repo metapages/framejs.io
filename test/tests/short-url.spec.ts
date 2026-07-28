@@ -119,6 +119,196 @@ test("short URL does not show hash params in the URL after page load", async ({
   expect(url.hash).toBe("");
 });
 
+test("short URL never expands the hash params into the URL, not even briefly", async ({
+  page,
+}) => {
+  const { id } = await createShortUrl(
+    page.request,
+    'document.getElementById("root").textContent = "NO_FLASH";',
+  );
+
+  // Watch the URL continuously from document_start. The params used to be
+  // written into the address bar on load and stripped again after the code
+  // ran, which flashed the whole base64 payload at the user.
+  await page.addInitScript(() => {
+    const log: string[] = [];
+    (window as any).__urlLog = log;
+    const record = () => log.push(window.location.href);
+    for (const name of ["pushState", "replaceState"] as const) {
+      const original = history[name].bind(history);
+      (history as any)[name] = (...args: unknown[]) => {
+        const result = (original as (...a: unknown[]) => unknown)(...args);
+        record();
+        return result;
+      };
+    }
+    window.addEventListener("hashchange", record);
+    record();
+    setInterval(record, 20);
+  });
+
+  await page.goto(`/j/${id}`);
+  await expect(page.locator("#root")).toHaveText("NO_FLASH", {
+    timeout: 15_000,
+  });
+  // Give anything that runs after the frame a chance to touch the URL.
+  await page.waitForTimeout(1_000);
+
+  const urls: string[] = await page.evaluate(() => (window as any).__urlLog);
+  expect(urls.length).toBeGreaterThan(5);
+  expect(urls.filter((url) => url.includes("#"))).toEqual([]);
+});
+
+test("short URL: a param the frame writes lives in the URL and merges with the stored ones", async ({
+  page,
+}) => {
+  // The frame reports how many times it has run, the input it was given, and
+  // the user-defined param it wrote for itself.
+  const js = [
+    "window.__runs = (window.__runs || 0) + 1;",
+    "export const onInputs = (inputs) => {",
+    '  document.getElementById("root").textContent =',
+    '    "runs=" + window.__runs + " greeting=" + inputs.greeting +',
+    '    " state=" + new URLSearchParams(',
+    '      location.hash.replace(/^#\\??/, ""),',
+    '    ).get("mystate");',
+    "};",
+  ].join("\n");
+  const inputs = { greeting: { type: "utf8", value: "hello" } };
+  const { id } = await createShortUrl(page.request, js, { inputs });
+
+  await page.goto(`/j/${id}`);
+  await expect(page.locator("#root")).toContainText("runs=1 greeting=hello", {
+    timeout: 15_000,
+  });
+
+  // A frame writing its own state to the URL (see docs/guide/url-state.md).
+  await page.evaluate(() => {
+    window.location.hash = "?mystate=42";
+  });
+
+  // It re-runs with the new state, and the stored params (js, inputs) are
+  // still delivered even though the URL now holds only the user's param.
+  await expect(page.locator("#root")).toContainText(
+    "runs=2 greeting=hello state=42",
+    { timeout: 15_000 },
+  );
+  expect(new URL(page.url()).hash).toBe("#?mystate=42");
+  expect(new URL(page.url()).pathname).toBe(`/j/${id}`);
+});
+
+// ---------------------------------------------------------------------------
+// Browser tests – hash params ON the short URL override the stored ones
+//
+// A short URL is a starting point, not a sealed box: appending hash params to
+// it tunes the published frame (different inputs, a visible menu, a stylesheet)
+// without minting a new id. Whatever is on the URL wins over what the id stored.
+// ---------------------------------------------------------------------------
+
+// The encoding of a hash param value is hash-query's business, so take it from
+// the shortener rather than hand-rolling base64 in the test.
+async function encodeHashParam(
+  request: import("@playwright/test").APIRequestContext,
+  key: string,
+  value: unknown,
+) {
+  const { hashParams } = await createShortUrl(request, "// encoder", {
+    [key]: value,
+  });
+  const segment = hashParams
+    .replace(/^\??/, "")
+    .split("&")
+    .find((pair) => pair.split("=")[0] === key);
+  expect(segment, `shortener produced no ${key}= param`).toBeTruthy();
+  return segment as string;
+}
+
+test("short URL: inputs on the URL override the stored inputs", async ({
+  page,
+}) => {
+  const js = [
+    "export const onInputs = (inputs) => {",
+    '  document.getElementById("root").textContent = "greeting=" + inputs.greeting;',
+    "};",
+  ].join("\n");
+  const { id } = await createShortUrl(page.request, js, {
+    inputs: { greeting: { type: "utf8", value: "stored" } },
+  });
+  const inputsParam = await encodeHashParam(page.request, "inputs", {
+    greeting: { type: "utf8", value: "from-the-url" },
+  });
+
+  await page.goto(`/j/${id}#?${inputsParam}`);
+
+  // The stored js runs, but against the inputs the URL supplied.
+  await expect(page.locator("#root")).toHaveText("greeting=from-the-url", {
+    timeout: 15_000,
+  });
+
+  // The override stays on the URL — it is the only thing the URL needs to say.
+  const url = new URL(page.url());
+  expect(url.pathname).toBe(`/j/${id}`);
+  expect(url.hash).toContain("inputs=");
+  expect(url.hash).not.toContain("js=");
+});
+
+test("short URL: stored inputs are still used when the URL supplies none", async ({
+  page,
+}) => {
+  const js = [
+    "export const onInputs = (inputs) => {",
+    '  document.getElementById("root").textContent = "greeting=" + inputs.greeting;',
+    "};",
+  ].join("\n");
+  const { id } = await createShortUrl(page.request, js, {
+    inputs: { greeting: { type: "utf8", value: "stored" } },
+  });
+
+  // A param that is not `inputs` must not displace the stored inputs.
+  await page.goto(`/j/${id}#?hm=visible`);
+
+  await expect(page.locator("#root")).toHaveText("greeting=stored", {
+    timeout: 15_000,
+  });
+});
+
+test("short URL: edit=true on the URL does NOT open the editor", async ({
+  page,
+}) => {
+  // `edit` is the one param a link cannot override: it is a hand-off flag, not
+  // frame state. The editor is reached through the menu button instead.
+  const { id } = await createShortUrl(
+    page.request,
+    'document.getElementById("root").textContent = "NO_EDIT";',
+  );
+
+  await page.goto(`/j/${id}#?edit=true`);
+  await expect(page.locator("#root")).toHaveText("NO_EDIT", {
+    timeout: 15_000,
+  });
+  await page.waitForTimeout(1_000);
+
+  // No editor pane, and no expansion away from the short URL.
+  await expect(page.locator("#iframe-container")).toHaveCount(0);
+  expect(new URL(page.url()).pathname).toBe(`/j/${id}`);
+});
+
+test("short URL: js on the URL overrides the stored js", async ({ page }) => {
+  const { id } = await createShortUrl(
+    page.request,
+    'document.getElementById("root").textContent = "STORED_JS";',
+  );
+  const jsParam = await encodeHashParam(
+    page.request,
+    "js",
+    'document.getElementById("root").textContent = "URL_JS";',
+  );
+
+  await page.goto(`/j/${id}#?${jsParam}`);
+
+  await expect(page.locator("#root")).toHaveText("URL_JS", { timeout: 15_000 });
+});
+
 test("window.__SHORT_URL_HASH_PARAMS is set with the original hash params", async ({
   page,
 }) => {
