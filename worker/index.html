@@ -969,8 +969,8 @@
     import {
       blobFromBase64String,
       getHashParamValue,
-      getHashParamValueBase64DecodedFromWindow,
-      getHashParamValueJsonFromWindow,
+      getHashParamValueBase64DecodedFromUrl,
+      getHashParamValueJsonFromHashString,
       getUrlHashParamsFromHashString,
       setHashParamInWindow,
       setHashParamValueJsonInHashString,
@@ -982,10 +982,77 @@
     } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.11";
 
     // In short URL mode, wait for the async hash-params fetch to complete
-    // and populate the URL hash before any code reads from it.
+    // so window.__SHORT_URL_HASH_PARAMS is populated before any code reads it.
     if (window.__SHORT_URL_READY) {
       await window.__SHORT_URL_READY;
     }
+
+    // ---------------------------------------------------------------------
+    // Where hash params are read from.
+    //
+    // On a short URL (/j/:uuid or /j/:sha256) the frame is fully identified by
+    // the id: the params are inlined by the server or fetched from the API into
+    // window.__SHORT_URL_HASH_PARAMS. They are consumed from there and are
+    // never written to the URL — expanding them into the address bar and then
+    // stripping them again just flashed the whole base64 payload at the user.
+    //
+    // So nothing below reads window.location.hash directly; it goes through
+    // currentHashString() (or currentHashUrl(), for the hash-query helpers that
+    // take a URL).
+    //
+    // Params that ARE on the URL win over the stored ones. That covers both a
+    // frame writing its own state at runtime (see docs/guide/url-state.md) and
+    // a link that tunes a published frame — /j/<id>#?inputs=... feeds it
+    // different inputs, #?hm=visible shows the menu — without the id having to
+    // be re-minted.
+    //
+    // `edit` is the exception: it is a one-shot hand-off flag, not frame state.
+    // On a short URL the editor is reached through the menu button (which for a
+    // uuid hands off to framejs.app), so a link carrying #?edit=true must not
+    // put the page into edit mode by itself.
+    // ---------------------------------------------------------------------
+    const NON_OVERRIDABLE_PARAMS = new Set(["edit"]);
+
+    const parseHashPairs = (hashString) => {
+      let s = hashString || "";
+      if (s.charAt(0) === "#") s = s.slice(1);
+      if (s.charAt(0) === "?") s = s.slice(1);
+      const pairs = {};
+      const order = [];
+      if (!s) return { pairs, order };
+      for (const pair of s.split("&")) {
+        const eqIndex = pair.indexOf("=");
+        const key = eqIndex === -1 ? pair : pair.substring(0, eqIndex);
+        if (!key) continue;
+        if (!(key in pairs)) order.push(key);
+        pairs[key] = pair;
+      }
+      return { pairs, order };
+    };
+
+    const inShortUrlMode = () =>
+      !!window.__SHORT_URL_ID &&
+      typeof window.__SHORT_URL_HASH_PARAMS === "string";
+
+    // The hash params as the app should see them, in window.location.hash form
+    // ("#?js=...&inputs=..."), so it is a drop-in for reading that property.
+    const currentHashString = () => {
+      if (!inShortUrlMode()) return window.location.hash;
+      const { pairs, order } = parseHashPairs(window.__SHORT_URL_HASH_PARAMS);
+      const live = parseHashPairs(window.location.hash);
+      for (const key of live.order) {
+        if (NON_OVERRIDABLE_PARAMS.has(key)) continue;
+        if (!(key in pairs)) order.push(key);
+        pairs[key] = live.pairs[key];
+      }
+      return order.length ? "#?" + order.map((key) => pairs[key]).join("&") : "";
+    };
+
+    // The same params shaped as a full URL, for the hash-query *FromUrl helpers
+    // (there is no *FromHashString variant for base64 values).
+    const currentHashUrl = () =>
+      window.location.origin + window.location.pathname +
+      window.location.search + currentHashString();
 
     // Save the initial landing content so it can be restored when code is cleared
     const __landingHtml = document.getElementById("root").innerHTML;
@@ -1118,7 +1185,8 @@
 
     // Service Worker Configuration - based on hash params
     const getServiceWorkerConfig = () => {
-      const options = getHashParamValueJsonFromWindow("options") ||
+      const options =
+        getHashParamValueJsonFromHashString(currentHashString(), "options") ||
         {};
 
       return {
@@ -1132,7 +1200,10 @@
     // Update service worker config
     globalThis.serviceWorkerConfig = getServiceWorkerConfig();
 
-    let modules = getHashParamValueJsonFromWindow("modules");
+    let modules = getHashParamValueJsonFromHashString(
+      currentHashString(),
+      "modules",
+    );
     if (modules) {
       for (let scriptOrCss of modules) {
         try {
@@ -1416,9 +1487,7 @@
       // only show the edit button if we are NOT in an iframe
       // or explicitly edit=true is in the hash params
       // this will be turned into a configurable option later, but no time rn
-      const [_, hashParams] = getUrlHashParamsFromHashString(
-        window.location.hash,
-      );
+      const [_, hashParams] = getUrlHashParamsFromHashString(currentHashString());
       const inEditMode = hashParams["edit"] === "true";
       if (inEditMode) {
         // do NOT change the visibility of the edit buttons
@@ -1447,7 +1516,10 @@
     // Dynamically add <script> and <link> tags to the document.head
     // and listen to the load events
     const ensureModulesLoaded = async () => {
-      let modules = getHashParamValueJsonFromWindow("modules");
+      let modules = getHashParamValueJsonFromHashString(
+        currentHashString(),
+        "modules",
+      );
       // Load a single script, module, or css, awaiting until done
       const loadModuleOrCss = async (s) => {
         return new Promise((resolve, reject) => {
@@ -1633,7 +1705,7 @@
     window.__metaframejs.awaiting = [modulesLoadingPromise];
 
     const getJsFromUrl = () => {
-      let jsFromUrl = getHashParamValueBase64DecodedFromWindow("js");
+      let jsFromUrl = getHashParamValueBase64DecodedFromUrl(currentHashUrl(), "js");
       // deal with bad double encoded data from old version of hash-query
       if (
         jsFromUrl &&
@@ -1673,7 +1745,7 @@
       // clearing the param fully replaces the prior stylesheet.
       document.getElementById(CSS_HASH_PARAM_ELEMENT_ID)?.remove();
 
-      const css = getHashParamValueBase64DecodedFromWindow("css");
+      const css = getHashParamValueBase64DecodedFromUrl(currentHashUrl(), "css");
       if (!css) return;
 
       let element;
@@ -1703,9 +1775,7 @@
     // Apply the output/editor split widths and position the resize handle.
     // Pure layout: safe to call on any hashchange without re-running user JS.
     const applyEditorLayout = () => {
-      const [, hashParams] = getUrlHashParamsFromHashString(
-        window.location.hash,
-      );
+      const [, hashParams] = getUrlHashParamsFromHashString(currentHashString());
       const inEditMode = hashParams["edit"] === "true";
       const editorWidth = getEditorWidthFromParams(hashParams);
 
@@ -2042,9 +2112,7 @@
       // ensure all modules are loaded
       await Promise.all(window.__metaframejs.awaiting);
 
-      const [_, hashParams] = getUrlHashParamsFromHashString(
-        window.location.hash,
-      );
+      const [_, hashParams] = getUrlHashParamsFromHashString(currentHashString());
 
       const inEditMode = hashParams["edit"] === "true";
       const defaultBgColor = hashParams["bgColor"];
@@ -2130,7 +2198,10 @@
           });
           resizeObserver.observe(root);
 
-          const options = getHashParamValueJsonFromWindow("options");
+          const options = getHashParamValueJsonFromHashString(
+            currentHashString(),
+            "options",
+          );
 
           const disableDatarefs = options?.disableDatarefs;
           const disableSmartInputUnpacking = options
@@ -2194,7 +2265,8 @@
           handleInputs(metaframe.getInputs());
 
           // Handle inputs from hash parameter
-          const hashInputs = getHashParamValueJsonFromWindow(
+          const hashInputs = getHashParamValueJsonFromHashString(
+            currentHashString(),
             "inputs",
           );
           if (hashInputs && module.onInputs) {
@@ -2264,15 +2336,11 @@
     applyCssFromUrl();
 
     // Handle Safari timing issue: check if page is already loaded.
-    // We capture the promise so that short-URL cleanup can wait for it.
-    var initialRunPromise;
     if (document.readyState === "complete") {
-      initialRunPromise = runJsFromUrl();
+      runJsFromUrl();
     } else {
-      initialRunPromise = new Promise(function (resolve) {
-        globalThis.addEventListener("load", function () {
-          runJsFromUrl().then(resolve, resolve);
-        });
+      globalThis.addEventListener("load", function () {
+        runJsFromUrl();
       });
     }
 
@@ -2287,7 +2355,7 @@
     // out non-execution params. Avoids full parse + JSON.stringify of
     // potentially large base64-encoded values on every hashchange.
     const getExecutionParamSnapshot = () => {
-      let raw = window.location.hash;
+      let raw = currentHashString();
       if (!raw) return "";
       if (raw.charAt(0) === "#") raw = raw.slice(1);
       if (raw.charAt(0) === "?") raw = raw.slice(1);
@@ -2393,52 +2461,17 @@
         return;
       }
 
-      // sha256 short URL: expand the merged hash params and navigate to the
-      // full hash URL with edit mode. This exits the short URL path entirely
-      // so the local editor works normally.
+      // sha256 short URL: expand the params into a full hash URL with edit
+      // mode. This is the one place the expansion is wanted — it exits the
+      // short URL path entirely so the local editor works normally.
       if (shortUrlId && window.__SHORT_URL_HASH_PARAMS) {
-        // Build full URL from stored params, overriding with any changed
-        // user-defined params from the current URL, plus edit=true.
-        var canonicalKeys = window.__SHORT_URL_CANONICAL_KEYS || new Set();
-        var storedStr = window.__SHORT_URL_HASH_PARAMS;
-        var ss = storedStr.charAt(0) === "?" ? storedStr.slice(1) : storedStr;
-        var sp = ss.split("&");
-        var pm = {};
-        var po = [];
-        for (var si = 0; si < sp.length; si++) {
-          var sei = sp[si].indexOf("=");
-          var ski = sei === -1 ? sp[si] : sp[si].substring(0, sei);
-          if (ski) {
-            pm[ski] = sp[si];
-            po.push(ski);
-          }
-        }
-        var currentHash = window.location.hash;
-        if (currentHash) {
-          var s = currentHash.charAt(0) === "#"
-            ? currentHash.slice(1)
-            : currentHash;
-          if (s.charAt(0) === "?") s = s.slice(1);
-          if (s) {
-            var up = s.split("&");
-            for (var j = 0; j < up.length; j++) {
-              var ej = up[j].indexOf("=");
-              var kj = ej === -1 ? up[j] : up[j].substring(0, ej);
-              if (kj && !canonicalKeys.has(kj)) {
-                if (!(kj in pm)) po.push(kj);
-                pm[kj] = up[j];
-              }
-            }
-          }
-        }
-        if (!("edit" in pm)) po.push("edit");
-        pm["edit"] = "edit=true";
-        var merged = "?";
-        for (var x = 0; x < po.length; x++) {
-          if (x > 0) merged += "&";
-          merged += pm[po[x]];
-        }
-        window.location.href = window.location.origin + "/#" + merged;
+        var expanded = parseHashPairs(currentHashString());
+        if (!("edit" in expanded.pairs)) expanded.order.push("edit");
+        expanded.pairs["edit"] = "edit=true";
+        var merged = expanded.order.map(function (key) {
+          return expanded.pairs[key];
+        }).join("&");
+        window.location.href = window.location.origin + "/#?" + merged;
         return;
       }
 
@@ -2463,7 +2496,7 @@
 
       // Modify the metapage editor url hash to our own
       const editorUrl = new URL(metapageDef.metaframes.editor.url);
-      editorUrl.hash = window.location.hash;
+      editorUrl.hash = currentHashString();
       metapageDef.metaframes.editor.url = editorUrl.href;
 
       const mp = await globalThis.metapage.Metapage.from(metapageDef);
@@ -2521,9 +2554,7 @@
 
     refreshUpdateSvgButton();
 
-    const [_, hashParams] = getUrlHashParamsFromHashString(
-      window.location.hash,
-    );
+    const [_, hashParams] = getUrlHashParamsFromHashString(currentHashString());
     const inEditMode = hashParams["edit"] === "true";
     // Show editor if the hash param is set to edit=true
     // DISABLED: previously also auto-opened the editor when the page is not in
@@ -2534,60 +2565,6 @@
       // if editing, force showing the menu
       window.addEventListener("load", () => {
         onMenuClick();
-      });
-    }
-
-    // In short URL mode, clean the hash params from the URL AFTER
-    // runJsFromUrl has finished.  Previously this was a separate "load"
-    // handler that raced with the async runJsFromUrl — the cleanup could
-    // fire while runJsFromUrl was still awaiting module import, wiping
-    // the hash before getHashParamValueJsonFromWindow("inputs") ran.
-    if (window.__SHORT_URL_ID && window.__SHORT_URL_HASH_PARAMS) {
-      initialRunPromise.then(function () {
-        // Remove canonical params AND user-defined params that match stored
-        // values (they're loaded from the API, no need to duplicate in URL).
-        // Only keep user-defined params whose value has changed.
-        var canonicalKeys = window.__SHORT_URL_CANONICAL_KEYS || new Set();
-        var storedStr = window.__SHORT_URL_HASH_PARAMS || "";
-        var ss = storedStr.charAt(0) === "?" ? storedStr.slice(1) : storedStr;
-        var sp = ss.split("&");
-        var storedMap = {};
-        for (var si = 0; si < sp.length; si++) {
-          var sei = sp[si].indexOf("=");
-          var ski = sei === -1 ? sp[si] : sp[si].substring(0, sei);
-          if (ski) storedMap[ski] = sp[si];
-        }
-        var hash = window.location.hash;
-        var newHash = "";
-        if (hash) {
-          var s = hash.charAt(0) === "#" ? hash.slice(1) : hash;
-          if (s.charAt(0) === "?") s = s.slice(1);
-          if (s) {
-            var pairs = s.split("&");
-            var changedPairs = [];
-            for (var i = 0; i < pairs.length; i++) {
-              var k = pairs[i].split("=")[0];
-              if (k && !canonicalKeys.has(k) && storedMap[k] !== pairs[i]) {
-                changedPairs.push(pairs[i]);
-              }
-            }
-            if (changedPairs.length > 0) {
-              newHash = "#?" + changedPairs.join("&");
-            }
-          }
-        }
-        // Restore the original Location.prototype.hash descriptor before
-        // finalizing the URL so history.replaceState writes the real hash.
-        if (window.__sfhod) {
-          Object.defineProperty(Location.prototype, "hash", window.__sfhod);
-          delete window.__sfhs;
-          delete window.__sfhod;
-        }
-        history.replaceState(
-          null,
-          "",
-          window.location.pathname + window.location.search + newHash,
-        );
       });
     }
     </script>

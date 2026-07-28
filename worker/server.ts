@@ -200,23 +200,6 @@ function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
   return stripDefaultHashParams(result);
 }
 
-// Canonical hash param keys — these are stored in the short URL and cleaned
-// from the URL bar after load. Any other keys are treated as user-defined
-// state and preserved in the URL.
-// NOTE: Keep in sync with editor/src/utils/hashParams.ts (DEFAULT_ALLOWED_HASH_PARAMS).
-const CANONICAL_HASH_PARAM_KEYS = [
-  "bgColor",
-  "definition",
-  "edit",
-  "editorWidth",
-  "hm",
-  "inputs",
-  "js",
-  "modules",
-  "og",
-  "options",
-];
-
 const port: number = parseInt(Deno.env.get("PORT") || "3000");
 
 // S3-compatible storage config (works with Cloudflare R2 and MinIO)
@@ -908,7 +891,6 @@ app.get("/j/:sha256", async (c) => {
       // versions never carry it). Inject it as innerHTML immediately after #root,
       // bottom-right. Self-contained markup from our own origin — safe to inject.
       const brandingOverlay = branding ? brandingScript(branding) : "";
-      const canonicalKeysJson = JSON.stringify(CANONICAL_HASH_PARAM_KEYS);
 
       // Strip edit=true so the app doesn't immediately exit short-URL mode on load.
       const s = hashParams.startsWith("?") ? hashParams.slice(1) : hashParams;
@@ -920,21 +902,21 @@ app.get("/j/:sha256", async (c) => {
         : "";
 
       // Set the same __SHORT_URL_* globals as the sha256 handler so:
-      //  - module scripts await __SHORT_URL_READY before reading window.location.hash
-      //  - the cleanup code removes canonical params from the URL after the code runs
+      //  - module scripts await __SHORT_URL_READY before reading hash params
+      //  - the app reads the params from __SHORT_URL_HASH_PARAMS instead of the
+      //    URL (see currentHashString() in index.html)
       //  - useShortUrlMode keeps the /j/:uuid path until the user edits
-      // The IIFE computes merged params and installs a Location.prototype.hash
-      // shadow so module scripts can read the full params without the URL bar
-      // ever showing the expanded hash. Falls back to history.replaceState on
-      // browsers where Location.prototype.hash is not configurable.
+      // The params are NOT written into the URL: the uuid already identifies
+      // the frame, so expanding them into the address bar (and stripping them
+      // again after the code ran) only flashed the base64 payload at the user.
       const injectedScript =
         `<script id="short-url-init">window.__SHORT_URL_ID=${
           JSON.stringify(id)
         };window.__FRAMEJS_APP_ORIGIN=${
           JSON.stringify(FRAMEJS_APP_ORIGIN)
-        };window.__SHORT_URL_CANONICAL_KEYS=new Set(${canonicalKeysJson});window.__SHORT_URL_HASH_PARAMS=${
+        };window.__SHORT_URL_HASH_PARAMS=${
           JSON.stringify(cleanedHashParams)
-        };window.__SHORT_URL_READY=Promise.resolve();(function(){var stored=window.__SHORT_URL_HASH_PARAMS;var C=window.__SHORT_URL_CANONICAL_KEYS;var ss=stored.charAt(0)==="?"?stored.slice(1):stored;var sp=ss.split("&");var pm={},po=[];for(var i=0;i<sp.length;i++){var ei=sp[i].indexOf("=");var ki=ei===-1?sp[i]:sp[i].substring(0,ei);if(ki){pm[ki]=sp[i];po.push(ki);}}var h=window.location.hash;if(h){var s=h.charAt(0)==="#"?h.slice(1):h;if(s.charAt(0)==="?")s=s.slice(1);if(s){var up=s.split("&");for(var j=0;j<up.length;j++){var ej=up[j].indexOf("=");var kj=ej===-1?up[j]:up[j].substring(0,ej);if(kj&&!C.has(kj)){if(!(kj in pm))po.push(kj);pm[kj]=up[j];}}}}var m="?";for(var x=0;x<po.length;x++){if(x>0)m+="&";m+=pm[po[x]];}(function(od){try{if(od&&od.configurable){window.__sfhod=od;window.__sfhs=m;Object.defineProperty(Location.prototype,'hash',{get:function(){return window.__sfhs!==undefined?'#'+window.__sfhs:od.get.call(this)},set:function(v){od.set.call(this,v)},configurable:true})}else{history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}}catch(e){history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}})(Object.getOwnPropertyDescriptor(Location.prototype,'hash'));})();</script>`;
+        };window.__SHORT_URL_READY=Promise.resolve();</script>`;
 
       return await serveShortUrlHtml(
         ogMetaTags,
@@ -980,8 +962,6 @@ app.get("/j/:sha256", async (c) => {
     if (!response.Body) throw new Error("S3 response body is empty");
     const hashParams = await response.Body.transformToString();
 
-    const canonicalKeysJson = JSON.stringify(CANONICAL_HASH_PARAM_KEYS);
-
     // Extract OG metadata from hash params and inject meta tags
     const decoded = decodeHashParamsToJson(hashParams);
     const ogMetaTags = buildOgMetaTags(decoded);
@@ -995,7 +975,8 @@ app.get("/j/:sha256", async (c) => {
     // async fetch for the hash params.  The full hash-param blob is NOT
     // embedded in the HTML — crawlers only see OG meta tags without paying
     // for the large JS/definition payload.  The module scripts in index.html
-    // await __SHORT_URL_READY before reading hash params.
+    // await __SHORT_URL_READY before reading hash params, and read them from
+    // __SHORT_URL_HASH_PARAMS rather than from the URL, which stays clean.
     const injectedScript =
       `<script id="short-url-init">window.__SHORT_URL_ID = ${
         JSON.stringify(
@@ -1003,11 +984,11 @@ app.get("/j/:sha256", async (c) => {
         )
       };window.__FRAMEJS_APP_ORIGIN = ${
         JSON.stringify(FRAMEJS_APP_ORIGIN)
-      };window.__SHORT_URL_CANONICAL_KEYS = new Set(${canonicalKeysJson});window.__SHORT_URL_READY = fetch("/api/j/" + ${
+      };window.__SHORT_URL_READY = fetch("/api/j/" + ${
         JSON.stringify(
           sha256,
         )
-      } + "/url").then(function(r){return r.text()}).then(function(fullUrl){var idx=fullUrl.indexOf("#");var stored=idx===-1?"":fullUrl.slice(idx+1);window.__SHORT_URL_HASH_PARAMS=stored;var C=window.__SHORT_URL_CANONICAL_KEYS;var ss=stored.charAt(0)==="?"?stored.slice(1):stored;var sp=ss.split("&");var pm={};var po=[];for(var i=0;i<sp.length;i++){var ei=sp[i].indexOf("=");var ki=ei===-1?sp[i]:sp[i].substring(0,ei);if(ki){pm[ki]=sp[i];po.push(ki)}}var h=window.location.hash;if(h){var s=h.charAt(0)==="#"?h.slice(1):h;if(s.charAt(0)==="?")s=s.slice(1);if(s){var up=s.split("&");for(var j=0;j<up.length;j++){var ej=up[j].indexOf("=");var kj=ej===-1?up[j]:up[j].substring(0,ej);if(kj&&!C.has(kj)){if(!(kj in pm))po.push(kj);pm[kj]=up[j]}}}}var m="?";for(var x=0;x<po.length;x++){if(x>0)m+="&";m+=pm[po[x]]};(function(od){try{if(od&&od.configurable){window.__sfhod=od;window.__sfhs=m;Object.defineProperty(Location.prototype,'hash',{get:function(){return window.__sfhs!==undefined?'#'+window.__sfhs:od.get.call(this)},set:function(v){od.set.call(this,v)},configurable:true})}else{history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}}catch(e){history.replaceState(null,'',window.location.pathname+window.location.search+'#'+m)}})(Object.getOwnPropertyDescriptor(Location.prototype,'hash'))});</script>`;
+      } + "/url").then(function(r){return r.text()}).then(function(fullUrl){var idx=fullUrl.indexOf("#");window.__SHORT_URL_HASH_PARAMS=idx===-1?"":fullUrl.slice(idx+1);});</script>`;
 
     return await serveShortUrlHtml(ogMetaTags, injectedScript, favicon);
   } catch (error: any) {
