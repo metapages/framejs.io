@@ -1275,7 +1275,12 @@ app.get("/api/j/:sha256/url", async (c) => {
   }
 });
 
-// File download endpoint — redirects to the public S3 URL
+// File download endpoint — redirects to the public S3 URL.
+// Because this is a redirect and not a proxy, the browser's CORS check applies
+// to the *bucket's* response, not ours. The bucket CORS policy alone is not
+// enough: it must send Access-Control-Allow-Origin even when the request has no
+// Origin header, or a cached non-CORS load will break later fetch()es.
+// See docs/development/deployment.md#file-storage-cloudflare-r2
 app.get("/f/:id", (c) => {
   if (!S3_PUBLIC_URL) {
     return c.json(
