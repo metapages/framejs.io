@@ -14,6 +14,43 @@ include it. Top-level `await` is supported.
   `root.style.width` — it breaks the editor layout. To size content, create a
   child `div` with `width:100%; height:100%` and style that instead.
 - **Always clear** `root` before building DOM: `root.innerHTML = ""`.
+- **Keep the top-right corner clear** — the runtime's Edit button is overlaid
+  there. See "Reserved area" below.
+
+## Reserved area: the Edit button (top-right corner)
+
+The runtime overlays its own **Edit** button in the top-right corner of the
+frame, painted above your content (`z-index: 1000`). It is usually invisible
+until hover, so it will not be obvious while you write the code — but a click in
+that area hits the Edit button, not your UI.
+
+Exact footprint, measured from the top-right corner of the viewport:
+
+| Viewport               | Button size | Offsets              | Occupied box                     |
+| ---------------------- | ----------- | -------------------- | -------------------------------- |
+| wider than 768px       | 80 × 30 px  | 10px top, 10px right | top 0–40 px, right edge 0–90 px  |
+| 768px or less (mobile) | 120 × 52 px | 8px top, 12px right  | top 0–60 px, right edge 0–132 px |
+
+**Rule: treat the top-right `140 × 64` px of the frame as off-limits.** That
+covers both breakpoints plus a margin. Never place a button, menu, toolbar,
+legend, close/fullscreen icon, dropdown, or any other clickable or important
+element in it.
+
+Put controls top-left, along the bottom, or — when they must sit on the top row
+— inset them at least 140px from the right edge:
+
+```js
+root.innerHTML = `<div style="width:100%;height:100%;position:relative">
+  <!-- control bar stops 148px short of the right edge -->
+  <div style="position:absolute;top:8px;left:8px;right:148px;z-index:1">
+    <button>Play</button><button>Reset</button>
+  </div>
+  <div id="chart" style="width:100%;height:100%"></div>
+</div>`;
+```
+
+Full-bleed content (a chart, a canvas, a 3D scene) may extend under the reserved
+area — only interactive or must-read elements need to stay out of it.
 
 ## Pre-defined globals (no import needed)
 
@@ -198,6 +235,8 @@ onInputs({ [INPUT_KEY]: generateData() });
 - ❌ Including `"use strict"` — added automatically.
 - ❌ Changing `root.style.position` / `height` / `width`.
 - ❌ Writing a Node.js script — this runs in the BROWSER.
+- ❌ Putting a button, menu, or toolbar in the top-right corner — it collides
+  with the runtime's Edit button. Keep the top-right `140 × 64` px clear.
 - ❌ Rendering generated/fetched data directly instead of seeding it through
   `onInputs` on the last line — see "Generated data MUST be fed through
   `onInputs`".
