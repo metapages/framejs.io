@@ -90,6 +90,12 @@ MinIO starts automatically with `just dev`. The MinIO console is available at `h
      }
    ]
    ```
+   ⚠️ **This is not sufficient on its own.** R2 only sends
+   `Access-Control-Allow-Origin` when the request has an `Origin` header, so a
+   non-CORS load (`<img>`, crawler, prefetch) caches a header-less copy that
+   later breaks `fetch()`. You also need a Cloudflare Transform Rule setting the
+   header unconditionally — see
+   [Deployment → File storage (Cloudflare R2)](../docs/development/deployment.md#file-storage-cloudflare-r2).
 6. **Set environment variables** on Deno Deploy:
    - `S3_ENDPOINT` — `https://<account-id>.r2.cloudflarestorage.com`
    - `S3_ACCESS_KEY_ID` — from the API token
