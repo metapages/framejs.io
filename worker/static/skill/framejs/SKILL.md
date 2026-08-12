@@ -162,6 +162,11 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   visualization/rendering/widget tools to render the result.
 - NEVER modify `root.style.position`, `root.style.height`, or
   `root.style.width`.
+- **NEVER place clickable or important UI in the top-right corner** — the
+  runtime overlays its Edit button there (80 × 30 px at 10px top/right on
+  desktop, 120 × 52 px at 8px top / 12px right on mobile). Keep the top-right
+  `140 × 64` px free of buttons, menus, toolbars and legends. See
+  [references/coding-guide.md](references/coding-guide.md).
 - **IMPORTANT: the visualization MUST look good on mobile and adapt to that
   screen size** — use responsive sizing (read `root`'s dimensions / listen for
   resize), avoid fixed pixel widths that overflow, keep text and touch targets
