@@ -30,6 +30,7 @@ import {
   jsonToHashParams,
   stripDefaultHashParams,
 } from "./src/metaframe-definition.ts";
+import { buildOgMetaTags, escapeHtmlAttr } from "./src/og.ts";
 import {
   brandingScript,
   extractBranding,
@@ -37,52 +38,6 @@ import {
   pinnedVersionFromQuery,
   pinnedVersionSuffix,
 } from "./src/pinned-version.ts";
-
-/** Escape a string for safe use inside an HTML attribute (double-quoted). */
-function escapeHtmlAttr(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-/**
- * Builds the Open Graph <meta> tags for a short-URL page from the decoded
- * hash-param values (the `og` field). Falls back to a default title when no
- * og metadata is present.
- */
-function buildOgMetaTags(decoded: Record<string, unknown>): string {
-  const og = decoded.og as
-    | { title?: string; description?: string; image?: string }
-    | undefined;
-  if (!og || !(og.title || og.description || og.image)) {
-    return `<meta property="og:title" content="framejs.io" />\n<meta property="og:description" content="" />\n`;
-  }
-  let tags = "";
-  if (og.title) {
-    tags += `<meta property="og:title" content="${
-      escapeHtmlAttr(
-        og.title,
-      )
-    }" />\n`;
-  }
-  if (og.description) {
-    tags += `<meta property="og:description" content="${
-      escapeHtmlAttr(
-        og.description,
-      )
-    }" />\n`;
-  }
-  if (og.image) {
-    tags += `<meta property="og:image" content="${
-      escapeHtmlAttr(
-        og.image,
-      )
-    }" />\n`;
-  }
-  return tags;
-}
 
 /**
  * Reads index.html, strips its default OG block, and injects the given OG meta

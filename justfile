@@ -50,7 +50,7 @@ fmt:
     just editor/fmt
     just worker/fmt
 
-# Save a framejs.io URL to a readable dir (code.js + options/inputs.json) for git versioning — no server
+# Save a framejs.io URL to a readable dir (code.js + options/inputs/og.json) for git versioning — no server
 @frame-save url dir:
     ./bin/framejs-frame.sh save "{{ url }}" "{{ dir }}"
 
