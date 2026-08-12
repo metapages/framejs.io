@@ -199,6 +199,7 @@ function openInBrowser(url) {
 function parseFlags(argv) {
   const flags = {
     modules: [],
+    tags: [],
     inputs: {},
     open: true,
     screenshot: false,
@@ -222,7 +223,13 @@ function parseFlags(argv) {
     else if (a === "--module") flags.modules.push(argv[++i]);
     else if (a === "--title") flags.title = argv[++i];
     else if (a === "--description") flags.description = argv[++i];
-    else if (a === "--og") {
+    // Repeatable, and comma-separated within one value: --tag a --tag "b,c".
+    else if (a === "--tag") {
+      for (const t of String(argv[++i] || "").split(",")) {
+        const tag = t.trim();
+        if (tag) flags.tags.push(tag);
+      }
+    } else if (a === "--og") {
       const raw = argv[++i] || "";
       try {
         flags.og = JSON.parse(raw);
@@ -451,18 +458,21 @@ async function cmdCreate(argv) {
 
   // Open Graph, most-specific first:
   // • `--og` carries a full og object through verbatim (incl. `image`).
-  // • `--title`/`--description` build a fresh og.
+  // • `--title`/`--description`/`--tag` build a fresh og.
   // • otherwise, when UPDATING an existing frame, carry its stored og forward —
   //   so a bare re-run (the one-frame-per-session update pattern) never silently
   //   drops the title/description, and the retained `og.image` also skips the
   //   redundant re-screenshot below. Best-effort: a fresh frame has none.
   if (flags.og !== undefined) {
     body.og = flags.og;
-  } else if (flags.title || flags.description) {
+  } else if (flags.title || flags.description || flags.tags.length) {
     body.og = {
       title: flags.title || "",
       description: flags.description || "",
     };
+    // Omit `tags` entirely when none were given — an empty array would render
+    // no article:tag tags anyway, and it keeps the stored og minimal.
+    if (flags.tags.length) body.og.tags = flags.tags;
   } else if (!isNewFrame) {
     const storedOg = await fetchStoredOg(slug);
     if (storedOg) body.og = storedOg;
@@ -955,7 +965,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 const handlers = { create: cmdCreate, fetch: cmdFetch, upload: cmdUpload };
 if (!handlers[cmd]) {
   die(
-    `usage: framejs.mjs <create|fetch|upload> [...]\n  create  (reads JS from stdin)  --state <file> | --id <uuid|url> | --new  --token <key>  --app-origin <url> --io-origin <url>  --module <url> --input name=value --inputs <file.json> --title <t> --description <d> --og <json> --screenshot [--screenshot-wait <ms>] [--screenshot-size <w,h>] --no-open\n  fetch   <uuid | /j/uuid | url | sha256 | /j/sha256> [--app-origin <url>] [--io-origin <url>]   (a ?token= / origin on the url is honored)\n  upload  <file-path>`,
+    `usage: framejs.mjs <create|fetch|upload> [...]\n  create  (reads JS from stdin)  --state <file> | --id <uuid|url> | --new  --token <key>  --app-origin <url> --io-origin <url>  --module <url> --input name=value --inputs <file.json> --title <t> --description <d> --tag <tag> --og <json> --screenshot [--screenshot-wait <ms>] [--screenshot-size <w,h>] --no-open\n  fetch   <uuid | /j/uuid | url | sha256 | /j/sha256> [--app-origin <url>] [--io-origin <url>]   (a ?token= / origin on the url is honored)\n  upload  <file-path>`,
   );
 }
 await checkForUpdate();

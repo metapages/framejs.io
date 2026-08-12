@@ -73,7 +73,11 @@ stores them, creating the frame on first call and appending a version after:
   "inputs": {
     "data.csv": { "type": "url", "value": "https://framejs.io/f/abc..." }
   },
-  "og": { "title": "Short title", "description": "One-sentence summary" }
+  "og": {
+    "title": "Short title",
+    "description": "One-sentence summary",
+    "tags": ["topic", "another topic"]
+  }
 }
 ```
 
@@ -140,6 +144,7 @@ cat app.js | node scripts/framejs.mjs create \
   --state "$SCRATCH/frame.json" \
   --title "Bouncing ball" \
   --description "A ball bouncing around the canvas with gravity" \
+  --tag physics --tag canvas --tag animation \
   --screenshot \
   --module https://3dmol.org/build/3Dmol-min.js
 ```
@@ -187,7 +192,7 @@ process.stdin.on('end', () => {
   const body = {
     js: Buffer.concat(chunks).toString(),
     modules: [/* classic-script URLs, if any */],
-    og: { title: 'SHORT TITLE', description: 'ONE-SENTENCE SUMMARY' }
+    og: { title: 'SHORT TITLE', description: 'ONE-SENTENCE SUMMARY', tags: ['TAG', 'TAG'] }
   };
   const app = process.env.FRAMEJS_APP_ORIGIN || 'https://framejs.app';
   fetch(app + '/j/' + process.env.SLUG + '.json', {
@@ -216,16 +221,23 @@ shared-link unfurls.
     how to use it.
   - `image`: pass `--screenshot` and the helper captures the rendered app and
     sets `og.image` for you. It only ever fills in a MISSING image.
+  - `tags`: a JSON **array of strings** — 3–6 short topic words describing the
+    app (subject, technique, library), lowercase unless a proper noun. The
+    server renders one `<meta property="article:tag">` per entry (frame pages
+    declare `og:type=article`, the vertical that tag belongs to). Set them with
+    repeatable `--tag` (`--tag physics --tag "canvas,animation"`), or as the
+    `tags` key of an `--og` object.
 - **Modifying an existing app:** the `fetch` response includes `og` whenever the
   app already has one. If it exists, DO NOT recalculate it — pass the exact
   fetched object back through with `--og '<json>'`. This round-trips every
-  field, including `image`, which `--title`/`--description` cannot preserve.
+  field, including `image` and `tags`, which `--title`/`--description` cannot
+  preserve.
 
 ```bash
 # Preserve the fetched og verbatim while changing the code, updating the same frame:
 cat app.js | node scripts/framejs.mjs create \
   --id <uuid> \
-  --og '{"title":"Existing title","description":"Existing summary","image":"https://…"}'
+  --og '{"title":"Existing title","description":"Existing summary","image":"https://…","tags":["physics","canvas"]}'
 ```
 
 ## Modify an existing frame — fetch first

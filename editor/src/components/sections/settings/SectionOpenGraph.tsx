@@ -11,9 +11,14 @@ import {
   Button,
   Image,
   Input,
+  Tag,
+  TagCloseButton,
+  TagLabel,
   Text,
   Textarea,
   VStack,
+  Wrap,
+  WrapItem,
 } from "@chakra-ui/react";
 import { useHashParamJson } from "@metapages/hash-query/react-hooks";
 import { uploadFile } from "/@/hooks/useFileUpload";
@@ -22,7 +27,26 @@ interface OpenGraphData {
   title?: string;
   description?: string;
   image?: string;
+  /** Rendered server-side as one <meta property="article:tag"> per entry. */
+  tags?: string[];
 }
+
+/** Trimmed, non-empty, case-insensitively de-duplicated, order preserved. */
+const normalizeTags = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const tag = entry.trim();
+    if (!tag) continue;
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(tag);
+  }
+  return result;
+};
 
 export const SectionOpenGraph: React.FC = () => {
   const [og, setOg] = useHashParamJson<OpenGraphData | undefined>("og");
@@ -36,6 +60,9 @@ export const SectionOpenGraph: React.FC = () => {
     og?.description || "",
   );
   const image = og?.image;
+  const tags = useMemo(() => normalizeTags(og?.tags), [og?.tags]);
+  // Uncommitted text in the "add tag" field; committed on Enter/comma/blur.
+  const [tagDraft, setTagDraft] = useState("");
 
   // Sync from hash → local only when not actively editing (i.e. external changes)
   const titleFocused = useRef(false);
@@ -60,6 +87,9 @@ export const SectionOpenGraph: React.FC = () => {
       if (!next.title) delete next.title;
       if (!next.description) delete next.description;
       if (!next.image) delete next.image;
+      const nextTags = normalizeTags(next.tags);
+      if (nextTags.length) next.tags = nextTags;
+      else delete next.tags;
       // Set undefined (removes hash param) if empty object
       setOg(Object.keys(next).length === 0 ? undefined : next);
     },
@@ -76,6 +106,33 @@ export const SectionOpenGraph: React.FC = () => {
     [commitOg],
   );
   useEffect(() => () => clearTimeout(debounceRef.current), []);
+
+  // Tags commit immediately (no debounce): each one is a discrete action —
+  // Enter, comma, or a click on the close button — not a keystroke stream.
+  const commitTagDraft = useCallback(() => {
+    const next = normalizeTags([...tags, ...tagDraft.split(",")]);
+    setTagDraft("");
+    // Nothing new (empty draft, or only duplicates) → leave the hash alone.
+    if (next.length !== tags.length) commitOg({ tags: next });
+  }, [commitOg, tagDraft, tags]);
+
+  const removeTag = useCallback(
+    (tag: string) => commitOg({ tags: tags.filter((t) => t !== tag) }),
+    [commitOg, tags],
+  );
+
+  const onTagKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter" || e.key === ",") {
+        e.preventDefault();
+        commitTagDraft();
+      } else if (e.key === "Backspace" && !tagDraft && tags.length) {
+        e.preventDefault();
+        removeTag(tags[tags.length - 1]);
+      }
+    },
+    [commitTagDraft, removeTag, tagDraft, tags],
+  );
 
   const [dragOver, setDragOver] = useState(false);
 
@@ -204,6 +261,35 @@ export const SectionOpenGraph: React.FC = () => {
           }}
           placeholder="Page description"
           rows={3}
+        />
+      </Box>
+
+      <Box>
+        <Text fontSize="xs" mb={1}>
+          Tags
+        </Text>
+        {tags.length > 0 && (
+          <Wrap mb={2} spacing={1}>
+            {tags.map((tag) => (
+              <WrapItem key={tag}>
+                <Tag size="sm" borderRadius="full" variant="subtle">
+                  <TagLabel>{tag}</TagLabel>
+                  <TagCloseButton
+                    aria-label={`Remove tag ${tag}`}
+                    onClick={() => removeTag(tag)}
+                  />
+                </Tag>
+              </WrapItem>
+            ))}
+          </Wrap>
+        )}
+        <Input
+          size="sm"
+          value={tagDraft}
+          onChange={(e) => setTagDraft(e.target.value)}
+          onKeyDown={onTagKeyDown}
+          onBlur={commitTagDraft}
+          placeholder="Add a tag, then press Enter"
         />
       </Box>
 

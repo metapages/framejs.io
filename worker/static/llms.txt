@@ -115,18 +115,21 @@ may fail in sandboxes. Never create local .js or .html files.
 ### Short URL API details
 
 POST https://framejs.io/api/shorten/json with JSON body:
-`{ "js": "raw JS code", "modules": ["url1", ...], "inputs": {...}, "og": { "title": "...", "description": "..." } }`
+`{ "js": "raw JS code", "modules": ["url1", ...], "inputs": {...}, "og": { "title": "...", "description": "...", "image": "...", "tags": ["...", "..."] } }`
 
 The server handles encoding. Response:
 `{ "shortUrl": "https://framejs.io/j/<sha256>", "id": "<sha256>" }`
 
-The optional `og` hash param holds Open Graph preview tags as
-`{ "title", "description" }`. The server renders these as og:title /
-og:description so the link unfurls with a meaningful title and summary when
-shared (Slack, iMessage, social media). If `og` is empty or missing, generate
-one from the data, the user's prompt, and the existing code: a concise title (<=
-~60 chars) and a ~110-150 char description of what the app shows and, if
-interactive, how to use it.
+The optional `og` hash param holds Open Graph preview data as
+`{ "title", "description", "image", "tags" }`, where `tags` is a JSON array of
+strings. The server renders these as og:title / og:description / og:image and
+one article:tag per entry of `tags` (on a page declaring og:type=article, the
+Open Graph vertical article:tag belongs to), so the link unfurls with a
+meaningful title, summary and topics when shared (Slack, iMessage, social
+media). If `og` is empty or missing, generate one from the data, the user's
+prompt, and the existing code: a concise title (<= ~60 chars), a ~110-150 char
+description of what the app shows and, if interactive, how to use it, and 3-6
+short topic tags.
 
 ### Modifying existing short URLs
 
@@ -137,8 +140,8 @@ Response:
 
 Modify the `js` field, then POST back to `/api/shorten/json` with the updated
 body. If `hashParams.og` already exists, preserve it unchanged unless the user
-asks to change the title/description; if it is missing, add a generated one (see
-above).
+asks to change the title/description/tags; if it is missing, add a generated one
+(see above).
 
 ## Advanced: metapage ecosystem
 
