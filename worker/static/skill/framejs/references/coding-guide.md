@@ -214,17 +214,80 @@ onInputs({ [INPUT_KEY]: generateData() });
   }, { passive: false });
   ```
 
-- Persist state in the URL hash (portable, shareable):
+- Persist state in the URL hash — see the next section (the param name MUST be
+  declared in the frame's `definition.hashParams`).
 
-  ```js
-  import {
-    getHashParamValueJsonFromWindow,
-    setHashParamValueJsonInWindow,
-  } from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0/+esm";
+## Persisting state in the URL hash
 
-  setHashParamValueJsonInWindow("state", { zoom: 2 });
-  const state = getHashParamValueJsonFromWindow("state");
-  ```
+An app can save its own state (zoom, selection, a checklist, form values) into
+the URL hash with the `@metapages/hash-query` module, so the link the user
+copies carries the state with it.
+
+**NEVER parse or build hash params yourself** — no `location.hash.split`, no
+regex on the hash, no `new URLSearchParams(location.hash.slice(1))`, no
+hand-assembled `#?key=value` strings. The encoding (base64 of a URI-encoded
+JSON/string payload, param ordering, the `?` after `#`) is exactly what the
+runtime, the editor, the shortener and the frame API expect; a hand-rolled
+version corrupts values and breaks saving. Always go through
+`@metapages/hash-query`.
+
+**Two parts are required. Doing only the first silently loses the state.**
+
+**1. Read/write the param with `@metapages/hash-query`:**
+
+```js
+import {
+  deleteHashParamFromWindow,
+  getHashParamValueJsonFromWindow,
+  setHashParamValueJsonInWindow,
+} from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0/+esm";
+
+const state = getHashParamValueJsonFromWindow("state") || { zoom: 1 };
+setHashParamValueJsonInWindow("state", { ...state, zoom: 2 });
+deleteHashParamFromWindow("state"); // clear it
+```
+
+**2. Declare the param name in the frame's `definition.hashParams`** — otherwise
+it is **stripped** whenever the app is saved, shortened, or copied as a link.
+Only the built-in params (`js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
+`edit`, `editorWidth`, `hm`, `definition`) survive by default; every custom
+param name must be whitelisted there. Send `definition` alongside `js` in the
+frame body (the helper's `--hash-param` writes exactly this):
+
+```json
+{
+  "js": "…",
+  "definition": {
+    "version": "1",
+    "hashParams": {
+      "state": {
+        "type": "json",
+        "label": "State",
+        "description": "Zoom + selection persisted in the URL"
+      }
+    }
+  }
+}
+```
+
+```bash
+# automation mode — declare each custom param as you create/update the frame
+cat app.js | node scripts/framejs.mjs create --state "$SCRATCH/frame.json" \
+  --hash-param state:json --title "…" --description "…" --screenshot
+```
+
+`type` matches how the value is encoded: `json` for
+`setHashParamValueJsonInWindow`, `stringBase64` for base64 strings, else
+`string` / `boolean` / `number`.
+
+In **code-block mode** you cannot set the definition — so say in one line, after
+the code block, that the user must add the param under **Settings** (`⚙` in the
+editor) → **Runtime** → **Allowed Hash Parameters** for the state to survive
+saving/sharing.
+
+When **modifying** an existing frame, `fetch` it first and pass its existing
+`definition` back through unchanged (plus any new param) — dropping it
+un-whitelists params the app already relies on.
 
 ## Common mistakes
 
@@ -240,6 +303,13 @@ onInputs({ [INPUT_KEY]: generateData() });
 - ❌ Rendering generated/fetched data directly instead of seeding it through
   `onInputs` on the last line — see "Generated data MUST be fed through
   `onInputs`".
+- ❌ Writing a custom hash param (e.g. `state`) without declaring it in
+  `definition.hashParams` — it is stripped on save/shorten/copy and the state is
+  lost. See "Persisting state in the URL hash".
+- ❌ Reading or writing the hash by hand — `location.hash.split("&")`, a regex
+  on `location.hash`, `new URLSearchParams(location.hash.slice(1))`, or building
+  a `#?key=value` string. Use `@metapages/hash-query` for every hash param,
+  always.
 
 ## CDN libraries (use `/+esm` ES6 imports unless noted)
 

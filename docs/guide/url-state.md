@@ -2,6 +2,12 @@
 
 State is stored in the URL hash. You can get and set values using the [@metapages/hash-query](https://www.npmjs.com/package/@metapages/hash-query) module:
 
+::: danger Always use `@metapages/hash-query` — never parse the hash yourself
+No regex or `split` on `location.hash`, no `new URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value` strings. Values are base64-encoded over a URI-encoded payload and the param order is canonical; the runtime, editor, shortener and frame API all agree on that encoding, and a hand-rolled version corrupts values or breaks saving.
+
+And whenever you save URL state, the param name must also be added to [`definition.hashParams`](#declare-your-hash-params-or-they-get-stripped) — otherwise it is stripped when the app is saved, shortened, or copied.
+:::
+
 ```javascript
 import {
   getHashParamsFromWindow,
@@ -29,6 +35,84 @@ deleteHashParamFromWindow("someKey");
 ::: tip
 This is designed for relatively small values. Large multi-megabyte JSON blobs are not yet supported.
 :::
+
+## Declare your hash params, or they get stripped
+
+Writing the param is only half of it. framejs keeps a **whitelist** of hash
+params, and anything outside it is removed whenever the app is **saved,
+shortened, or copied as a link** — so the state silently disappears from the URL
+you share.
+
+These built-ins are always allowed: `js`, `inputs`, `modules`, `og`, `options`,
+`bgColor`, `edit`, `editorWidth`, `hm`, `definition`.
+
+Every other param name — `someKey` in the example above — must be declared in
+the frame's **metaframe definition**, under `definition.hashParams`.
+
+### In the editor
+
+Open **Settings** (the ⚙ icon) → the **Runtime** tab → **Allowed Hash
+Parameters** → **Add Hash Parameter**, and add the param name. That writes it
+into the `definition` hash param for you.
+
+![The Allowed Hash Parameters section under Settings → Runtime in the framejs editor, with its "Add Hash Parameter" button](./url-state-allowed-hash-params.png)
+
+### In the definition JSON
+
+The `definition` hash param holds the metaframe definition. The relevant part:
+
+```json
+{
+  "version": "1",
+  "hashParams": {
+    "someKey": {
+      "type": "json",
+      "label": "Some Key",
+      "description": "State the app persists in the URL"
+    }
+  }
+}
+```
+
+`type` must match how the app encodes the value:
+
+| `type` | Written with |
+|--------|--------------|
+| `json` | `setHashParamValueJsonInWindow` |
+| `stringBase64` | `setHashParamValueBase64EncodedInWindow` |
+| `string` | `setHashParamInWindow` |
+| `number` | `setHashParamValueFloatInWindow` / `setHashParamValueIntInWindow` |
+| `boolean` | `setHashParamValueBooleanInWindow` |
+
+`label` and `description` are optional; they are only used by the editor's
+settings UI.
+
+### From the API or an AI agent
+
+`definition` is a normal hash param, so it goes in the frame body alongside `js`
+(see [Short URLs](/guide/short-urls) and the
+[frame API](https://framejs.io/llms-claude-code.txt)):
+
+```json
+{
+  "js": "…",
+  "definition": {
+    "version": "1",
+    "hashParams": { "someKey": { "type": "json" } }
+  }
+}
+```
+
+The [framejs Agent Skill](/guide/ai) helper does this with a flag:
+
+```bash
+cat app.js | node scripts/framejs.mjs create --state "$SCRATCH/frame.json" \
+  --hash-param someKey:json
+```
+
+When you update an existing frame, keep its `definition` — dropping it
+un-whitelists params the app still relies on. (The helper carries the stored
+definition forward automatically.)
 
 ## The `css` hash param (transient global stylesheet)
 

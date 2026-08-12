@@ -26,8 +26,12 @@
 //            its origin becomes the target backend (so a dev/self-hosted frame
 //            URL updates its own stack); --app-origin / --io-origin override
 //            explicitly.
-//   fetch    retrieve the stored hash params (js/inputs/modules/og) for a
-//            framejs.app /j/<uuid> frame (or a legacy framejs.io /j/<sha256>).
+//            --hash-param <name>[:<type>] (repeatable) whitelists a hash param
+//            the app itself writes (URL state via @metapages/hash-query) in the
+//            frame's definition.hashParams, without which it is stripped on
+//            save/shorten/copy; --definition '<json>' sets the whole definition.
+//   fetch    retrieve the stored hash params (js/inputs/modules/og/definition)
+//            for a framejs.app /j/<uuid> frame (or legacy framejs.io /j/<sha256>).
 //   upload   upload a local file and print its public DataRef URL.
 //
 // Origins (override for local dev via env or a nearby .env — see loadDotEnv):
@@ -53,7 +57,8 @@
 //   cat app.js | node framejs.mjs create --state "$SCRATCH/frame.json"            # updates the same frame recorded in --state
 //   cat app.js | node framejs.mjs create --state "$SCRATCH/frame.json" --new      # start a different frame in the same session
 //   cat app.js | node framejs.mjs create --id 0192f0a1-....  --og '{"title":"...","image":"..."}'  # update a specific frame, preserving fetched og
-//   node framejs.mjs fetch 0192f0a1...  # framejs.app frame → prints { js, inputs, modules, og }
+//   cat app.js | node framejs.mjs create --state "$SCRATCH/frame.json" --hash-param state:json  # app persists #?state=... in the URL
+//   node framejs.mjs fetch 0192f0a1...  # framejs.app frame → prints { js, inputs, modules, og, definition }
 //   node framejs.mjs upload ./data.csv  # prints { name, url, contentType }
 
 import {
@@ -195,11 +200,22 @@ function openInBrowser(url) {
   }
 }
 
+// Hash-param value encodings a metaframe definition can declare (see the
+// framejs metaframe definition: `json` blobs, base64 strings, plain scalars).
+const HASH_PARAM_TYPES = new Set([
+  "json",
+  "string",
+  "stringBase64",
+  "boolean",
+  "number",
+]);
+
 // Parse `--flag value`, repeatable `--module`, and `--input name=value` pairs.
 function parseFlags(argv) {
   const flags = {
     modules: [],
     inputs: {},
+    hashParams: {},
     open: true,
     screenshot: false,
     screenshotWait: 6000,
@@ -229,6 +245,28 @@ function parseFlags(argv) {
       } catch {
         die(`--og expects a JSON object string, got "${raw}"`);
       }
+    } else if (a === "--definition") {
+      const raw = argv[++i] || "";
+      try {
+        flags.definition = JSON.parse(raw);
+      } catch {
+        die(`--definition expects a JSON object string, got "${raw}"`);
+      }
+    } else if (a === "--hash-param") {
+      // `name` or `name:type` — the app's own URL-state param, whitelisted in
+      // definition.hashParams so it survives save / shorten / copy. `json` is
+      // the default because setHashParamValueJsonInWindow is the common case.
+      const raw = argv[++i] || "";
+      const [name, type] = raw.split(":");
+      if (!name) die(`--hash-param expects name[:type], got "${raw}"`);
+      if (type && !HASH_PARAM_TYPES.has(type)) {
+        die(
+          `--hash-param type must be one of ${
+            [...HASH_PARAM_TYPES].join(", ")
+          }, got "${type}"`,
+        );
+      }
+      flags.hashParams[name] = { type: type || "json", label: name };
     } else if (a === "--inputs") {
       Object.assign(flags.inputs, JSON.parse(readFileSync(argv[++i], "utf8")));
     } else if (a === "--input") {
@@ -456,6 +494,12 @@ async function cmdCreate(argv) {
   //   so a bare re-run (the one-frame-per-session update pattern) never silently
   //   drops the title/description, and the retained `og.image` also skips the
   //   redundant re-screenshot below. Best-effort: a fresh frame has none.
+  // The frame's currently-stored hash params, fetched at most once and only when
+  // updating in place (a freshly minted frame has none) — the source of the
+  // carried-forward `og` and `definition` below.
+  let storedPromise;
+  const stored = () => (storedPromise ??= fetchStoredFrame(slug));
+
   if (flags.og !== undefined) {
     body.og = flags.og;
   } else if (flags.title || flags.description) {
@@ -464,9 +508,34 @@ async function cmdCreate(argv) {
       description: flags.description || "",
     };
   } else if (!isNewFrame) {
-    const storedOg = await fetchStoredOg(slug);
+    const storedOg = storedObject(await stored(), "og");
     if (storedOg) body.og = storedOg;
   }
+
+  // The metaframe definition — its `hashParams` whitelist is what keeps an app's
+  // own URL state (written with @metapages/hash-query) from being stripped on
+  // save / shorten / copy. Most-specific first:
+  // • `--definition` supplies the whole object.
+  // • otherwise, when UPDATING an existing frame, carry the stored one forward —
+  //   so a bare re-run never un-whitelists a param the app relies on.
+  // • `--hash-param name[:type]` entries are merged on top of whichever applies.
+  let definition = flags.definition;
+  if (definition === undefined && !isNewFrame) {
+    definition = storedObject(await stored(), "definition");
+  }
+  const declaredParams = Object.keys(flags.hashParams);
+  if (declaredParams.length) {
+    definition = { ...(definition || {}) };
+    definition.hashParams = Array.isArray(definition.hashParams)
+      // Legacy array shape → object, so type/label metadata can be attached.
+      ? Object.fromEntries(
+        definition.hashParams.map((n) => [n, { type: "json", label: n }]),
+      )
+      : { ...(definition.hashParams || {}) };
+    Object.assign(definition.hashParams, flags.hashParams);
+    definition.version ??= "1";
+  }
+  if (definition !== undefined) body.definition = definition;
 
   // Best-effort preview image BEFORE the POST so a single version carries it.
   // Rendered from the self-contained framejs.io run URL (the /j/<uuid> page is
@@ -588,17 +657,18 @@ async function mintToken(slug) {
 }
 
 // Create an immutable, content-addressed snapshot of the app on framejs.io and
-// return its `/j/<sha256>` URL. Posts the same {js,modules,inputs,og} body to
+// return its `/j/<sha256>` URL. Posts the same {js,modules,inputs,og,definition} body to
 // /api/shorten/json, which encodes + hashes it and stores it in S3. Unlike the
 // mutable framejs.app /j/<uuid> frame, this URL always renders exactly this
 // version — but it is a cache entry that expires ~30 days after last access.
 // Best-effort: returns undefined if shortening isn't available.
-// Best-effort read of a frame's currently-stored og, so an in-place update can
-// carry title/description/image forward when the caller passed no og flags.
+// Best-effort read of a frame's currently-stored hash params, so an in-place
+// update can carry forward the parts the caller didn't pass — `og`
+// (title/description/image) and `definition` (the hash-param whitelist).
 // Uses the public read API (same endpoint as `fetch`); bounded so a slow or
 // unreachable runtime can't hang the create flow, and silent on any failure
 // (a not-yet-existing frame simply returns undefined).
-async function fetchStoredOg(slug) {
+async function fetchStoredFrame(slug) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4000);
   try {
@@ -607,14 +677,20 @@ async function fetchStoredOg(slug) {
       signal: controller.signal,
     });
     if (!res.ok) return undefined;
-    const data = await res.json();
-    return data?.og && Object.keys(data.og).length ? data.og : undefined;
+    return await res.json();
   } catch {
     return undefined;
   } finally {
     clearTimeout(timer);
   }
 }
+
+// A stored object-valued hash param, or undefined when absent/empty.
+const storedObject = (stored, key) =>
+  stored?.[key] && typeof stored[key] === "object" &&
+    Object.keys(stored[key]).length
+    ? stored[key]
+    : undefined;
 
 async function shortenSnapshot(body) {
   // Bounded so an unreachable/slow runtime can't hang the create flow — the
@@ -655,7 +731,7 @@ async function cmdFetch(argv) {
   const hex = ref.id.replaceAll("-", "").toLowerCase();
   if (/^[0-9a-f]{32}$/.test(hex)) {
     // framejs.app frame — the public read API returns the unpacked hash params
-    // ({ js, inputs, modules, og }): the exact shape `create` accepts back.
+    // ({ js, inputs, modules, og, definition }): the exact shape `create` takes back.
     const res = await fetch(`${APP_ORIGIN}/j/${hex}.json`, {
       headers: { "X-Framejs-Client": CLIENT_TAG },
     });
@@ -955,7 +1031,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 const handlers = { create: cmdCreate, fetch: cmdFetch, upload: cmdUpload };
 if (!handlers[cmd]) {
   die(
-    `usage: framejs.mjs <create|fetch|upload> [...]\n  create  (reads JS from stdin)  --state <file> | --id <uuid|url> | --new  --token <key>  --app-origin <url> --io-origin <url>  --module <url> --input name=value --inputs <file.json> --title <t> --description <d> --og <json> --screenshot [--screenshot-wait <ms>] [--screenshot-size <w,h>] --no-open\n  fetch   <uuid | /j/uuid | url | sha256 | /j/sha256> [--app-origin <url>] [--io-origin <url>]   (a ?token= / origin on the url is honored)\n  upload  <file-path>`,
+    `usage: framejs.mjs <create|fetch|upload> [...]\n  create  (reads JS from stdin)  --state <file> | --id <uuid|url> | --new  --token <key>  --app-origin <url> --io-origin <url>  --module <url> --input name=value --inputs <file.json> --hash-param <name[:type]> --definition <json> --title <t> --description <d> --og <json> --screenshot [--screenshot-wait <ms>] [--screenshot-size <w,h>] --no-open\n  fetch   <uuid | /j/uuid | url | sha256 | /j/sha256> [--app-origin <url>] [--io-origin <url>]   (a ?token= / origin on the url is honored)\n  upload  <file-path>`,
   );
 }
 await checkForUpdate();

@@ -266,6 +266,65 @@ try {
     assert.equal(JSON.parse(fetchOut).js, SRC);
   });
 
+  // 6a. --hash-param whitelists an app-written URL-state param in the frame's
+  // definition.hashParams (without which the editor strips it on
+  // save/shorten/copy), and a bare re-run carries that definition forward.
+  const defState = join(tmp, "definition.json");
+  const d1 = parse(await create([
+    "--state",
+    defState,
+    "--no-open",
+    "--hash-param",
+    "zoom:json",
+    "--hash-param",
+    "theme:string",
+  ], { env }));
+  check("--hash-param declares the params in definition.hashParams", () => {
+    const def = posts[posts.length - 1].params.definition;
+    assert.deepEqual(def.hashParams, {
+      zoom: { type: "json", label: "zoom" },
+      theme: { type: "string", label: "theme" },
+    });
+    assert.equal(def.version, "1");
+  });
+  const d2 = parse(await create(["--state", defState, "--no-open"], { env }));
+  check("a bare re-run carries the stored definition forward", () => {
+    assert.equal(d2.slug, d1.slug);
+    const def = posts[posts.length - 1].params.definition;
+    assert.deepEqual(Object.keys(def.hashParams).sort(), ["theme", "zoom"]);
+  });
+  await create([
+    "--state",
+    defState,
+    "--no-open",
+    "--hash-param",
+    "selection",
+  ], { env });
+  check("--hash-param merges into the carried-forward definition", () => {
+    const def = posts[posts.length - 1].params.definition;
+    assert.deepEqual(Object.keys(def.hashParams).sort(), [
+      "selection",
+      "theme",
+      "zoom",
+    ]);
+    // Default type for a bare name is json (setHashParamValueJsonInWindow).
+    assert.equal(def.hashParams.selection.type, "json");
+  });
+  await create([
+    "--state",
+    defState,
+    "--no-open",
+    "--definition",
+    JSON.stringify({ version: "1", hashParams: { only: { type: "string" } } }),
+  ], { env });
+  check("--definition replaces the definition wholesale", () => {
+    const def = posts[posts.length - 1].params.definition;
+    assert.deepEqual(Object.keys(def.hashParams), ["only"]);
+  });
+  check("frames with no custom params post no definition", () => {
+    assert.equal(posts[0].params.definition, undefined);
+  });
+
   // 6b. A full frame URL's origin drives the target backend, overriding the env
   // baseline — the dev/self-hosted case: `create --id <dev-url>?token=…` must
   // POST to the URL's origin (with the URL's token) even when env points
