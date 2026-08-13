@@ -173,6 +173,17 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   screen size** — use responsive sizing (read `root`'s dimensions / listen for
   resize), avoid fixed pixel widths that overflow, keep text and touch targets
   legible on small screens.
+- **Saving state in the URL hash: always use `@metapages/hash-query`, NEVER
+  hand-rolled hash parsing** — no regex or `split` on `location.hash`, no
+  `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`. Only
+  the module gets the encoding right. Writing state does not re-run the app, so
+  a control can write on every input event.
+- **Whenever the app saves URL state, declare the param name in the frame's
+  `definition.hashParams`** — the editor strips undeclared params when the app
+  is shortened or copied, so shared links lose the state. In automation mode
+  pass `--hash-param <name>[:<type>]`; in code-block mode tell the user to add
+  it under **Settings → Runtime → Allowed Hash Parameters**. See
+  [references/coding-guide.md](references/coding-guide.md).
 - In automation mode, NEVER output a code block for the user to copy and NEVER
   hand-build a long hash URL as the deliverable — always POST through the frame
   API (the helper's `create`). Give the user the `/j/<uuid>` page URL.

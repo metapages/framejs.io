@@ -30,6 +30,42 @@ deleteHashParamFromWindow("someKey");
 This is designed for relatively small values. Large multi-megabyte JSON blobs are not yet supported.
 :::
 
+## Declare your custom params
+
+A param name you invent — `someKey` above — must be declared in the frame's `definition.hashParams`, under **Settings** (`⚙`) → **Runtime** → **Allowed Hash Parameters**, or via the `definition` hash param:
+
+```json
+{
+  "version": "1",
+  "hashParams": {
+    "someKey": { "type": "json", "label": "Some key", "description": "…" }
+  }
+}
+```
+
+Undeclared params are stripped when the editor shortens or copies the app as a link, so the link you share loses the state. The built-in params (`js`, `inputs`, `modules`, `og`, `options`, `bgColor`, `edit`, `editorWidth`, `hm`, `definition`) are always allowed.
+
+`type` describes the encoding: `json` for `setHashParamValueJsonInWindow`, `stringBase64` for base64 strings, otherwise `string` / `boolean` / `number`.
+
+## Writing state does not re-run your app
+
+A frame's own source lives in the URL hash, so the runtime re-executes the app whenever the hash changes. It makes one exception: **changes the app itself writes.** The app already holds the value it just wrote, and re-running would throw away the DOM and every bit of in-memory state — so a slider bound to `setHashParamValueJsonInWindow` can write on every input event without reloading itself.
+
+Those writes are still announced, so an app opened from [framejs.app](https://framejs.app) saves them as a new version. This holds however the URL is written — `setHashParamValueJsonInWindow`, or a bare `history.replaceState` — though you should always use the helpers, because they are what get the encoding right.
+
+A change from **outside** the frame — editing the address bar, an embedder rewriting the url — still re-runs the app, so it picks up the new state on the next run. To handle those in place instead, listen for `hashchange`:
+
+```javascript
+window.addEventListener("hashchange", () => {
+  const next = getHashParamValueJsonFromWindow("someKey") || {};
+  // reconcile against what is already applied, then update the UI
+});
+```
+
+::: tip
+That listener also fires for your own writes. Compare against the state you last applied and ignore anything already reflected in the UI, so a write can't cause a render loop.
+:::
+
 ## The `css` hash param (transient global stylesheet)
 
 The `css` hash param loads a global stylesheet at runtime. Its value is **base64-encoded** and is either:
