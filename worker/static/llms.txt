@@ -54,7 +54,13 @@ build with JavaScript in a browser.
   `logStdout()`, `logStderr()`
 - Exports: `onInputs(inputs)`, `onResize(width, height)`, `cleanup()`
 - CDN imports: Use jsdelivr (+esm), esm.sh, unpkg, etc.
-- State persistence: Encoded in URL hash — fully portable
+- State persistence: Encoded in URL hash — fully portable. An app persists its
+  own state with `@metapages/hash-query` — NEVER with hand-rolled hash parsing
+  (no regex/split on `location.hash`, no `URLSearchParams(location.hash)`, no
+  hand-built `#?key=value`). The param name must also be declared in the frame's
+  `definition.hashParams`, or the editor strips it when the app is shortened or
+  copied. Writing state does not re-run the app. See
+  https://framejs.io/docs/guide/url-state
 - No cookies, no tracking, no login required
 
 ## For CLI tools and AI coding assistants (Claude Code, Aider, Cursor, etc.)
@@ -136,12 +142,15 @@ short topic tags.
 Fetch existing code: `GET https://framejs.io/api/j/<sha256>`
 
 Response:
-`{ "id": "<sha256>", "hashParams": { "js": "...", "inputs": {...}, "modules": [...], "og": {...} } }`
+`{ "id": "<sha256>", "hashParams": { "js": "...", "inputs": {...}, "modules": [...], "og": {...}, "definition": { "version": "1", "hashParams": { "state": { "type": "json" } } } } }`
 
 Modify the `js` field, then POST back to `/api/shorten/json` with the updated
 body. If `hashParams.og` already exists, preserve it unchanged unless the user
 asks to change the title/description/tags; if it is missing, add a generated one
-(see above).
+(see above). Pass `hashParams.definition` back unchanged too — it whitelists the
+hash params the app writes itself, and dropping it un-whitelists the URL state
+the app relies on. Include it whenever the code calls
+`setHashParamValue*InWindow` with a custom key.
 
 ## Advanced: metapage ecosystem
 

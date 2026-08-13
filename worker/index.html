@@ -988,6 +988,57 @@
     }
 
     // ---------------------------------------------------------------------
+    // Self-writes to the URL hash (a frame persisting its own state).
+    //
+    // A frame that saves state into the hash — see docs/guide/url-state.md and
+    // `definition.hashParams` — commits it with history.replaceState, either
+    // directly or through @metapages/hash-query. Two things have to be true for
+    // that to work, and they pull in opposite directions:
+    //
+    //  1. It must be ANNOUNCED. replaceState/pushState do not fire `hashchange`,
+    //     so on their own the write is invisible outside this page: the metaframe
+    //     client below never forwards it, and an embedder (framejs.app) never
+    //     learns the frame changed, so it never saves a new frame version. The
+    //     state silently fails to persist. hash-query dispatches a synthetic
+    //     event itself; a hand-rolled write does not. Patching here covers both,
+    //     so every frame behaves the same way.
+    //
+    //  2. It must NOT re-run the frame. The frame's source lives in the hash, so
+    //     a hashchange normally re-executes the user's JS (see the listener
+    //     further down). For the frame's own state write that is always wrong:
+    //     it already holds the value, and re-running throws away the DOM and all
+    //     in-memory state — dragging a slider would reload the app. Frames have
+    //     had to choose between the two, and picking (2) meant losing (1).
+    //
+    // So: flag the write as self-originated, announce it, and let the hashchange
+    // listener skip the re-run for exactly those. A genuinely external hash
+    // change (address bar, an embedder rewriting the url) still re-runs as
+    // before. The flag is cleared synchronously — dispatchEvent runs its
+    // listeners inline — so it can never leak into a later event.
+    let selfHashWrite = false;
+    const announceSelfHashWrites = (method) => {
+      const original = globalThis.history[method];
+      if (typeof original !== "function") {
+        return;
+      }
+      globalThis.history[method] = function (...args) {
+        const before = globalThis.location.hash;
+        const result = original.apply(this, args);
+        if (globalThis.location.hash !== before) {
+          selfHashWrite = true;
+          try {
+            globalThis.dispatchEvent(new HashChangeEvent("hashchange"));
+          } finally {
+            selfHashWrite = false;
+          }
+        }
+        return result;
+      };
+    };
+    announceSelfHashWrites("replaceState");
+    announceSelfHashWrites("pushState");
+
+    // ---------------------------------------------------------------------
     // Where hash params are read from.
     //
     // On a short URL (/j/:uuid or /j/:sha256) the frame is fully identified by
@@ -2385,6 +2436,9 @@
 
     // reload on hash changes and refresh service worker config
     globalThis.addEventListener("hashchange", () => {
+      // True when this event came from the frame writing its own state (see
+      // announceSelfHashWrites above), rather than from an external edit.
+      const isSelfWrite = selfHashWrite;
       // Refresh service worker config when hash changes
       const newConfig = getServiceWorkerConfig();
       globalThis.serviceWorkerConfig = newConfig;
@@ -2397,7 +2451,11 @@
       // Keep the split/handle in sync with `editorWidth` (and edit mode)
       // without re-running the user's JS.
       applyEditorLayout();
-      if (hasExecutionParamsChanged()) {
+      // Always evaluate this, even for a self-write: it advances the snapshot,
+      // so the frame's own state write is not mistaken for an external change
+      // the next time some unrelated param moves.
+      const executionParamsChanged = hasExecutionParamsChanged();
+      if (executionParamsChanged && !isSelfWrite) {
         runJsFromUrl();
       }
     }, false);
