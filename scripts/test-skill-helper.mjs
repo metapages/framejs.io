@@ -377,6 +377,29 @@ try {
     assert.equal(JSON.parse(fetchUrl).js, SRC);
   });
 
+  // 6e. --tag is repeatable and splits on commas, landing in og.tags as a JSON
+  // string array (the server renders one article:tag meta tag per entry).
+  const beforeTags = posts.length;
+  await create([
+    "--state",
+    join(tmp, "tags.json"),
+    "--no-open",
+    "--title",
+    "Tagged",
+    "--tag",
+    "physics",
+    "--tag",
+    "canvas, animation",
+  ], { env });
+  check("--tag builds og.tags as a string array", () => {
+    assert.equal(posts.length, beforeTags + 1);
+    assert.deepEqual(posts[posts.length - 1].params.og, {
+      title: "Tagged",
+      description: "",
+      tags: ["physics", "canvas", "animation"],
+    });
+  });
+
   // 7. The browser opens only for a freshly minted frame — updates reach the
   // same already-open tab via its live-update subscription, so reopening it
   // would just spawn a redundant new tab. None of the calls above pass

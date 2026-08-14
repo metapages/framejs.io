@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.7"
+  version: "1.8"
 ---
 
 # framejs
@@ -93,10 +93,10 @@ when the user wants a **separate** app in the same session, add `--new` to start
 a fresh frame (subsequent updates then target that new one). To update one
 specific frame regardless of state, pass `--id <uuid>`. On such an in-place
 update the helper **carries the frame's existing Open Graph data forward
-automatically** when you pass no `--og`/`--title`/`--description`, so a bare
-re-run never drops the title/description (and the retained `og.image` skips a
-redundant re-screenshot). Pass `--title`/`--description` again only to _change_
-the preview copy.
+automatically** when you pass no `--og`/`--title`/`--description`/`--tag`, so a
+bare re-run never drops the title/description/tags (and the retained `og.image`
+skips a redundant re-screenshot). Pass `--title`/`--description`/`--tag` again
+only to _change_ the preview copy.
 
 The browser opens automatically only the first time a frame is minted
 (`--no-open` to skip even that). A later update to the same frame — same
@@ -137,14 +137,16 @@ file.
 Always include Open Graph preview tags so the link unfurls nicely when shared —
 see the OG rules in [references/short-url-api.md](references/short-url-api.md):
 
-- **New app:** derive fresh copy with `--title` / `--description`, and pass
-  `--screenshot` to capture the preview image.
+- **New app:** derive fresh copy with `--title` / `--description`, add 3–6 topic
+  words with repeatable `--tag` (stored as the `og.tags` string array, rendered
+  as `article:tag` meta tags), and pass `--screenshot` to capture the preview
+  image.
 - **Modifying an existing app:** the fetched app already carries `og` (the
   `fetch` command returns it). Do NOT recalculate it — pass the fetched object
   straight back through with `--og '<the fetched og JSON>'`, which preserves
-  every field (including `image`). Update the SAME frame with `--id <uuid>` (or
-  the same `--state`). Only set new `--title`/`--description` if the user
-  explicitly asked to change the preview copy. You can still pass
+  every field (including `image` and `tags`). Update the SAME frame with
+  `--id <uuid>` (or the same `--state`). Only set new `--title`/`--description`
+  if the user explicitly asked to change the preview copy. You can still pass
   `--screenshot`: if the fetched `og` already has an `image` it is left
   untouched; if it has none, a fresh capture is added.
 
@@ -170,7 +172,9 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   [references/coding-guide.md](references/coding-guide.md).
 - **Saving state / hash params in the URL: always use `@metapages/hash-query`,
   NEVER hand-rolled hash parsing** — no regex or `split` on `location.hash`, no
-  `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`.
+  `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`. Only
+  the module gets the encoding right. Writing state does not re-run the app, so
+  a control can write on every input event.
 - **And whenever the app saves URL state, the param name MUST also be declared
   in the frame's `definition.hashParams`** — an undeclared param is stripped on
   save / shorten / copy and the state is lost. In automation mode pass

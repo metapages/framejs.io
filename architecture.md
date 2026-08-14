@@ -138,7 +138,7 @@ create table public.frames (
   content_hash text not null,           -- sha256 of current hash_params (idempotency + legacy /j redirect)
   hash_params  text not null,           -- the "#?js=...&inputs=..." blob (source of truth)
   title        text,
-  og           jsonb,                   -- {title,description,image} for link previews
+  og           jsonb,                   -- {title,description,image,tags[]} for link previews
   visibility   text not null default 'private'
                  check (visibility in ('private','unlisted','public')),
   created_at   timestamptz not null default now(),

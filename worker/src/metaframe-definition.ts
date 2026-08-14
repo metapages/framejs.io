@@ -72,7 +72,7 @@ export const DEFAULT_METAFRAME_DEFINITION: MetaframeDefinition = {
     og: {
       type: "json",
       description:
-        "Open Graph metadata for the metaframe. A JSON object with optional 'title', 'description', and 'image' fields used for link previews.",
+        "Open Graph metadata for the metaframe. A JSON object with optional 'title', 'description', and 'image' string fields plus an optional 'tags' array of strings, used for link previews. Tags are rendered as one 'article:tag' meta tag each.",
       label: "Open Graph",
     },
     options: {

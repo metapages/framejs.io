@@ -90,7 +90,7 @@ optional:
 | `options.json` | `options` | Editor options, e.g. `{ "autorun": true }` |
 | `inputs.json` | `inputs` | Input values |
 | `definition.json` | `definition` | Metaframe definition / custom hash-param whitelist |
-| `og.json` | `og` | Open Graph title/description/image |
+| `og.json` | `og` | Open Graph title/description/image, plus `tags` (array of strings) |
 | `modules.json` | `modules` | Extra module URLs |
 | `params.json` | *(the rest)* | Any other hash params, preserved verbatim |
 

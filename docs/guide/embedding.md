@@ -25,9 +25,9 @@ When you paste a link, many apps (chat, social, docs) fetch the page and read me
 
 [![](./open-graph-embed.png)](https://framejs.io/j/69a1461a7ec981c3d215b8c7ce69ae7037012677c3257be4a904ecb503ddba77)
 
-In the editor, open **Settings** and use the **Open Graph** section to set an optional **title**, **description**, and **preview image** (upload an image file; its URL is stored with the widget). That data is saved in the `og` hash parameter with the rest of the state.
+In the editor, open **Settings** and use the **Open Graph** section to set an optional **title**, **description**, **tags** (type a topic and press Enter; click the × on a tag to remove it), and **preview image** (upload an image file; its URL is stored with the widget). That data is saved in the `og` hash parameter with the rest of the state, with the tags as a JSON array of strings.
 
-For **short URLs** (`/j/...` from [short URLs](./short-urls)), the server injects `og:title`, `og:description`, and `og:image` into the HTML response, so crawlers can render a rich preview without running JavaScript. Long URLs that keep everything in the hash are less predictable for previews, because fragments are often not sent to the server. If you care how the link looks when shared, shorten the URL and fill in Open Graph fields first.
+For **short URLs** (`/j/...` from [short URLs](./short-urls)), the server injects `og:title`, `og:description`, `og:image`, and one `article:tag` per tag into the HTML response, so crawlers can render a rich preview without running JavaScript. Those pages declare `og:type` as `article`, the Open Graph vertical that `article:tag` belongs to. Long URLs that keep everything in the hash are less predictable for previews, because fragments are often not sent to the server. If you care how the link looks when shared, shorten the URL and fill in Open Graph fields first.
 
 ::: tip
 Use [short URLs](./short-urls) if the full URL is too long for your platform's embed input.

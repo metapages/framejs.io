@@ -231,7 +231,17 @@ runtime, the editor, the shortener and the frame API expect; a hand-rolled
 version corrupts values and breaks saving. Always go through
 `@metapages/hash-query`.
 
-**Two parts are required. Doing only the first silently loses the state.**
+**Writing your own state does NOT re-run your app.** The frame's source lives in
+the same hash, so the runtime re-executes the app when the hash changes — but it
+skips that for the app's own writes (it already has the value, and re-running
+would drop the DOM and all in-memory state). So a slider can write on every
+input event without reloading itself. Own writes are still announced, so the
+frame is saved as a new version. A change from _outside_ the frame — the address
+bar, an embedder rewriting the url — does re-run the app, as before. To react to
+those in place instead, listen for `hashchange` and re-read the param.
+
+**Two parts are required, and they do different jobs. Skip the first and the
+value is corrupt; skip the second and it is dropped from copied links.**
 
 **1. Read/write the param with `@metapages/hash-query`:**
 
@@ -248,11 +258,12 @@ deleteHashParamFromWindow("state"); // clear it
 ```
 
 **2. Declare the param name in the frame's `definition.hashParams`** — otherwise
-it is **stripped** whenever the app is saved, shortened, or copied as a link.
-Only the built-in params (`js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
-`edit`, `editorWidth`, `hm`, `definition`) survive by default; every custom
-param name must be whitelisted there. Send `definition` alongside `js` in the
-frame body (the helper's `--hash-param` writes exactly this):
+it is **stripped** whenever the app is saved, shortened, or copied as a link, so
+the link you hand someone else loses the state. Only the built-in params (`js`,
+`inputs`, `modules`, `og`, `options`, `bgColor`, `edit`, `editorWidth`, `hm`,
+`definition`) survive by default; every custom param name must be whitelisted
+there. Send `definition` alongside `js` in the frame body (the helper's
+`--hash-param` writes exactly this):
 
 ```json
 {
@@ -304,12 +315,15 @@ un-whitelists params the app already relies on.
   `onInputs` on the last line — see "Generated data MUST be fed through
   `onInputs`".
 - ❌ Writing a custom hash param (e.g. `state`) without declaring it in
-  `definition.hashParams` — it is stripped on save/shorten/copy and the state is
-  lost. See "Persisting state in the URL hash".
+  `definition.hashParams` — it is stripped on save/shorten/copy, so shared links
+  lose the state. See "Persisting state in the URL hash".
 - ❌ Reading or writing the hash by hand — `location.hash.split("&")`, a regex
   on `location.hash`, `new URLSearchParams(location.hash.slice(1))`, or building
   a `#?key=value` string. Use `@metapages/hash-query` for every hash param,
   always.
+- ❌ Avoiding `setHashParamValueJsonInWindow` to stop the frame reloading on
+  every write. That workaround is obsolete — the runtime no longer re-runs the
+  app for its own hash writes. Just use the helper.
 
 ## CDN libraries (use `/+esm` ES6 imports unless noted)
 

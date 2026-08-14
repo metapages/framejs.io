@@ -58,7 +58,8 @@ build with JavaScript in a browser.
   own state with `@metapages/hash-query` — NEVER with hand-rolled hash parsing
   (no regex/split on `location.hash`, no `URLSearchParams(location.hash)`, no
   hand-built `#?key=value`). The param name must also be declared in the frame's
-  `definition.hashParams` or it is stripped on save/shorten/copy. See
+  `definition.hashParams`, or it is stripped on save/shorten/copy. Writing state
+  does not re-run the app. See
   https://framejs.io/docs/guide/url-state
 - No cookies, no tracking, no login required
 
@@ -120,7 +121,7 @@ may fail in sandboxes. Never create local .js or .html files.
 ### Short URL API details
 
 POST https://framejs.io/api/shorten/json with JSON body:
-`{ "js": "raw JS code", "modules": ["url1", ...], "inputs": {...}, "og": { "title": "...", "description": "..." }, "definition": { "version": "1", "hashParams": { "state": { "type": "json" } } } }`
+`{ "js": "raw JS code", "modules": ["url1", ...], "inputs": {...}, "og": { "title": "...", "description": "...", "image": "...", "tags": ["...", "..."] }, "definition": { "version": "1", "hashParams": { "state": { "type": "json" } } } }`
 
 The optional `definition` whitelists hash params the app writes itself (URL
 state). Include it whenever the code calls `setHashParamValue*InWindow` with a
@@ -129,26 +130,31 @@ custom key — undeclared params are stripped when the app is saved or shortened
 The server handles encoding. Response:
 `{ "shortUrl": "https://framejs.io/j/<sha256>", "id": "<sha256>" }`
 
-The optional `og` hash param holds Open Graph preview tags as
-`{ "title", "description" }`. The server renders these as og:title /
-og:description so the link unfurls with a meaningful title and summary when
-shared (Slack, iMessage, social media). If `og` is empty or missing, generate
-one from the data, the user's prompt, and the existing code: a concise title (<=
-~60 chars) and a ~110-150 char description of what the app shows and, if
-interactive, how to use it.
+The optional `og` hash param holds Open Graph preview data as
+`{ "title", "description", "image", "tags" }`, where `tags` is a JSON array of
+strings. The server renders these as og:title / og:description / og:image and
+one article:tag per entry of `tags` (on a page declaring og:type=article, the
+Open Graph vertical article:tag belongs to), so the link unfurls with a
+meaningful title, summary and topics when shared (Slack, iMessage, social
+media). If `og` is empty or missing, generate one from the data, the user's
+prompt, and the existing code: a concise title (<= ~60 chars), a ~110-150 char
+description of what the app shows and, if interactive, how to use it, and 3-6
+short topic tags.
 
 ### Modifying existing short URLs
 
 Fetch existing code: `GET https://framejs.io/api/j/<sha256>`
 
 Response:
-`{ "id": "<sha256>", "hashParams": { "js": "...", "inputs": {...}, "modules": [...], "og": {...} } }`
+`{ "id": "<sha256>", "hashParams": { "js": "...", "inputs": {...}, "modules": [...], "og": {...}, "definition": { "version": "1", "hashParams": { "state": { "type": "json" } } } } }`
 
 Modify the `js` field, then POST back to `/api/shorten/json` with the updated
 body. If `hashParams.og` already exists, preserve it unchanged unless the user
-asks to change the title/description; if it is missing, add a generated one (see
-above). Pass `hashParams.definition` back unchanged too — dropping it
-un-whitelists the URL-state params the app relies on.
+asks to change the title/description/tags; if it is missing, add a generated one
+(see above). Pass `hashParams.definition` back unchanged too — it whitelists the
+hash params the app writes itself, and dropping it un-whitelists the URL state
+the app relies on. Include it whenever the code calls
+`setHashParamValue*InWindow` with a custom key.
 
 ## Advanced: metapage ecosystem
 

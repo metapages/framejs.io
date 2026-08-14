@@ -50,7 +50,7 @@ fmt:
     just editor/fmt
     just worker/fmt
 
-# Save a framejs.io URL to a readable dir (code.js + options/inputs.json) for git versioning — no server
+# Save a framejs.io URL to a readable dir (code.js + options/inputs/og.json) for git versioning — no server
 @frame-save url dir:
     ./bin/framejs-frame.sh save "{{ url }}" "{{ dir }}"
 
@@ -94,6 +94,12 @@ build-skill:
 check-skill: build-skill
     node scripts/validate-skill.mjs
     node scripts/test-skill-helper.mjs
+
+# Check the framejs entry in ComposioHQ/awesome-claude-skills for drift (entry
+# missing/changed, dead skill link, changed contribution rules). Network only,
+# never writes. See .claude/skills/awesome-claude-skills-listing/SKILL.md.
+check-awesome-listing +args="":
+    node .claude/skills/awesome-claude-skills-listing/scripts/check-listing.mjs {{ args }}
 
 # Symlink the skill into a skills dir for live local-stack testing (default
 # ~/.claude/skills). Edits become live; the helper then auto-targets the local

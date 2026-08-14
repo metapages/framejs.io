@@ -2,23 +2,29 @@
 # framejs-frame.sh — save/restore a framejs.io page to/from a readable dir.
 #
 # A framejs.io page is fully self-contained in its URL hash:
-#   https://framejs.io/#?js=<b64>&options=<b64>&inputs=<b64>
+#   https://framejs.io/#?js=<b64>&options=<b64>&inputs=<b64>&og=<b64>
 # where each value is  base64( encodeURIComponent( text ) )  and the text is
-# raw JS for `js`, compact JSON for `options`/`inputs`
+# raw JS for `js`, compact JSON for `options`/`inputs`/`og`
 # (encoding per @metapages/hash-query). No server is involved either way.
 #
 # Deps: bash, jq, openssl, printf  (all typically preinstalled).
 #
 # Usage:
 #   framejs-frame.sh restore <dir> [base-url]   # dir  -> prints URL
-#   framejs-frame.sh save    <url> <dir>        # URL  -> dir/{code.js,options.json,inputs.json}
+#   framejs-frame.sh save    <url> <dir>        # URL  -> dir/{code.js,options.json,inputs.json,og.json}
 set -euo pipefail
 
 BASE_URL_DEFAULT="https://framejs.io/"
 # Params to persist. Add more here if the app grows new hash params.
+# The filenames match the local-server's dir layout (see docs/guide/local-file-io.md).
 STRING_PARAMS=(js)                 # raw text
-JSON_PARAMS=(options inputs)       # JSON blobs
-declare -A FILE=( [js]=code.js [options]=options.json [inputs]=inputs.json )
+JSON_PARAMS=(options inputs og)    # JSON blobs
+declare -A FILE=(
+  [js]=code.js
+  [options]=options.json
+  [inputs]=inputs.json
+  [og]=og.json
+)
 
 die() { echo "error: $*" >&2; exit 1; }
 
