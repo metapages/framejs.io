@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.7"
+  version: "1.8"
 ---
 
 # framejs
@@ -81,7 +81,8 @@ lifecycle notice you MUST relay to the user**:
   that **expires ~30 days after it is last opened** — a good stable share/backup
   link, but it never reflects later edits.
 
-Add `--module <url>` for classic scripts and `--input name=value` for inputs.
+Add `--module <url>` for classic scripts, `--input name=value` for inputs, and
+`--hash-param <name>[:<type>]` for each custom hash param the app persists.
 
 **One frame per session, updated in place.** Always pass
 `--state "<path in your scratchpad>/framejs-frame.json"` (any writable file
@@ -169,21 +170,21 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   desktop, 120 × 52 px at 8px top / 12px right on mobile). Keep the top-right
   `140 × 64` px free of buttons, menus, toolbars and legends. See
   [references/coding-guide.md](references/coding-guide.md).
+- **Saving state / hash params in the URL: always use `@metapages/hash-query`,
+  NEVER hand-rolled hash parsing** — no regex or `split` on `location.hash`, no
+  `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`. Only
+  the module gets the encoding right. Writing state does not re-run the app, so
+  a control can write on every input event.
+- **And whenever the app saves URL state, the param name MUST also be declared
+  in the frame's `definition.hashParams`** — an undeclared param is stripped on
+  save / shorten / copy and the state is lost. In automation mode pass
+  `--hash-param <name>[:<type>]`; in code-block mode tell the user to add it
+  under **Settings → Runtime → Allowed Hash Parameters**. See
+  [references/coding-guide.md](references/coding-guide.md).
 - **IMPORTANT: the visualization MUST look good on mobile and adapt to that
   screen size** — use responsive sizing (read `root`'s dimensions / listen for
   resize), avoid fixed pixel widths that overflow, keep text and touch targets
   legible on small screens.
-- **Saving state in the URL hash: always use `@metapages/hash-query`, NEVER
-  hand-rolled hash parsing** — no regex or `split` on `location.hash`, no
-  `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`. Only
-  the module gets the encoding right. Writing state does not re-run the app, so
-  a control can write on every input event.
-- **Whenever the app saves URL state, declare the param name in the frame's
-  `definition.hashParams`** — the editor strips undeclared params when the app
-  is shortened or copied, so shared links lose the state. In automation mode
-  pass `--hash-param <name>[:<type>]`; in code-block mode tell the user to add
-  it under **Settings → Runtime → Allowed Hash Parameters**. See
-  [references/coding-guide.md](references/coding-guide.md).
 - In automation mode, NEVER output a code block for the user to copy and NEVER
   hand-build a long hash URL as the deliverable — always POST through the frame
   API (the helper's `create`). Give the user the `/j/<uuid>` page URL.
@@ -196,7 +197,8 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   patterns, CDN libraries, common mistakes.
 - [references/short-url-api.md](references/short-url-api.md) — create/update a
   frame (`POST /j/<uuid>.json`), one-frame-per-session state, Open Graph tags,
-  API tokens (keep updating after a frame is claimed), inline fallbacks.
+  the `definition` hash-param whitelist, API tokens (keep updating after a frame
+  is claimed), inline fallbacks.
 - [references/file-inputs.md](references/file-inputs.md) — upload local files
   and wire them in as inputs.
 - `scripts/framejs.mjs` — Node helper: `create` (stdin JS → framejs.app frame),

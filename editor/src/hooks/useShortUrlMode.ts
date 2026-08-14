@@ -1,5 +1,10 @@
 import { useEffect } from "react";
 
+import {
+  deleteHashParamFromUrl,
+  getHashParamValueBooleanFromWindow,
+} from "@metapages/hash-query";
+
 declare global {
   interface Window {
     __SHORT_URL_ID?: string;
@@ -28,9 +33,15 @@ const exitShortUrlMode = (): void => {
     target.location.origin + "/#" + currentHash.replace(/^#/, "");
 };
 
-// Strip edit=true from a hash string for content comparison.
-const stripEdit = (hash: string): string =>
-  hash.replace(/[?&]edit=true/g, "").replace(/#&/, "#?");
+// Is the editor open? Read through @metapages/hash-query — hash params are never
+// parsed by hand (see https://framejs.io/docs/guide/url-state).
+const isEditing = (): boolean =>
+  getHashParamValueBooleanFromWindow("edit") === true;
+
+// The current hash with `edit` removed, for content comparison — opening the
+// editor must not read as a content change.
+const contentHash = (): string =>
+  deleteHashParamFromUrl(window.location.href, "edit").hash;
 
 // Detects short URL mode and navigates to the full hash URL only when content
 // changes while edit mode is active. Adding edit=true alone (no content change)
@@ -41,18 +52,15 @@ export const useShortUrlMode = (): void => {
     if (!id) return;
 
     // If already in edit mode on page load, navigate immediately
-    if (/[?&]edit=true/.test(window.location.hash)) {
+    if (isEditing()) {
       exitShortUrlMode();
       return;
     }
 
-    const initialContent = stripEdit(window.location.hash);
+    const initialContent = contentHash();
 
     const onHashChange = () => {
-      if (
-        /[?&]edit=true/.test(window.location.hash) &&
-        stripEdit(window.location.hash) !== initialContent
-      ) {
+      if (isEditing() && contentHash() !== initialContent) {
         exitShortUrlMode();
       }
     };

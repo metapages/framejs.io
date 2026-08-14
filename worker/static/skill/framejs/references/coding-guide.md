@@ -228,7 +228,8 @@ regex on the hash, no `new URLSearchParams(location.hash.slice(1))`, no
 hand-assembled `#?key=value` strings. The encoding (base64 of a URI-encoded
 JSON/string payload, param ordering, the `?` after `#`) is exactly what the
 runtime, the editor, the shortener and the frame API expect; a hand-rolled
-version corrupts values. Always go through `@metapages/hash-query`.
+version corrupts values and breaks saving. Always go through
+`@metapages/hash-query`.
 
 **Writing your own state does NOT re-run your app.** The frame's source lives in
 the same hash, so the runtime re-executes the app when the hash changes — but it
@@ -257,8 +258,8 @@ deleteHashParamFromWindow("state"); // clear it
 ```
 
 **2. Declare the param name in the frame's `definition.hashParams`** — otherwise
-the editor **strips** it when the app is shortened or copied as a link, so the
-link you hand someone else loses the state. Only the built-in params (`js`,
+it is **stripped** whenever the app is saved, shortened, or copied as a link, so
+the link you hand someone else loses the state. Only the built-in params (`js`,
 `inputs`, `modules`, `og`, `options`, `bgColor`, `edit`, `editorWidth`, `hm`,
 `definition`) survive by default; every custom param name must be whitelisted
 there. Send `definition` alongside `js` in the frame body (the helper's
@@ -293,7 +294,7 @@ cat app.js | node scripts/framejs.mjs create --state "$SCRATCH/frame.json" \
 In **code-block mode** you cannot set the definition — so say in one line, after
 the code block, that the user must add the param under **Settings** (`⚙` in the
 editor) → **Runtime** → **Allowed Hash Parameters** for the state to survive
-shortening/sharing.
+saving/sharing.
 
 When **modifying** an existing frame, `fetch` it first and pass its existing
 `definition` back through unchanged (plus any new param) — dropping it
@@ -314,8 +315,8 @@ un-whitelists params the app already relies on.
   `onInputs` on the last line — see "Generated data MUST be fed through
   `onInputs`".
 - ❌ Writing a custom hash param (e.g. `state`) without declaring it in
-  `definition.hashParams` — the editor strips it on shorten/copy, so shared
-  links lose the state. See "Persisting state in the URL hash".
+  `definition.hashParams` — it is stripped on save/shorten/copy, so shared links
+  lose the state. See "Persisting state in the URL hash".
 - ❌ Reading or writing the hash by hand — `location.hash.split("&")`, a regex
   on `location.hash`, `new URLSearchParams(location.hash.slice(1))`, or building
   a `#?key=value` string. Use `@metapages/hash-query` for every hash param,

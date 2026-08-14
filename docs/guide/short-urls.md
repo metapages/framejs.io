@@ -111,6 +111,11 @@ curl -X POST https://framejs.io/api/shorten/json \
   -d '{"js": "console.log(\"hello\")"}'
 ```
 
+Accepted keys are the frame's hash params: `js`, `inputs`, `modules`, `og`,
+`options`, and `definition`. Any hash param the app writes itself must be
+declared in `definition.hashParams` or it is dropped — see
+[URL State](/guide/url-state#declare-your-hash-params-or-they-get-stripped).
+
 Response:
 
 ```json

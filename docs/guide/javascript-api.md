@@ -124,6 +124,15 @@ window.addEventListener("wheel", maybeScroll, { passive: false });
 
 Replace `myContainer` with your DOM element.
 
+## URL State
+
+An app can persist its own state (zoom, selection, form values) in the URL hash
+with [@metapages/hash-query](https://www.npmjs.com/package/@metapages/hash-query),
+so the shared link carries the state. Always use that module — never parse or
+build the hash yourself. The param name must also be declared in the frame's
+`definition.hashParams`, or it is stripped when the app is saved, shortened, or
+copied — see [URL State](/guide/url-state).
+
 ## Misc
 
 - `"use strict"` is automatically added to the top of the module code

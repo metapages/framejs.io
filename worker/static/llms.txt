@@ -58,8 +58,8 @@ build with JavaScript in a browser.
   own state with `@metapages/hash-query` — NEVER with hand-rolled hash parsing
   (no regex/split on `location.hash`, no `URLSearchParams(location.hash)`, no
   hand-built `#?key=value`). The param name must also be declared in the frame's
-  `definition.hashParams`, or the editor strips it when the app is shortened or
-  copied. Writing state does not re-run the app. See
+  `definition.hashParams`, or it is stripped on save/shorten/copy. Writing state
+  does not re-run the app. See
   https://framejs.io/docs/guide/url-state
 - No cookies, no tracking, no login required
 
@@ -121,7 +121,11 @@ may fail in sandboxes. Never create local .js or .html files.
 ### Short URL API details
 
 POST https://framejs.io/api/shorten/json with JSON body:
-`{ "js": "raw JS code", "modules": ["url1", ...], "inputs": {...}, "og": { "title": "...", "description": "...", "image": "...", "tags": ["...", "..."] } }`
+`{ "js": "raw JS code", "modules": ["url1", ...], "inputs": {...}, "og": { "title": "...", "description": "...", "image": "...", "tags": ["...", "..."] }, "definition": { "version": "1", "hashParams": { "state": { "type": "json" } } } }`
+
+The optional `definition` whitelists hash params the app writes itself (URL
+state). Include it whenever the code calls `setHashParamValue*InWindow` with a
+custom key — undeclared params are stripped when the app is saved or shortened.
 
 The server handles encoding. Response:
 `{ "shortUrl": "https://framejs.io/j/<sha256>", "id": "<sha256>" }`

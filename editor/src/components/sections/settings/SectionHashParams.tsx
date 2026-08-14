@@ -141,7 +141,7 @@ export const SectionHashParams: React.FC = () => {
           <Text fontWeight={600}>
             Allowed Hash Parameters (advanced){" "}
             <a
-              href="https://github.com/metapages/metapage/blob/d46ca0803addefb26786a90519c19001847c5812/app/libs/src/metapage/v2/metaframe.ts#L23"
+              href="https://framejs.io/docs/guide/url-state"
               target="_top"
               rel="noopener noreferrer"
             >
@@ -149,8 +149,10 @@ export const SectionHashParams: React.FC = () => {
             </a>
           </Text>
           <Text>
-            Whitelist which hash parameters are allowed in the metaframe URL.
-            Metapages might remove non-whitelisted hash parameters from the URL.
+            Whitelist which hash parameters are allowed in the URL. If your code
+            saves its own state in the URL hash (with @metapages/hash-query),
+            add that parameter name here — undeclared parameters are removed
+            when the app is saved, shortened, or copied as a link.
           </Text>
         </VStack>
       </HStack>
