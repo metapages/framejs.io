@@ -69,30 +69,39 @@ export const MainHeader: React.FC = () => {
     <HStack
       px={0}
       py={0}
-      justify={"space-between"}
+      // flex-end (not space-between) so that when the icons no longer fit, the
+      // overflow is clipped off the LEFT edge: the right hand side, ending in
+      // the close button, always stays visible.
+      justify={"flex-end"}
       alignItems={"center"}
-      minWidth={"100%"}
+      w={"100%"}
+      maxWidth={"100%"}
+      overflow={"hidden"}
       h={"40px"}
       bg={"var(--paper)"}
       borderBottom={"1px"}
       flexShrink={0}
     >
-      <Button
-        mx={3}
-        onClick={() => setShownPanel(null)}
-        variant={"ghost"}
-        _hover={{ bg: "gray.100" }}
-        fontFamily={"mono"}
-        fontWeight={500}
-        letterSpacing={"0.04em"}
-        color={"gray.700"}
-        fontSize={"sm"}
-        h={"40px"}
-        minH={0}
-        flexShrink={0}
-      >
-        js
-      </Button>
+      {/* Grows to push the icons right when there is room, and is the first
+          thing to be squeezed away when there is not. */}
+      <Box flex={"1 1 auto"} minW={0} overflow={"hidden"} h={"40px"}>
+        <Button
+          mx={3}
+          onClick={() => setShownPanel(null)}
+          variant={"ghost"}
+          _hover={{ bg: "gray.100" }}
+          fontFamily={"mono"}
+          fontWeight={500}
+          letterSpacing={"0.04em"}
+          color={"gray.700"}
+          fontSize={"sm"}
+          h={"40px"}
+          minH={0}
+          flexShrink={0}
+        >
+          js
+        </Button>
+      </Box>
       <HStack
         borderLeft={"1px"}
         right={0}
@@ -102,6 +111,7 @@ export const MainHeader: React.FC = () => {
         alignItems={"center"}
         h={"40px"}
         w={"auto"}
+        flexShrink={0}
       >
         {icon(
           GearIcon,
