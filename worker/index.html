@@ -140,7 +140,17 @@
       padding: 8px;
     }
 
-    @media (max-width: 768px) {
+    /**
+     * Enlarged (touch-sized) edit button on narrow viewports.
+     *
+     * `max-width: 768px` alone is not enough: these frames are usually iframed,
+     * and an embedded frame is frequently narrower than 768px while being
+     * nothing like a phone screen. In a small embed the big button covers a
+     * large fraction of the app, so the extra `min-width`/`min-height` guards
+     * keep the enlarged button for real phone-sized viewports only. Anything
+     * smaller in either dimension falls back to the regular-size button.
+     */
+    @media (max-width: 768px) and (min-width: 340px) and (min-height: 500px) {
       #menu-button {
         width: 120px;
         height: 52px;
@@ -156,7 +166,9 @@
         width: 24px;
         height: 24px;
       }
+    }
 
+    @media (max-width: 768px) {
       .editor-container-shown {
         width: 100vw !important;
         max-width: 100vw !important;
