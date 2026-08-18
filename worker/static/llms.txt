@@ -59,8 +59,7 @@ build with JavaScript in a browser.
   (no regex/split on `location.hash`, no `URLSearchParams(location.hash)`, no
   hand-built `#?key=value`). The param name must also be declared in the frame's
   `definition.hashParams`, or it is stripped on save/shorten/copy. Writing state
-  does not re-run the app. See
-  https://framejs.io/docs/guide/url-state
+  does not re-run the app. See https://framejs.io/docs/guide/url-state
 - No cookies, no tracking, no login required
 
 ## For CLI tools and AI coding assistants (Claude Code, Aider, Cursor, etc.)

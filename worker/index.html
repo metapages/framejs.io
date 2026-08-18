@@ -979,7 +979,7 @@
       isIframe,
       Metaframe,
       Metapage,
-    } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.11";
+    } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.14";
 
     // In short URL mode, wait for the async hash-params fetch to complete
     // so window.__SHORT_URL_HASH_PARAMS is populated before any code reads it.
@@ -1291,6 +1291,59 @@
 
     // Wait one tick to ensure DOM parses the import map
     await 0;
+
+    /**
+     * v2 datarefs (@metapages/dataref) encode a *reference* to bytes as a data
+     * URL with the `text/x-uri` mime type:
+     *
+     *   data:text/x-uri;charset=utf-8,https%3A%2F%2Fexample.com%2Fbig.bin
+     *
+     * @metapages/metapage dereferences these before `onInputs`, but inputs
+     * arriving via the `inputs` hash param never pass through metapage, and
+     * some producers wrap the reference in a `{type:"url"}` ref. Without this
+     * the user's JS receives the literal "data:text/x-uri;..." string instead
+     * of the data it points at.
+     *
+     * Only text/x-uri is unwrapped: other data URLs (data:image/png;base64,...
+     * and friends) are useful as they are and are left alone.
+     */
+    const urlDataUrlToUrl = (value) => {
+      //: string | undefined
+      if (typeof value !== "string" || !value.startsWith("data:")) {
+        return undefined;
+      }
+      const commaIndex = value.indexOf(",");
+      if (commaIndex === -1) {
+        return undefined;
+      }
+      const mimeType = value.substring("data:".length, commaIndex).split(
+        ";",
+      )[0];
+      if (mimeType !== "text/x-uri") {
+        return undefined;
+      }
+      return decodeURIComponent(value.substring(commaIndex + 1));
+    };
+
+    /**
+     * Convert a v2 url dataref — either the bare data URL string, or a DataRef
+     * whose value is one — into a `url` DataRef. Returns undefined for
+     * everything else.
+     */
+    const normalizeUrlDataRef = (value) => {
+      //: DataRef | undefined
+      const direct = urlDataUrlToUrl(value);
+      if (direct) {
+        return { type: "url", value: direct };
+      }
+      if (value && typeof value === "object") {
+        const nested = urlDataUrlToUrl(value.value);
+        if (nested) {
+          return { ...value, type: "url", value: nested };
+        }
+      }
+      return undefined;
+    };
 
     // Ripped from dataref lib. Should be moved to a shared lib
     const resolveDataRef = async (ref) => {
@@ -2263,6 +2316,16 @@
               try {
                 // Check if dataref conversion is disabled
                 if (!disableDatarefs) {
+                  // Unwrap v2 url datarefs (data:text/x-uri,<encoded url>) so
+                  // they resolve like any other url ref below.
+                  if (inputs) {
+                    for (const key of Object.keys(inputs)) {
+                      const urlRef = normalizeUrlDataRef(inputs[key]);
+                      if (urlRef) {
+                        inputs[key] = urlRef;
+                      }
+                    }
+                  }
                   const datarefKeys = inputs
                     ? Object.keys(inputs).filter((key) => isDataRef(inputs[key]))
                     : null;

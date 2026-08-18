@@ -40,6 +40,22 @@ describe("convertInputValue", () => {
     expect(mockUploadString).not.toHaveBeenCalled();
   });
 
+  it("text/x-uri dataref string → { type: 'url' } with the referenced url", async () => {
+    const url = "https://framejs.io/f/sha256value";
+    const result = await convertInputValue(
+      "greeting",
+      `data:text/x-uri;charset=utf-8,${encodeURIComponent(url)}`,
+    );
+    expect(result).toEqual({ type: "url", value: url });
+    expect(mockUploadString).not.toHaveBeenCalled();
+  });
+
+  it("other data urls are still treated as strings", async () => {
+    const value = "data:image/png;base64,aGk=";
+    const result = await convertInputValue("img", value);
+    expect(result).toEqual({ type: "utf8", value });
+  });
+
   it("small object → { type: 'json' } (inline)", async () => {
     const obj = { foo: "bar", count: 42 };
     const result = await convertInputValue("data", obj);

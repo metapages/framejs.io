@@ -213,3 +213,90 @@ test("short URL with { type: 'url' } JSON input delivers parsed object to onInpu
     timeout: 15_000,
   });
 });
+
+test("short URL with a bare text/x-uri dataref string delivers the referenced content", async ({
+  request,
+  page,
+}) => {
+  const content = "hello from a text/x-uri dataref";
+  const contentType = "text/plain;charset=UTF-8";
+
+  const presignRes = await request.post("/api/upload/presign", {
+    data: { contentType, fileSize: content.length, sha256: "ignored" },
+  });
+  expect(presignRes.ok()).toBeTruthy();
+  const { presignedUrl, canonicalPath } = await presignRes.json();
+
+  await request.put(presignedUrl, {
+    data: content,
+    headers: { "Content-Type": contentType },
+  });
+
+  const baseUrl = (await request.get("/")).url().replace(/\/$/, "");
+  const absoluteUrl = `${baseUrl}${canonicalPath}`;
+
+  const js = [
+    'export const onInputs = (inputs) => {',
+    '  const el = document.getElementById("root");',
+    '  el.textContent = typeof inputs.greeting + ":" + inputs.greeting;',
+    '};',
+  ].join("\n");
+  // A v2 dataref (@metapages/dataref): the value is a reference to the bytes,
+  // not the bytes. The user's JS must never see the literal data URL.
+  const inputs = {
+    greeting: `data:text/x-uri;charset=utf-8,${encodeURIComponent(absoluteUrl)}`,
+  };
+  const { id } = await createShortUrl(request, js, { inputs });
+
+  await page.goto(`/j/${id}`);
+  await page.waitForLoadState("load");
+
+  await expect(page.locator("#root")).toContainText(`string:${content}`, {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#root")).not.toContainText("data:text/x-uri");
+});
+
+test("short URL with { type: 'url' } wrapping a text/x-uri dataref delivers the referenced content", async ({
+  request,
+  page,
+}) => {
+  const obj = { message: "x-uri wrapped", nested: { value: 7 } };
+  const content = JSON.stringify(obj);
+  const contentType = "application/json;charset=UTF-8";
+
+  const presignRes = await request.post("/api/upload/presign", {
+    data: { contentType, fileSize: content.length, sha256: "ignored" },
+  });
+  expect(presignRes.ok()).toBeTruthy();
+  const { presignedUrl, canonicalPath } = await presignRes.json();
+
+  await request.put(presignedUrl, {
+    data: content,
+    headers: { "Content-Type": contentType },
+  });
+
+  const baseUrl = (await request.get("/")).url().replace(/\/$/, "");
+  const absoluteUrl = `${baseUrl}${canonicalPath}`;
+
+  const js = [
+    'export const onInputs = (inputs) => {',
+    '  const el = document.getElementById("root");',
+    '  el.textContent = typeof inputs.data + ":" + JSON.stringify(inputs.data);',
+    '};',
+  ].join("\n");
+  const inputs = {
+    data: {
+      type: "url",
+      value: `data:text/x-uri;charset=utf-8,${encodeURIComponent(absoluteUrl)}`,
+    },
+  };
+  const { id } = await createShortUrl(request, js, { inputs });
+
+  await page.goto(`/j/${id}`);
+  await page.waitForLoadState("load");
+
+  await expect(page.locator("#root")).toContainText('"message":"x-uri wrapped"', {
+    timeout: 15_000,
+  });
+});
