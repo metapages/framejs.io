@@ -75,6 +75,11 @@ file's Content-Type:
 | `image/*`                   | `Blob`                     |
 | other                       | `Blob`                     |
 
+Inputs piped in from another metaframe may arrive as a v2 dataref — a
+`data:text/x-uri;charset=utf-8,<url-encoded url>` string that _references_ the
+bytes. The runtime resolves those the same way, so your code still receives the
+data. Never parse a `data:text/x-uri` string yourself.
+
 Your code receives the RESOLVED data (not the URL). The input name must match
 the key in the `inputs` object:
 

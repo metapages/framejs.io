@@ -1,6 +1,7 @@
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
 import { DataRef } from "/@/components/sections/settings/SectionInputs";
 import { uploadString, uploadJson, uploadBlob } from "/@/hooks/useFileUpload";
+import { urlDataUrlToUrl } from "/@/utils/urlDataRef";
 
 // const UPLOAD_SIZE_THRESHOLD = 10_000; // 10KB
 const UPLOAD_SIZE_THRESHOLD = 200;
@@ -33,6 +34,16 @@ export async function convertInputValue(
   value: unknown,
 ): Promise<DataRef> {
   if (typeof value === "string") {
+    // A v2 url dataref (data:text/x-uri,<encoded url>) is a reference, not
+    // text: keep it as a url ref so the runtime fetches it, instead of storing
+    // the literal data URL string as utf8.
+    const urlFromDataRef = urlDataUrlToUrl(value);
+    if (urlFromDataRef) {
+      console.log(
+        `${LOG_PREFIX} "${key}": text/x-uri dataref → url ${urlFromDataRef}`,
+      );
+      return { type: "url", value: urlFromDataRef };
+    }
     if (value.length > UPLOAD_SIZE_THRESHOLD) {
       console.log(
         `${LOG_PREFIX} "${key}": string ${formatSize(value.length)} exceeds threshold, uploading to S3`,

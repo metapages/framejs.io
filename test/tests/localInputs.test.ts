@@ -5,6 +5,7 @@ import {
   isUrlDataRef,
   LocalInputUploadError,
   uploadLocalUrlInputs,
+  urlFromDataRef,
 } from "/@/utils/localInputs";
 
 const ORIGIN = "https://framejs.io";
@@ -97,6 +98,35 @@ describe("isUrlDataRef", () => {
     expect(isUrlDataRef(undefined)).toBe(false);
     expect(isUrlDataRef({ type: "url", value: { a: 1 } })).toBe(false);
   });
+  it("v2 text/x-uri datarefs are url refs, bare or wrapped", () => {
+    const dataUrl = `data:text/x-uri;charset=utf-8,${
+      encodeURIComponent("http://localhost:4700/a.json")
+    }`;
+    expect(isUrlDataRef({ value: dataUrl })).toBe(true);
+    expect(isUrlDataRef({ type: "url", value: dataUrl })).toBe(true);
+  });
+  it("other data urls are not url refs", () => {
+    expect(isUrlDataRef({ value: "data:image/png;base64,aGk=" })).toBe(false);
+  });
+});
+
+describe("urlFromDataRef", () => {
+  it("unwraps the url from a text/x-uri dataref", () => {
+    const url = "http://localhost:4700/files/data.json";
+    expect(
+      urlFromDataRef({
+        type: "url",
+        value: `data:text/x-uri;charset=utf-8,${encodeURIComponent(url)}`,
+      }),
+    ).toBe(url);
+  });
+  it("passes plain urls through", () => {
+    expect(urlFromDataRef({ type: "url", value: "https://framejs.io/f/a" }))
+      .toBe("https://framejs.io/f/a");
+  });
+  it("returns undefined for non-url refs", () => {
+    expect(urlFromDataRef({ type: "utf8", value: "hello" })).toBeUndefined();
+  });
 });
 
 describe("uploadLocalUrlInputs", () => {
@@ -132,6 +162,29 @@ describe("uploadLocalUrlInputs", () => {
     expect(result).toBe(inputs);
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(upload).not.toHaveBeenCalled();
+  });
+
+  it("localhost url inside a text/x-uri dataref → fetched, uploaded, rewritten", async () => {
+    fetchImpl.mockResolvedValue(response("hi", "text/plain"));
+    upload.mockResolvedValue({
+      name: "data.txt",
+      url: "https://framejs.io/f/sha256value",
+      contentType: "text/plain",
+    });
+
+    const url = "http://localhost:4700/files/data.txt";
+    const inputs = {
+      data: {
+        type: "url",
+        value: `data:text/x-uri;charset=utf-8,${encodeURIComponent(url)}`,
+      },
+    };
+    const result = await uploadLocalUrlInputs(inputs, options());
+
+    expect(fetchImpl).toHaveBeenCalledWith(url);
+    expect(result).toEqual({
+      data: { type: "url", value: "https://framejs.io/f/sha256value" },
+    });
   });
 
   it("localhost url → fetched, uploaded, and rewritten", async () => {

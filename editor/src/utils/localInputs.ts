@@ -4,6 +4,7 @@ import {
 } from "/@/components/sections/settings/SectionInputs";
 import { uploadBlob } from "/@/hooks/useFileUpload";
 import { UploadedFileInfo } from "/@/utils/codeComments";
+import { urlDataUrlToUrl } from "/@/utils/urlDataRef";
 
 const LOG_PREFIX = "[localInputs]";
 
@@ -44,15 +45,24 @@ export const isLocalUrlValue = (
 };
 
 /**
- * True if the DataRef's value is a URL to fetch. Mirrors the runtime's
- * `isDataRef` (worker/index.html): an untyped http(s) string is treated as a
- * url ref too, since several libraries leave `type` unset for urls.
+ * The URL a DataRef points at, or undefined if it is not a url ref. Mirrors the
+ * runtime's `isDataRef` (worker/index.html): an untyped http(s) string is
+ * treated as a url ref too, since several libraries leave `type` unset for
+ * urls, and a v2 `text/x-uri` dataref unwraps to the URL it references.
  */
-export const isUrlDataRef = (ref: DataRef | undefined): boolean => {
-  if (!ref || typeof ref.value !== "string") return false;
-  if (ref.type === "url") return true;
-  return !ref.type && /^https?:\/\//.test(ref.value);
+export const urlFromDataRef = (
+  ref: DataRef | undefined,
+): string | undefined => {
+  if (!ref || typeof ref.value !== "string") return undefined;
+  const referenced = urlDataUrlToUrl(ref.value);
+  if (referenced) return referenced;
+  if (ref.type === "url") return ref.value;
+  return !ref.type && /^https?:\/\//.test(ref.value) ? ref.value : undefined;
 };
+
+/** True if the DataRef's value is a URL to fetch. */
+export const isUrlDataRef = (ref: DataRef | undefined): boolean =>
+  urlFromDataRef(ref) !== undefined;
 
 /** Thrown when a localhost input cannot be copied to the remote store. */
 export class LocalInputUploadError extends Error {
@@ -111,9 +121,9 @@ export const uploadLocalUrlInputs = async (
   const fetchImpl = options.fetchImpl ?? fetch;
   const upload = options.upload ?? uploadBlob;
 
-  const local = Object.entries(inputs).filter(
-    ([, ref]) => isUrlDataRef(ref) && isLocalUrlValue(ref.value, origin),
-  );
+  const local = Object.entries(inputs)
+    .map(([key, ref]) => [key, urlFromDataRef(ref)] as const)
+    .filter(([, url]) => !!url && isLocalUrlValue(url, origin));
   if (local.length === 0) return inputs;
 
   console.log(
@@ -121,8 +131,8 @@ export const uploadLocalUrlInputs = async (
   );
 
   const uploaded = await Promise.all(
-    local.map(async ([key, ref]) => {
-      const url = ref.value as string;
+    local.map(async ([key, maybeUrl]) => {
+      const url = maybeUrl as string;
       try {
         const response = await fetchImpl(url);
         if (!response.ok) {
