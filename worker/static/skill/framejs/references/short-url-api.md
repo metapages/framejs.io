@@ -102,7 +102,7 @@ as a link: the built-ins (`js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
 `edit`, `editorWidth`, `hm`, `definition`, `css`) plus whatever is declared in
 `definition.hashParams`.
 
-**An app that stores state with `saveJson` needs nothing here** — `saveJson`
+**An app that stores state with `setJson` needs nothing here** — `setJson`
 declares its own key on first write (see the coding guide's "Persisting state in
 the URL"). Set this by hand only for a param the app does _not_ write itself —
 e.g. one an embedder passes in, or a non-JSON encoding.
@@ -120,7 +120,7 @@ e.g. one an embedder passes in, or a non-JSON encoding.
 }
 ```
 
-`type` must match the encoding the app uses: `json` (what `saveJson` writes),
+`type` must match the encoding the app uses: `json` (what `setJson` writes),
 `stringBase64`, `string`, `boolean`, or `number`.
 
 The helper writes this for you: `--hash-param <name>[:<type>]` (repeatable,
@@ -309,7 +309,7 @@ node -e "fetch((process.env.FRAMEJS_APP_ORIGIN||'https://framejs.app')+'/j/<uuid
 - Preserve `og` per the rules above.
 - Preserve `definition` — it is the hash-param whitelist (see "`definition` —
   the hash-param whitelist" above). The helper carries the stored one forward
-  automatically; state the app saves with `saveJson` declares itself, so a new
+  automatically; state the app saves with `setJson` declares itself, so a new
   state key needs no flag.
 
 Then re-run `create` with `--id <uuid>` (or with the same `--state` file) to

@@ -11,19 +11,24 @@ nothing to import.
 const state = getJson("state") || { zoom: 1 };
 
 // Save it back — the link now carries it
-saveJson("state", { ...state, zoom: 2 });
+setJson("state", { ...state, zoom: 2 });
 
 // Remove it
-saveJson("state", undefined);
+setJson("state", undefined);
 ```
 
 `getJson(key)` returns the JSON value stored under `key`, or `undefined`.
-`saveJson(key, value)` stores any JSON-serializable value under `key`; passing
+`setJson(key, value)` stores any JSON-serializable value under `key`; passing
 `undefined` (or `null`) removes it.
 
-That is the whole API. `saveJson` also registers the key in the frame's
-[metaframe definition](#what-savejson-does-for-you) for you, which is what keeps
+That is the whole API. `setJson` also registers the key in the frame's
+[metaframe definition](#what-setjson-does-for-you) for you, which is what keeps
 the value alive when the app is saved, shortened, or copied as a link.
+
+::: tip `saveJson` is the same function
+`saveJson(key, value)` is an alias of `setJson(key, value)` — frames written
+against the older name keep working. Prefer `setJson` in new code.
+:::
 
 ::: tip
 This is designed for relatively small values. Large multi-megabyte JSON blobs
@@ -36,7 +41,7 @@ No regex or `split` on `location.hash`, no
 strings. Values are base64-encoded over a URI-encoded payload and the param
 order is canonical; the runtime, editor, shortener and frame API all agree on
 that encoding, and a hand-rolled version corrupts values or breaks saving. Use
-`getJson` / `saveJson`.
+`getJson` / `setJson`.
 :::
 
 ## Writing state does not re-run your app
@@ -45,7 +50,7 @@ A frame's own source lives in the URL hash, so the runtime re-executes the app
 whenever the hash changes. It makes one exception: **changes the app itself
 writes.** The app already holds the value it just wrote, and re-running would
 throw away the DOM and every bit of in-memory state — so a slider bound to
-`saveJson` can write on every input event without reloading itself.
+`setJson` can write on every input event without reloading itself.
 
 Those writes are still announced, so an app opened from
 [framejs.app](https://framejs.app) saves them as a new version.
@@ -67,19 +72,19 @@ applied and ignore anything already reflected in the UI, so a write can't cause
 a render loop.
 :::
 
-## What `saveJson` does for you
+## What `setJson` does for you
 
 framejs keeps a **whitelist** of hash params, and anything outside it is removed
 whenever the app is **saved, shortened, or copied as a link** — otherwise the
 state would silently disappear from the URL you share.
 
-These built-ins are always allowed, and are reserved — `saveJson` throws if you
+These built-ins are always allowed, and are reserved — `setJson` throws if you
 use one as a key: `js`, `inputs`, `modules`, `og`, `options`, `bgColor`, `edit`,
 `editorWidth`, `hm`, `definition`, `css`.
 
 Every other param name is whitelisted by declaring it in the frame's
 **metaframe definition**, under `definition.hashParams`. The first time you call
-`saveJson("state", …)`, it adds
+`setJson("state", …)`, it adds
 
 ```json
 { "hashParams": { "state": { "type": "json" } } }
@@ -113,13 +118,13 @@ alongside `js` (see [Short URLs](/guide/short-urls) and the
 }
 ```
 
-This is optional for anything an app stores with `saveJson` — the app declares
+This is optional for anything an app stores with `setJson` — the app declares
 its own keys on first write. When you **update** an existing frame, pass its
 stored `definition` back unchanged, so params it already relies on stay
 whitelisted.
 
 The optional `label` and `description` fields on a param are used only by the
-editor's settings UI. `type` records how the value is encoded; `saveJson` always
+editor's settings UI. `type` records how the value is encoded; `setJson` always
 writes `json`.
 
 ## The `css` hash param (transient global stylesheet)

@@ -42,7 +42,7 @@ graph LR
 
 State is encoded in the URL hash using [@metapages/hash-query](https://www.npmjs.com/package/@metapages/hash-query). The editor uses React hooks (`useHashParamBase64`, `useHashParamJson`) to read and write hash parameters.
 
-Frame code does **not** use that module. The runtime (`worker/index.html`) exposes `getJson(key)` / `saveJson(key, value)` as globals, and `saveJson` also declares the key in `definition.hashParams` — the whitelist that keeps a param from being stripped on save / shorten / copy.
+Frame code does **not** use that module. The runtime (`worker/index.html`) exposes `getJson(key)` / `setJson(key, value)` as globals (`saveJson` is an alias of `setJson`), and `setJson` also declares the key in `definition.hashParams` — the whitelist that keeps a param from being stripped on save / shorten / copy.
 
 See [URL State](../guide/url-state.md) for the JavaScript API.
 

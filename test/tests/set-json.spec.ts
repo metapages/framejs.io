@@ -1,20 +1,23 @@
 import { expect, type Page, test } from "@playwright/test";
 
 /**
- * `getJson(key)` / `saveJson(key, value)` are the core URL-state API: globals a
+ * `getJson(key)` / `setJson(key, value)` are the core URL-state API: globals a
  * frame uses to persist its own state into the URL. These tests pin the three
  * promises the docs make about them —
  *
  *  1. the value round-trips through the URL,
- *  2. `saveJson` declares the key in `definition.hashParams` itself, so the
+ *  2. `setJson` declares the key in `definition.hashParams` itself, so the
  *     state is not stripped on save / shorten / copy, and
  *  3. saving does NOT re-run the frame (in-memory state and the DOM survive).
+ *
+ * `saveJson` is a kept alias of `setJson`; the last test pins that.
  */
 
 declare global {
   interface Window {
     __runs: number;
     __getJson: (key: string) => unknown;
+    __setJson: (key: string, value: unknown) => void;
     __saveJson: (key: string, value: unknown) => void;
   }
 }
@@ -50,6 +53,7 @@ const frame = `
 window.__runs = (window.__runs || 0) + 1;
 root.textContent = 'runs: ' + window.__runs;
 window.__getJson = getJson;
+window.__setJson = setJson;
 window.__saveJson = saveJson;
 `;
 
@@ -59,10 +63,10 @@ const load = async (page: Page) => {
   await expect.poll(() => page.evaluate(() => window.__runs)).toBe(1);
 };
 
-test("saveJson round-trips a value through the URL", async ({ page }) => {
+test("setJson round-trips a value through the URL", async ({ page }) => {
   await load(page);
 
-  await page.evaluate(() => window.__saveJson("state", { zoom: 2 }));
+  await page.evaluate(() => window.__setJson("state", { zoom: 2 }));
 
   expect(await hashParam(page, "state")).toEqual({ zoom: 2 });
   expect(await page.evaluate(() => window.__getJson("state"))).toEqual({
@@ -70,32 +74,32 @@ test("saveJson round-trips a value through the URL", async ({ page }) => {
   });
 
   // Falsy JSON values are values, not deletes.
-  await page.evaluate(() => window.__saveJson("state", 0));
+  await page.evaluate(() => window.__setJson("state", 0));
   expect(await page.evaluate(() => window.__getJson("state"))).toBe(0);
 
   // undefined removes it.
-  await page.evaluate(() => window.__saveJson("state", undefined));
+  await page.evaluate(() => window.__setJson("state", undefined));
   expect(await hashParam(page, "state")).toBeUndefined();
   expect(await page.evaluate(() => window.__getJson("state"))).toBeUndefined();
 });
 
-test("saveJson declares the key in definition.hashParams", async ({ page }) => {
+test("setJson declares the key in definition.hashParams", async ({ page }) => {
   await load(page);
 
   expect(await hashParam(page, "definition")).toBeUndefined();
 
-  await page.evaluate(() => window.__saveJson("state", { zoom: 2 }));
+  await page.evaluate(() => window.__setJson("state", { zoom: 2 }));
 
   expect(await hashParam(page, "definition")).toMatchObject({
     hashParams: { state: { type: "json" } },
   });
 });
 
-test("saveJson does not re-run the frame", async ({ page }) => {
+test("setJson does not re-run the frame", async ({ page }) => {
   await load(page);
 
   await page.evaluate(() => {
-    for (let i = 0; i < 5; i++) window.__saveJson("state", { zoom: i });
+    for (let i = 0; i < 5; i++) window.__setJson("state", { zoom: i });
   });
 
   // Give a re-run a chance to happen before asserting it did not.
@@ -104,12 +108,12 @@ test("saveJson does not re-run the frame", async ({ page }) => {
   expect(await page.locator("#root").textContent()).toBe("runs: 1");
 });
 
-test("on a short URL, getJson reads the stored value and saveJson updates it", async ({
+test("on a short URL, getJson reads the stored value and setJson updates it", async ({
   page,
   request,
 }) => {
   // A short URL keeps its params server-side, so getJson must read them from
-  // there rather than from the address bar — and a later saveJson goes onto
+  // there rather than from the address bar — and a later setJson goes onto
   // the URL, where it overrides the stored value.
   const response = await request.post("/api/shorten/json", {
     data: {
@@ -131,7 +135,7 @@ test("on a short URL, getJson reads the stored value and saveJson updates it", a
     zoom: 7,
   });
 
-  await page.evaluate(() => window.__saveJson("state", { zoom: 8 }));
+  await page.evaluate(() => window.__setJson("state", { zoom: 8 }));
   expect(await hashParam(page, "state")).toEqual({ zoom: 8 });
   expect(await page.evaluate(() => window.__getJson("state"))).toEqual({
     zoom: 8,
@@ -141,9 +145,34 @@ test("on a short URL, getJson reads the stored value and saveJson updates it", a
   expect(await hashParam(page, "definition")).toBeUndefined();
 });
 
-test("saveJson rejects a reserved hash param", async ({ page }) => {
+test("setJson rejects a reserved hash param", async ({ page }) => {
   await load(page);
 
+  const error = await page.evaluate(() => {
+    try {
+      window.__setJson("js", { nope: true });
+      return null;
+    } catch (err) {
+      return (err as Error).message;
+    }
+  });
+  expect(error).toContain("reserved");
+});
+
+test("saveJson is an alias of setJson", async ({ page }) => {
+  await load(page);
+
+  await page.evaluate(() => window.__saveJson("state", { zoom: 3 }));
+
+  expect(await hashParam(page, "state")).toEqual({ zoom: 3 });
+  expect(await page.evaluate(() => window.__getJson("state"))).toEqual({
+    zoom: 3,
+  });
+  expect(await hashParam(page, "definition")).toMatchObject({
+    hashParams: { state: { type: "json" } },
+  });
+
+  // Errors name the alias the frame actually called.
   const error = await page.evaluate(() => {
     try {
       window.__saveJson("js", { nope: true });
@@ -152,5 +181,5 @@ test("saveJson rejects a reserved hash param", async ({ page }) => {
       return (err as Error).message;
     }
   });
-  expect(error).toContain("reserved");
+  expect(error).toContain("saveJson:");
 });

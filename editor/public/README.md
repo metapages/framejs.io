@@ -159,15 +159,16 @@ const state = getJson("state") || {};
 state.selected = "foobar";
 
 // Save it back — the shared link now carries it
-saveJson("state", state);
+setJson("state", state);
 
 // Delete it if needed
-saveJson("state", undefined);
+setJson("state", undefined);
 ```
 
-`saveJson` also whitelists the key in the frame's `definition.hashParams`, so
+`setJson` also whitelists the key in the frame's `definition.hashParams`, so
 the value survives when the app is saved, shortened, or copied as a link. Never
-parse or build the URL hash yourself.
+parse or build the URL hash yourself. `saveJson` is an alias of `setJson`, so
+older frames keep working.
 
 Note: this is to store relatively small values. Huge multi-megabyte JSON blobs are not yet supported, but we have a plan to support large blobs.
 

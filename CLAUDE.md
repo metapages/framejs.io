@@ -6,15 +6,17 @@
 
 - **Frame code** (what a user or an agent writes to run in a frame, and every
   example we ship in docs, the skill and the LLM prompts) saves state with the
-  core globals `getJson(key)` / `saveJson(key, value)`. Never tell frame authors
-  to import `@metapages/hash-query`, and never mention `definition.hashParams`
-  as something they must do — `saveJson` declares the key itself.
+  core globals `getJson(key)` / `setJson(key, value)`. Prefer `setJson` in every
+  example; `saveJson` is a kept alias of the same function, so don't churn code
+  that already calls it. Never tell frame authors to import
+  `@metapages/hash-query`, and never mention `definition.hashParams` as
+  something they must do — `setJson` declares the key itself.
 - **This repo's own code** (editor, worker, local-server, tests) still reads and
   writes hash params through `@metapages/hash-query`. NEVER hand-roll hash
   parsing or encoding anywhere: no regex/`split` on `location.hash`, no
   `new URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`.
-- `getJson`/`saveJson` are defined in `worker/index.html` (the runtime); the
-  whitelist they write into is `definition.hashParams` (see
+- `getJson`/`setJson`/`saveJson` are defined in `worker/index.html` (the
+  runtime); the whitelist they write into is `definition.hashParams` (see
   `getAllowedHashParams`), which is what keeps a param from being stripped on
   save / shorten / copy.
 - Canonical reference: `docs/guide/url-state.md`
