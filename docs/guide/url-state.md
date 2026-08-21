@@ -1,96 +1,106 @@
 # URL State
 
-State is stored in the URL hash. You can get and set values using the [@metapages/hash-query](https://www.npmjs.com/package/@metapages/hash-query) module:
+An app can persist its own state — zoom, selection, a checklist, form values —
+in the URL, so the link the user copies carries that state with it.
 
-::: danger Always use `@metapages/hash-query` — never parse the hash yourself
-No regex or `split` on `location.hash`, no `new URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value` strings. Values are base64-encoded over a URI-encoded payload and the param order is canonical; the runtime, editor, shortener and frame API all agree on that encoding, and a hand-rolled version corrupts values or breaks saving.
-
-And whenever you save URL state, the param name must also be added to [`definition.hashParams`](#declare-your-hash-params-or-they-get-stripped) — otherwise it is stripped when the app is saved, shortened, or copied.
-:::
+Two globals are all you need. They are part of the core API: always available,
+nothing to import.
 
 ```javascript
-import {
-  getHashParamsFromWindow,
-  getHashParamFromWindow,
-  getHashParamValueJsonFromWindow,
-  setHashParamValueJsonInWindow,
-  setHashParamValueBase64EncodedInWindow,
-  getHashParamValueBase64DecodedFromWindow,
-  deleteHashParamFromWindow,
-} from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0/+esm";
+// Read whatever was saved under "state" (undefined if nothing was)
+const state = getJson("state") || { zoom: 1 };
 
-// Get JSON stored in URL
-const myJsonBlob = getHashParamValueJsonFromWindow("someKey") || {};
+// Save it back — the link now carries it
+saveJson("state", { ...state, zoom: 2 });
 
-// Update the JSON blob
-myJsonBlob["someKey"] = "foobar";
+// Remove it
+saveJson("state", undefined);
+```
 
-// Set it back in the URL
-setHashParamValueJsonInWindow("someKey", myJsonBlob);
+`getJson(key)` returns the JSON value stored under `key`, or `undefined`.
+`saveJson(key, value)` stores any JSON-serializable value under `key`; passing
+`undefined` (or `null`) removes it.
 
-// Delete it if needed
-deleteHashParamFromWindow("someKey");
+That is the whole API. `saveJson` also registers the key in the frame's
+[metaframe definition](#what-savejson-does-for-you) for you, which is what keeps
+the value alive when the app is saved, shortened, or copied as a link.
+
+::: tip
+This is designed for relatively small values. Large multi-megabyte JSON blobs
+are not yet supported.
+:::
+
+::: warning Never write the hash yourself
+No regex or `split` on `location.hash`, no
+`new URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`
+strings. Values are base64-encoded over a URI-encoded payload and the param
+order is canonical; the runtime, editor, shortener and frame API all agree on
+that encoding, and a hand-rolled version corrupts values or breaks saving. Use
+`getJson` / `saveJson`.
+:::
+
+## Writing state does not re-run your app
+
+A frame's own source lives in the URL hash, so the runtime re-executes the app
+whenever the hash changes. It makes one exception: **changes the app itself
+writes.** The app already holds the value it just wrote, and re-running would
+throw away the DOM and every bit of in-memory state — so a slider bound to
+`saveJson` can write on every input event without reloading itself.
+
+Those writes are still announced, so an app opened from
+[framejs.app](https://framejs.app) saves them as a new version.
+
+A change from **outside** the frame — editing the address bar, an embedder
+rewriting the url — still re-runs the app, so it picks up the new state on the
+next run. To handle those in place instead, listen for `hashchange`:
+
+```javascript
+window.addEventListener("hashchange", () => {
+  const next = getJson("state") || {};
+  // reconcile against what is already applied, then update the UI
+});
 ```
 
 ::: tip
-This is designed for relatively small values. Large multi-megabyte JSON blobs are not yet supported.
+That listener also fires for your own writes. Compare against the state you last
+applied and ignore anything already reflected in the UI, so a write can't cause
+a render loop.
 :::
 
-## Declare your hash params, or they get stripped
+## What `saveJson` does for you
 
-Writing the param is only half of it. framejs keeps a **whitelist** of hash
-params, and anything outside it is removed whenever the app is **saved,
-shortened, or copied as a link** — so the state silently disappears from the URL
-you share.
+framejs keeps a **whitelist** of hash params, and anything outside it is removed
+whenever the app is **saved, shortened, or copied as a link** — otherwise the
+state would silently disappear from the URL you share.
 
-These built-ins are always allowed: `js`, `inputs`, `modules`, `og`, `options`,
-`bgColor`, `edit`, `editorWidth`, `hm`, `definition`.
+These built-ins are always allowed, and are reserved — `saveJson` throws if you
+use one as a key: `js`, `inputs`, `modules`, `og`, `options`, `bgColor`, `edit`,
+`editorWidth`, `hm`, `definition`, `css`.
 
-Every other param name — `someKey` in the example above — must be declared in
-the frame's **metaframe definition**, under `definition.hashParams`.
+Every other param name is whitelisted by declaring it in the frame's
+**metaframe definition**, under `definition.hashParams`. The first time you call
+`saveJson("state", …)`, it adds
 
-### In the editor
+```json
+{ "hashParams": { "state": { "type": "json" } } }
+```
+
+to that definition (creating the definition if the frame has none), in the same
+write that stores the value. You do not have to do anything.
+
+### Seeing it in the editor
 
 Open **Settings** (the ⚙ icon) → the **Runtime** tab → **Allowed Hash
-Parameters** → **Add Hash Parameter**, and add the param name. That writes it
-into the `definition` hash param for you.
+Parameters**, and the key your app saved is listed there. You can also add keys
+by hand with **Add Hash Parameter** — useful for a param an embedder passes in
+rather than one the app writes.
 
 ![The Allowed Hash Parameters section under Settings → Runtime in the framejs editor, with its "Add Hash Parameter" button](./url-state-allowed-hash-params.png)
 
-### In the definition JSON
+### Declaring a param from the API
 
-The `definition` hash param holds the metaframe definition. The relevant part:
-
-```json
-{
-  "version": "1",
-  "hashParams": {
-    "someKey": {
-      "type": "json",
-      "label": "Some Key",
-      "description": "State the app persists in the URL"
-    }
-  }
-}
-```
-
-`type` must match how the app encodes the value:
-
-| `type` | Written with |
-|--------|--------------|
-| `json` | `setHashParamValueJsonInWindow` |
-| `stringBase64` | `setHashParamValueBase64EncodedInWindow` |
-| `string` | `setHashParamInWindow` |
-| `number` | `setHashParamValueFloatInWindow` / `setHashParamValueIntInWindow` |
-| `boolean` | `setHashParamValueBooleanInWindow` |
-
-`label` and `description` are optional; they are only used by the editor's
-settings UI.
-
-### From the API or an AI agent
-
-`definition` is a normal hash param, so it goes in the frame body alongside `js`
-(see [Short URLs](/guide/short-urls) and the
+`definition` is a normal hash param, so it can also be sent in the frame body
+alongside `js` (see [Short URLs](/guide/short-urls) and the
 [frame API](https://framejs.io/llms-claude-code.txt)):
 
 ```json
@@ -98,40 +108,19 @@ settings UI.
   "js": "…",
   "definition": {
     "version": "1",
-    "hashParams": { "someKey": { "type": "json" } }
+    "hashParams": { "state": { "type": "json" } }
   }
 }
 ```
 
-The [framejs Agent Skill](/guide/ai) helper does this with a flag:
+This is optional for anything an app stores with `saveJson` — the app declares
+its own keys on first write. When you **update** an existing frame, pass its
+stored `definition` back unchanged, so params it already relies on stay
+whitelisted.
 
-```bash
-cat app.js | node scripts/framejs.mjs create --state "$SCRATCH/frame.json" \
-  --hash-param someKey:json
-```
-
-When you update an existing frame, keep its `definition` — dropping it
-un-whitelists params the app still relies on. (The helper carries the stored
-definition forward automatically.)
-
-## Writing state does not re-run your app
-
-A frame's own source lives in the URL hash, so the runtime re-executes the app whenever the hash changes. It makes one exception: **changes the app itself writes.** The app already holds the value it just wrote, and re-running would throw away the DOM and every bit of in-memory state — so a slider bound to `setHashParamValueJsonInWindow` can write on every input event without reloading itself.
-
-Those writes are still announced, so an app opened from [framejs.app](https://framejs.app) saves them as a new version. This holds however the URL is written — `setHashParamValueJsonInWindow`, or a bare `history.replaceState` — though you should always use the helpers, because they are what get the encoding right.
-
-A change from **outside** the frame — editing the address bar, an embedder rewriting the url — still re-runs the app, so it picks up the new state on the next run. To handle those in place instead, listen for `hashchange`:
-
-```javascript
-window.addEventListener("hashchange", () => {
-  const next = getHashParamValueJsonFromWindow("someKey") || {};
-  // reconcile against what is already applied, then update the UI
-});
-```
-
-::: tip
-That listener also fires for your own writes. Compare against the state you last applied and ignore anything already reflected in the UI, so a write can't cause a render loop.
-:::
+The optional `label` and `description` fields on a param are used only by the
+editor's settings UI. `type` records how the value is encoded; `saveJson` always
+writes `json`.
 
 ## The `css` hash param (transient global stylesheet)
 

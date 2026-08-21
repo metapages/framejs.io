@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.8"
+  version: "1.9"
 ---
 
 # framejs
@@ -81,8 +81,8 @@ lifecycle notice you MUST relay to the user**:
   that **expires ~30 days after it is last opened** — a good stable share/backup
   link, but it never reflects later edits.
 
-Add `--module <url>` for classic scripts, `--input name=value` for inputs, and
-`--hash-param <name>[:<type>]` for each custom hash param the app persists.
+Add `--module <url>` for classic scripts and `--input name=value` for inputs.
+State the app saves with `saveJson` needs no flag — it whitelists itself.
 
 **One frame per session, updated in place.** Always pass
 `--state "<path in your scratchpad>/framejs-frame.json"` (any writable file
@@ -170,16 +170,13 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   desktop, 120 × 52 px at 8px top / 12px right on mobile). Keep the top-right
   `140 × 64` px free of buttons, menus, toolbars and legends. See
   [references/coding-guide.md](references/coding-guide.md).
-- **Saving state / hash params in the URL: always use `@metapages/hash-query`,
-  NEVER hand-rolled hash parsing** — no regex or `split` on `location.hash`, no
-  `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`. Only
-  the module gets the encoding right. Writing state does not re-run the app, so
-  a control can write on every input event.
-- **And whenever the app saves URL state, the param name MUST also be declared
-  in the frame's `definition.hashParams`** — an undeclared param is stripped on
-  save / shorten / copy and the state is lost. In automation mode pass
-  `--hash-param <name>[:<type>]`; in code-block mode tell the user to add it
-  under **Settings → Runtime → Allowed Hash Parameters**. See
+- **Saving state in the URL: use the globals `getJson(key)` and
+  `saveJson(key, value)`** — always available, nothing to import. NEVER
+  hand-rolled hash parsing: no regex or `split` on `location.hash`, no
+  `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`, and no
+  `localStorage`. `saveJson` whitelists the key itself, so nothing else is
+  needed to make the state survive save / shorten / copy. Writing state does not
+  re-run the app, so a control can write on every input event. See
   [references/coding-guide.md](references/coding-guide.md).
 - **IMPORTANT: the visualization MUST look good on mobile and adapt to that
   screen size** — use responsive sizing (read `root`'s dimensions / listen for

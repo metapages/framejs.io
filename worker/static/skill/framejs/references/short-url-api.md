@@ -95,14 +95,17 @@ response is the unpacked `{ key: value }` dict (the exact shape
 `GET
 /j/<uuid>.json` returns), `201` on create and `200` on update.
 
-### `definition` — whitelist the app's own hash params
+### `definition` — the hash-param whitelist
 
-If the app persists its own state in the URL hash (via `@metapages/hash-query` —
-see the coding guide's "Persisting state in the URL hash"), the param name MUST
-be declared in `definition.hashParams`. Anything not declared there — and not
-one of the built-ins (`js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
-`edit`, `editorWidth`, `hm`, `definition`) — is **stripped** when the app is
-saved, shortened, or copied as a link, so the state silently disappears.
+Only whitelisted hash params survive when an app is saved, shortened, or copied
+as a link: the built-ins (`js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
+`edit`, `editorWidth`, `hm`, `definition`, `css`) plus whatever is declared in
+`definition.hashParams`.
+
+**An app that stores state with `saveJson` needs nothing here** — `saveJson`
+declares its own key on first write (see the coding guide's "Persisting state in
+the URL"). Set this by hand only for a param the app does _not_ write itself —
+e.g. one an embedder passes in, or a non-JSON encoding.
 
 ```json
 "definition": {
@@ -117,9 +120,8 @@ saved, shortened, or copied as a link, so the state silently disappears.
 }
 ```
 
-`type` must match the encoding the app uses: `json` (for
-`setHashParamValueJsonInWindow`), `stringBase64`, `string`, `boolean`, or
-`number`.
+`type` must match the encoding the app uses: `json` (what `saveJson` writes),
+`stringBase64`, `string`, `boolean`, or `number`.
 
 The helper writes this for you: `--hash-param <name>[:<type>]` (repeatable,
 default type `json`), or `--definition '<json>'` for a full definition object
@@ -305,10 +307,10 @@ node -e "fetch((process.env.FRAMEJS_APP_ORIGIN||'https://framejs.app')+'/j/<uuid
   from scratch.
 - Preserve `inputs` handling and `modules` unless the user asks to change them.
 - Preserve `og` per the rules above.
-- Preserve `definition` — it whitelists the app's own hash params (see
-  "`definition` — whitelist the app's own hash params" above). The helper
-  carries the stored one forward automatically; if the modified code persists a
-  NEW state param, add it with `--hash-param <name>[:<type>]`.
+- Preserve `definition` — it is the hash-param whitelist (see "`definition` —
+  the hash-param whitelist" above). The helper carries the stored one forward
+  automatically; state the app saves with `saveJson` declares itself, so a new
+  state key needs no flag.
 
 Then re-run `create` with `--id <uuid>` (or with the same `--state` file) to
 append the modified version to the SAME frame — the `/j/<uuid>` URL is unchanged

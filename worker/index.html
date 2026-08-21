@@ -980,11 +980,13 @@
     <script id="import-map-loader" type="module">
     import {
       blobFromBase64String,
+      blobToBase64String,
       getHashParamValue,
       getHashParamValueBase64DecodedFromUrl,
       getHashParamValueJsonFromHashString,
       getUrlHashParamsFromHashString,
       setHashParamInWindow,
+      setHashParamValueInHashString,
       setHashParamValueJsonInHashString,
     } from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0";
     import {
@@ -1116,6 +1118,123 @@
     const currentHashUrl = () =>
       window.location.origin + window.location.pathname +
       window.location.search + currentHashString();
+
+    // ---------------------------------------------------------------------
+    // getJson / saveJson — the core URL-state API.
+    //
+    // A frame persists its own state (zoom, selection, form values) in the URL
+    // hash, so the link the user shares carries that state. These two globals
+    // are the entire public surface: no module to import, no encoding rules to
+    // get right, and no separate step to remember — saveJson declares the key
+    // in `definition.hashParams` itself, so the state is not stripped when the
+    // frame is saved, shortened, or copied as a link.
+    //
+    // Reads go through currentHashString() so they also work on a short URL,
+    // where the params live in window.__SHORT_URL_HASH_PARAMS rather than on
+    // the address bar. Writes go to window.location.hash — writing the whole
+    // stored payload back onto the URL would flash the entire base64 blob at
+    // the user, and a param on the URL already wins over the stored one.
+    //
+    // The write is a single history.replaceState, which the patch above
+    // announces as a self-write: the embedder learns the frame changed (so
+    // framejs.app saves a new version) while the frame itself is not re-run.
+    // ---------------------------------------------------------------------
+
+    // Hash params the runtime already gives a meaning; a frame's own state
+    // must not collide with them.
+    const RESERVED_HASH_PARAMS = new Set([
+      "bgColor",
+      "css",
+      "definition",
+      "edit",
+      "editorWidth",
+      "hm",
+      "inputs",
+      "js",
+      "modules",
+      "og",
+      "options",
+    ]);
+
+    // The metaframe definition with `key` declared under hashParams, or
+    // undefined when it is already declared (nothing to write). Array-shaped
+    // hashParams are normalised to the object shape, matching what the
+    // editor's Allowed Hash Parameters UI writes.
+    const definitionDeclaring = (key) => {
+      const definition = getHashParamValueJsonFromHashString(
+        currentHashString(),
+        "definition",
+      ) || { version: "1" };
+      const existing = definition.hashParams;
+      const hashParams = {};
+      if (Array.isArray(existing)) {
+        for (const name of existing) {
+          hashParams[name] = { type: "json" };
+        }
+      } else if (existing) {
+        Object.assign(hashParams, existing);
+      }
+      if (hashParams[key]) {
+        return undefined;
+      }
+      hashParams[key] = { type: "json" };
+      return { ...definition, hashParams };
+    };
+
+    const assertStateKey = (fn, key) => {
+      if (typeof key !== "string" || key === "") {
+        throw new Error(`${fn}: key must be a non-empty string`);
+      }
+    };
+
+    // Read the JSON value stored under `key` in the URL hash.
+    // Returns undefined when nothing has been saved under that key.
+    globalThis.getJson = (key) => {
+      assertStateKey("getJson(key)", key);
+      return getHashParamValueJsonFromHashString(currentHashString(), key);
+    };
+
+    // Save a JSON value under `key` in the URL hash. Pass undefined (or null)
+    // to remove it. Does not re-run the frame.
+    globalThis.saveJson = (key, value) => {
+      assertStateKey("saveJson(key, value)", key);
+      if (RESERVED_HASH_PARAMS.has(key)) {
+        throw new Error(
+          `saveJson: "${key}" is reserved by framejs, choose another key`,
+        );
+      }
+      let hash = window.location.hash;
+      while (hash.startsWith("#")) {
+        hash = hash.substring(1);
+      }
+      const before = hash;
+
+      const definition = definitionDeclaring(key);
+      if (definition) {
+        hash = setHashParamValueJsonInHashString(hash, "definition", definition);
+      }
+      // Encoded here rather than via setHashParamValueJsonInHashString: that
+      // helper treats any falsy value as a delete, which would silently drop
+      // a saved `0`, `false` or `""`.
+      hash = setHashParamValueInHashString(
+        hash,
+        key,
+        value === undefined || value === null
+          ? undefined
+          : blobToBase64String(value),
+      );
+
+      if (hash === before) {
+        return;
+      }
+      window.history.replaceState(
+        null,
+        document.title,
+        `${window.location.pathname}${window.location.search}${
+          hash.startsWith("#") ? "" : "#"
+        }${hash}`,
+      );
+    };
 
     // Save the initial landing content so it can be restored when code is cleared
     const __landingHtml = document.getElementById("root").innerHTML;
