@@ -113,9 +113,9 @@ curl -X POST https://framejs.io/api/shorten/json \
 
 Accepted keys are the frame's hash params: `js`, `inputs`, `modules`, `og`,
 `options`, and `definition`. Any hash param the app writes itself must be
-declared in `definition.hashParams` or it is dropped — `saveJson` does that
+declared in `definition.hashParams` or it is dropped — `setJson` does that
 for the app automatically, and `definition` carries the result. See
-[URL State](/guide/url-state#what-savejson-does-for-you).
+[URL State](/guide/url-state#what-setjson-does-for-you).
 
 Response:
 

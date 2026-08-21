@@ -51,14 +51,15 @@ build with JavaScript in a browser.
 
 - Runtime: ES6 modules with top-level await, "use strict" added automatically
 - Globals: `root` (display div), `setOutput()`, `setOutputs()`, `log()`,
-  `logStdout()`, `logStderr()`, `getJson(key)`, `saveJson(key, value)`
+  `logStdout()`, `logStderr()`, `getJson(key)`, `setJson(key, value)`
+  (`saveJson` is an alias of `setJson`)
 - Exports: `onInputs(inputs)`, `onResize(width, height)`, `cleanup()`
 - CDN imports: Use jsdelivr (+esm), esm.sh, unpkg, etc.
 - State persistence: Encoded in the URL — fully portable. An app persists its
-  own state with the globals `getJson(key)` / `saveJson(key, value)` — NEVER
+  own state with the globals `getJson(key)` / `setJson(key, value)` — NEVER
   with hand-rolled hash parsing (no regex/split on `location.hash`, no
   `URLSearchParams(location.hash)`, no hand-built `#?key=value`) and never with
-  `localStorage`. `saveJson` also whitelists the key in the frame's
+  `localStorage`. `setJson` also whitelists the key in the frame's
   `definition.hashParams`, so the state survives save/shorten/copy with no extra
   step. Writing state does not re-run the app. See
   https://framejs.io/docs/guide/url-state
@@ -126,7 +127,7 @@ POST https://framejs.io/api/shorten/json with JSON body:
 
 The optional `definition` whitelists hash params beyond the built-ins —
 undeclared params are stripped when the app is saved or shortened. State written
-with `saveJson` needs no entry here: the app declares its own key on first
+with `setJson` needs no entry here: the app declares its own key on first
 write.
 
 The server handles encoding. Response:

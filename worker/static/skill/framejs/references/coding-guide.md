@@ -61,7 +61,7 @@ log("message"); // visual log — writes to the display
 logStdout("message"); // stdout log
 logStderr("error"); // stderr log
 getJson("state"); // read state saved in the URL (undefined if none)
-saveJson("state", { zoom: 2 }); // save state into the URL — see below
+setJson("state", { zoom: 2 }); // save state into the URL — see below
 root; // the display div, already exists
 root.innerHTML = "<h1>Hello</h1>";
 root.getBoundingClientRect().width;
@@ -217,7 +217,7 @@ onInputs({ [INPUT_KEY]: generateData() });
   ```
 
 - Persist state in the URL with the globals `getJson(key)` /
-  `saveJson(key, value)` — see the next section.
+  `setJson(key, value)` — see the next section.
 
 ## Persisting state in the URL
 
@@ -229,11 +229,14 @@ to import:
 
 ```js
 const state = getJson("state") || { zoom: 1 }; // undefined if never saved
-saveJson("state", { ...state, zoom: 2 }); // store it
-saveJson("state", undefined); // clear it
+setJson("state", { ...state, zoom: 2 }); // store it
+setJson("state", undefined); // clear it
 ```
 
-`saveJson` also whitelists the key for you (it declares it in the frame's
+`saveJson(key, value)` is an alias of `setJson(key, value)` — prefer `setJson`
+in new code; frames written against the older name keep working.
+
+`setJson` also whitelists the key for you (it declares it in the frame's
 `definition.hashParams` on first write), so the value survives being saved,
 shortened, or copied as a link. **There is no second step** — do not ask the
 user to add anything under Settings, and do not send a `definition` when
@@ -247,13 +250,13 @@ exactly what the runtime, the editor, the shortener and the frame API expect; a
 hand-rolled version corrupts values and breaks saving.
 
 Keys are per-frame and free-form, except the reserved built-ins, which
-`saveJson` rejects: `js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
+`setJson` rejects: `js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
 `edit`, `editorWidth`, `hm`, `definition`, `css`.
 
 **Writing your own state does NOT re-run your app.** The frame's source lives in
 the same URL, so the runtime re-executes the app when the URL changes — but it
 skips that for the app's own writes (it already has the value, and re-running
-would drop the DOM and all in-memory state). So a slider can call `saveJson` on
+would drop the DOM and all in-memory state). So a slider can call `setJson` on
 every input event without reloading itself. Own writes are still announced, so
 the frame is saved as a new version. A change from _outside_ the frame — the
 address bar, an embedder rewriting the url — does re-run the app, as before. To
@@ -281,12 +284,12 @@ already relies on.
 - ❌ Importing `@metapages/hash-query`, or reading/writing the hash by hand —
   `location.hash.split("&")`, a regex on `location.hash`,
   `new URLSearchParams(location.hash.slice(1))`, or building a `#?key=value`
-  string. Use `getJson` / `saveJson` for state, always.
+  string. Use `getJson` / `setJson` for state, always.
 - ❌ Using `localStorage` to remember state — it does not travel with the link.
-  Use `saveJson`.
+  Use `setJson`.
 - ❌ Declaring the param in `definition.hashParams`, or telling the user to add
-  it under Settings, when the app uses `saveJson` — it whitelists its own keys.
-- ❌ Avoiding `saveJson` to stop the frame reloading on every write. That
+  it under Settings, when the app uses `setJson` — it whitelists its own keys.
+- ❌ Avoiding `setJson` to stop the frame reloading on every write. That
   workaround is obsolete — the runtime does not re-run the app for its own
   writes. Just call it.
 

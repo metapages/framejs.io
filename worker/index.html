@@ -1120,12 +1120,13 @@
       window.location.search + currentHashString();
 
     // ---------------------------------------------------------------------
-    // getJson / saveJson — the core URL-state API.
+    // getJson / setJson — the core URL-state API (`saveJson` is an alias of
+    // `setJson`, kept because frames already in the wild call it).
     //
     // A frame persists its own state (zoom, selection, form values) in the URL
     // hash, so the link the user shares carries that state. These two globals
     // are the entire public surface: no module to import, no encoding rules to
-    // get right, and no separate step to remember — saveJson declares the key
+    // get right, and no separate step to remember — setJson declares the key
     // in `definition.hashParams` itself, so the state is not stripped when the
     // frame is saved, shortened, or copied as a link.
     //
@@ -1195,12 +1196,13 @@
     };
 
     // Save a JSON value under `key` in the URL hash. Pass undefined (or null)
-    // to remove it. Does not re-run the frame.
-    globalThis.saveJson = (key, value) => {
-      assertStateKey("saveJson(key, value)", key);
+    // to remove it. Does not re-run the frame. `fn` is the name the frame
+    // called, so errors name the alias the author actually typed.
+    const setJson = (key, value, fn) => {
+      assertStateKey(`${fn}(key, value)`, key);
       if (RESERVED_HASH_PARAMS.has(key)) {
         throw new Error(
-          `saveJson: "${key}" is reserved by framejs, choose another key`,
+          `${fn}: "${key}" is reserved by framejs, choose another key`,
         );
       }
       let hash = window.location.hash;
@@ -1235,6 +1237,10 @@
         }${hash}`,
       );
     };
+
+    globalThis.setJson = (key, value) => setJson(key, value, "setJson");
+    // Alias, kept for frames written before setJson was the preferred name.
+    globalThis.saveJson = (key, value) => setJson(key, value, "saveJson");
 
     // Save the initial landing content so it can be restored when code is cleared
     const __landingHtml = document.getElementById("root").innerHTML;

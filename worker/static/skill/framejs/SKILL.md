@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.9"
+  version: "1.10"
 ---
 
 # framejs
@@ -82,7 +82,7 @@ lifecycle notice you MUST relay to the user**:
   link, but it never reflects later edits.
 
 Add `--module <url>` for classic scripts and `--input name=value` for inputs.
-State the app saves with `saveJson` needs no flag — it whitelists itself.
+State the app saves with `setJson` needs no flag — it whitelists itself.
 
 **One frame per session, updated in place.** Always pass
 `--state "<path in your scratchpad>/framejs-frame.json"` (any writable file
@@ -171,10 +171,11 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   `140 × 64` px free of buttons, menus, toolbars and legends. See
   [references/coding-guide.md](references/coding-guide.md).
 - **Saving state in the URL: use the globals `getJson(key)` and
-  `saveJson(key, value)`** — always available, nothing to import. NEVER
-  hand-rolled hash parsing: no regex or `split` on `location.hash`, no
+  `setJson(key, value)`** — always available, nothing to import (`saveJson` is
+  an alias of `setJson`, kept for older frames). NEVER hand-rolled hash parsing:
+  no regex or `split` on `location.hash`, no
   `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`, and no
-  `localStorage`. `saveJson` whitelists the key itself, so nothing else is
+  `localStorage`. `setJson` whitelists the key itself, so nothing else is
   needed to make the state survive save / shorten / copy. Writing state does not
   re-run the app, so a control can write on every input event. See
   [references/coding-guide.md](references/coding-guide.md).

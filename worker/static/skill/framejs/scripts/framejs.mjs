@@ -56,7 +56,7 @@
 //   cat app.js | node framejs.mjs create --state "$SCRATCH/frame.json"            # updates the same frame recorded in --state
 //   cat app.js | node framejs.mjs create --state "$SCRATCH/frame.json" --new      # start a different frame in the same session
 //   cat app.js | node framejs.mjs create --id 0192f0a1-....  --og '{"title":"...","image":"..."}'  # update a specific frame, preserving fetched og
-//   cat app.js | node framejs.mjs create --state "$SCRATCH/frame.json" --hash-param theme:string  # whitelist a param the app does not write with saveJson
+//   cat app.js | node framejs.mjs create --state "$SCRATCH/frame.json" --hash-param theme:string  # whitelist a param the app does not write with setJson
 //   node framejs.mjs fetch 0192f0a1...  # framejs.app frame → prints { js, inputs, modules, og, definition }
 //   node framejs.mjs upload ./data.csv  # prints { name, url, contentType }
 
@@ -261,8 +261,8 @@ function parseFlags(argv) {
     } else if (a === "--hash-param") {
       // `name` or `name:type` — a hash param whitelisted in
       // definition.hashParams so it survives save / shorten / copy. `json` is
-      // the default because that is what the `saveJson` global writes. Apps
-      // that use `saveJson` do not need this flag: it declares its own keys.
+      // the default because that is what the `setJson` global writes. Apps
+      // that use `setJson` do not need this flag: it declares its own keys.
       const raw = argv[++i] || "";
       const [name, type] = raw.split(":");
       if (!name) die(`--hash-param expects name[:type], got "${raw}"`);
@@ -523,7 +523,7 @@ async function cmdCreate(argv) {
   }
 
   // The metaframe definition — its `hashParams` whitelist is what keeps an app's
-  // own URL state (written with the saveJson global) from being stripped on
+  // own URL state (written with the setJson global) from being stripped on
   // save / shorten / copy. Most-specific first:
   // • `--definition` supplies the whole object.
   // • otherwise, when UPDATING an existing frame, carry the stored one forward —

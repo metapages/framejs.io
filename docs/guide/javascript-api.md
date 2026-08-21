@@ -5,7 +5,7 @@
 - Export `onInputs` to listen to inputs from connected metaframes
 - Send outputs with `setOutput` / `setOutputs`
 - Export `onResize` to handle window/div resizes
-- Persist state in the URL with `getJson` / `saveJson`
+- Persist state in the URL with `getJson` / `setJson`
 - Use ES6 module imports, or add CSS / npm modules — everything is embedded in the URL
   
 ## Inputs and Outputs
@@ -128,17 +128,17 @@ Replace `myContainer` with your DOM element.
 ## URL State
 
 An app can persist its own state (zoom, selection, form values) in the URL, so
-the shared link carries the state. `getJson` and `saveJson` are globally
+the shared link carries the state. `getJson` and `setJson` are globally
 available for this — never parse or build the hash yourself:
 
 ```javascript
 const state = getJson("state") || { zoom: 1 };
-saveJson("state", { ...state, zoom: 2 });
+setJson("state", { ...state, zoom: 2 });
 ```
 
-Saving does not re-run your app, and `saveJson` whitelists the key for you so
+Saving does not re-run your app, and `setJson` whitelists the key for you so
 the value survives being saved, shortened, or copied — see
-[URL State](/guide/url-state).
+[URL State](/guide/url-state). (`saveJson` is an alias of `setJson`.)
 
 ## Misc
 
