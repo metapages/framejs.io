@@ -242,6 +242,7 @@ A full code editor runs in the browser. Write JavaScript, add npm modules and CS
 - Export `onInputs` to listen to inputs from connected metaframes
 - Send outputs with `setOutput` / `setOutputs`
 - Export `onResize` to handle window/div resizes
+- Persist state in the URL with `getJson` / `saveJson`
 - Use ES6 module imports, or add CSS / npm modules — everything is embedded in the URL
 
 See the full [JavaScript API](javascript-api) for details.

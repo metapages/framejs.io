@@ -60,6 +60,8 @@ setOutputs({ out1: "val", out2: 42 }); // send multiple outputs
 log("message"); // visual log — writes to the display
 logStdout("message"); // stdout log
 logStderr("error"); // stderr log
+getJson("state"); // read state saved in the URL (undefined if none)
+saveJson("state", { zoom: 2 }); // save state into the URL — see below
 root; // the display div, already exists
 root.innerHTML = "<h1>Hello</h1>";
 root.getBoundingClientRect().width;
@@ -214,91 +216,53 @@ onInputs({ [INPUT_KEY]: generateData() });
   }, { passive: false });
   ```
 
-- Persist state in the URL hash — see the next section (the param name MUST be
-  declared in the frame's `definition.hashParams`).
+- Persist state in the URL with the globals `getJson(key)` /
+  `saveJson(key, value)` — see the next section.
 
-## Persisting state in the URL hash
+## Persisting state in the URL
 
 An app can save its own state (zoom, selection, a checklist, form values) into
-the URL hash with the `@metapages/hash-query` module, so the link the user
-copies carries the state with it.
+the URL, so the link the user copies carries the state with it.
+
+Two globals do this. They are part of the core API — always available, nothing
+to import:
+
+```js
+const state = getJson("state") || { zoom: 1 }; // undefined if never saved
+saveJson("state", { ...state, zoom: 2 }); // store it
+saveJson("state", undefined); // clear it
+```
+
+`saveJson` also whitelists the key for you (it declares it in the frame's
+`definition.hashParams` on first write), so the value survives being saved,
+shortened, or copied as a link. **There is no second step** — do not ask the
+user to add anything under Settings, and do not send a `definition` when
+creating the frame just for this.
 
 **NEVER parse or build hash params yourself** — no `location.hash.split`, no
 regex on the hash, no `new URLSearchParams(location.hash.slice(1))`, no
-hand-assembled `#?key=value` strings. The encoding (base64 of a URI-encoded
-JSON/string payload, param ordering, the `?` after `#`) is exactly what the
-runtime, the editor, the shortener and the frame API expect; a hand-rolled
-version corrupts values and breaks saving. Always go through
-`@metapages/hash-query`.
+hand-assembled `#?key=value` strings, and no `localStorage`. The encoding
+(base64 of a URI-encoded JSON payload, param ordering, the `?` after `#`) is
+exactly what the runtime, the editor, the shortener and the frame API expect; a
+hand-rolled version corrupts values and breaks saving.
+
+Keys are per-frame and free-form, except the reserved built-ins, which
+`saveJson` rejects: `js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
+`edit`, `editorWidth`, `hm`, `definition`, `css`.
 
 **Writing your own state does NOT re-run your app.** The frame's source lives in
-the same hash, so the runtime re-executes the app when the hash changes — but it
+the same URL, so the runtime re-executes the app when the URL changes — but it
 skips that for the app's own writes (it already has the value, and re-running
-would drop the DOM and all in-memory state). So a slider can write on every
-input event without reloading itself. Own writes are still announced, so the
-frame is saved as a new version. A change from _outside_ the frame — the address
-bar, an embedder rewriting the url — does re-run the app, as before. To react to
-those in place instead, listen for `hashchange` and re-read the param.
-
-**Two parts are required, and they do different jobs. Skip the first and the
-value is corrupt; skip the second and it is dropped from copied links.**
-
-**1. Read/write the param with `@metapages/hash-query`:**
-
-```js
-import {
-  deleteHashParamFromWindow,
-  getHashParamValueJsonFromWindow,
-  setHashParamValueJsonInWindow,
-} from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0/+esm";
-
-const state = getHashParamValueJsonFromWindow("state") || { zoom: 1 };
-setHashParamValueJsonInWindow("state", { ...state, zoom: 2 });
-deleteHashParamFromWindow("state"); // clear it
-```
-
-**2. Declare the param name in the frame's `definition.hashParams`** — otherwise
-it is **stripped** whenever the app is saved, shortened, or copied as a link, so
-the link you hand someone else loses the state. Only the built-in params (`js`,
-`inputs`, `modules`, `og`, `options`, `bgColor`, `edit`, `editorWidth`, `hm`,
-`definition`) survive by default; every custom param name must be whitelisted
-there. Send `definition` alongside `js` in the frame body (the helper's
-`--hash-param` writes exactly this):
-
-```json
-{
-  "js": "…",
-  "definition": {
-    "version": "1",
-    "hashParams": {
-      "state": {
-        "type": "json",
-        "label": "State",
-        "description": "Zoom + selection persisted in the URL"
-      }
-    }
-  }
-}
-```
-
-```bash
-# automation mode — declare each custom param as you create/update the frame
-cat app.js | node scripts/framejs.mjs create --state "$SCRATCH/frame.json" \
-  --hash-param state:json --title "…" --description "…" --screenshot
-```
-
-`type` matches how the value is encoded: `json` for
-`setHashParamValueJsonInWindow`, `stringBase64` for base64 strings, else
-`string` / `boolean` / `number`.
-
-In **code-block mode** you cannot set the definition — so say in one line, after
-the code block, that the user must add the param under **Settings** (`⚙` in the
-editor) → **Runtime** → **Allowed Hash Parameters** for the state to survive
-saving/sharing.
+would drop the DOM and all in-memory state). So a slider can call `saveJson` on
+every input event without reloading itself. Own writes are still announced, so
+the frame is saved as a new version. A change from _outside_ the frame — the
+address bar, an embedder rewriting the url — does re-run the app, as before. To
+react to those in place instead, listen for `hashchange` and re-read with
+`getJson`.
 
 When **modifying** an existing frame, `fetch` it first and pass its existing
-`definition` back through unchanged (plus any new param) — dropping it
-un-whitelists params the app already relies on.
+`definition` back through unchanged — dropping it un-whitelists params the app
+already relies on.
 
 ## Common mistakes
 
@@ -314,16 +278,17 @@ un-whitelists params the app already relies on.
 - ❌ Rendering generated/fetched data directly instead of seeding it through
   `onInputs` on the last line — see "Generated data MUST be fed through
   `onInputs`".
-- ❌ Writing a custom hash param (e.g. `state`) without declaring it in
-  `definition.hashParams` — it is stripped on save/shorten/copy, so shared links
-  lose the state. See "Persisting state in the URL hash".
-- ❌ Reading or writing the hash by hand — `location.hash.split("&")`, a regex
-  on `location.hash`, `new URLSearchParams(location.hash.slice(1))`, or building
-  a `#?key=value` string. Use `@metapages/hash-query` for every hash param,
-  always.
-- ❌ Avoiding `setHashParamValueJsonInWindow` to stop the frame reloading on
-  every write. That workaround is obsolete — the runtime no longer re-runs the
-  app for its own hash writes. Just use the helper.
+- ❌ Importing `@metapages/hash-query`, or reading/writing the hash by hand —
+  `location.hash.split("&")`, a regex on `location.hash`,
+  `new URLSearchParams(location.hash.slice(1))`, or building a `#?key=value`
+  string. Use `getJson` / `saveJson` for state, always.
+- ❌ Using `localStorage` to remember state — it does not travel with the link.
+  Use `saveJson`.
+- ❌ Declaring the param in `definition.hashParams`, or telling the user to add
+  it under Settings, when the app uses `saveJson` — it whitelists its own keys.
+- ❌ Avoiding `saveJson` to stop the frame reloading on every write. That
+  workaround is obsolete — the runtime does not re-run the app for its own
+  writes. Just call it.
 
 ## CDN libraries (use `/+esm` ES6 imports unless noted)
 

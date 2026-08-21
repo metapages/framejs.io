@@ -148,29 +148,28 @@ window.addEventListener("wheel", maybeScroll, { passive: false });
 
 ### Save state in the URL
 
-State is stored in the URL, you can get and set values using the [@metapages/hash-query](https://www.npmjs.com/package/@metapages/hash-query) module:
+State is stored in the URL. Two globals are always available — nothing to
+import:
 
 ```javascript
-import {
-  getHashParamsFromWindow,
-  getHashParamFromWindow,
-  getHashParamValueJsonFromWindow,
-  setHashParamValueJsonInWindow,
-  setHashParamValueBase64EncodedInWindow,
-  getHashParamValueBase64DecodedFromWindow,
-} from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0/+esm";
+// Read the JSON stored under "state" (undefined if nothing was saved)
+const state = getJson("state") || {};
 
-// Get JSON stored in URL
-const myJsonBlob = getHashParamValueJsonFromWindow("someKey") || {};
-// update the JSON blob
-myJsonBlob["someKey"] = "foobar";
-// set it back in the URL
-setHashParamValueJsonInWindow("someKey", myJsonBlob);
-// delete it if needed
-deleteHashParamFromWindow("someKey");
+// Update it
+state.selected = "foobar";
+
+// Save it back — the shared link now carries it
+saveJson("state", state);
+
+// Delete it if needed
+saveJson("state", undefined);
 ```
 
-Note: this is to store relatively small values. Huge multi-megabyte JSON blobs are not yet supported, but we have a plan wtoill support large blobs.
+`saveJson` also whitelists the key in the frame's `definition.hashParams`, so
+the value survives when the app is saved, shortened, or copied as a link. Never
+parse or build the URL hash yourself.
+
+Note: this is to store relatively small values. Huge multi-megabyte JSON blobs are not yet supported, but we have a plan to support large blobs.
 
 ### Unload/cleanup
 

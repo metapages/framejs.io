@@ -51,15 +51,17 @@ build with JavaScript in a browser.
 
 - Runtime: ES6 modules with top-level await, "use strict" added automatically
 - Globals: `root` (display div), `setOutput()`, `setOutputs()`, `log()`,
-  `logStdout()`, `logStderr()`
+  `logStdout()`, `logStderr()`, `getJson(key)`, `saveJson(key, value)`
 - Exports: `onInputs(inputs)`, `onResize(width, height)`, `cleanup()`
 - CDN imports: Use jsdelivr (+esm), esm.sh, unpkg, etc.
-- State persistence: Encoded in URL hash — fully portable. An app persists its
-  own state with `@metapages/hash-query` — NEVER with hand-rolled hash parsing
-  (no regex/split on `location.hash`, no `URLSearchParams(location.hash)`, no
-  hand-built `#?key=value`). The param name must also be declared in the frame's
-  `definition.hashParams`, or it is stripped on save/shorten/copy. Writing state
-  does not re-run the app. See https://framejs.io/docs/guide/url-state
+- State persistence: Encoded in the URL — fully portable. An app persists its
+  own state with the globals `getJson(key)` / `saveJson(key, value)` — NEVER
+  with hand-rolled hash parsing (no regex/split on `location.hash`, no
+  `URLSearchParams(location.hash)`, no hand-built `#?key=value`) and never with
+  `localStorage`. `saveJson` also whitelists the key in the frame's
+  `definition.hashParams`, so the state survives save/shorten/copy with no extra
+  step. Writing state does not re-run the app. See
+  https://framejs.io/docs/guide/url-state
 - No cookies, no tracking, no login required
 
 ## For CLI tools and AI coding assistants (Claude Code, Aider, Cursor, etc.)
@@ -122,9 +124,10 @@ may fail in sandboxes. Never create local .js or .html files.
 POST https://framejs.io/api/shorten/json with JSON body:
 `{ "js": "raw JS code", "modules": ["url1", ...], "inputs": {...}, "og": { "title": "...", "description": "...", "image": "...", "tags": ["...", "..."] }, "definition": { "version": "1", "hashParams": { "state": { "type": "json" } } } }`
 
-The optional `definition` whitelists hash params the app writes itself (URL
-state). Include it whenever the code calls `setHashParamValue*InWindow` with a
-custom key — undeclared params are stripped when the app is saved or shortened.
+The optional `definition` whitelists hash params beyond the built-ins —
+undeclared params are stripped when the app is saved or shortened. State written
+with `saveJson` needs no entry here: the app declares its own key on first
+write.
 
 The server handles encoding. Response:
 `{ "shortUrl": "https://framejs.io/j/<sha256>", "id": "<sha256>" }`
@@ -150,10 +153,9 @@ Response:
 Modify the `js` field, then POST back to `/api/shorten/json` with the updated
 body. If `hashParams.og` already exists, preserve it unchanged unless the user
 asks to change the title/description/tags; if it is missing, add a generated one
-(see above). Pass `hashParams.definition` back unchanged too — it whitelists the
-hash params the app writes itself, and dropping it un-whitelists the URL state
-the app relies on. Include it whenever the code calls
-`setHashParamValue*InWindow` with a custom key.
+(see above). Pass `hashParams.definition` back unchanged too — it is the
+hash-param whitelist, and dropping it un-whitelists the URL state the app relies
+on.
 
 ## Advanced: metapage ecosystem
 
