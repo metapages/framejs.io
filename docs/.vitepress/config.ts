@@ -1,5 +1,5 @@
-import { defineConfig } from "vitepress";
-import { withMermaid } from "vitepress-plugin-mermaid";
+import { defineConfig } from 'vitepress';
+import { withMermaid } from 'vitepress-plugin-mermaid';
 
 // Standalone reveal.js decks live in public/presentations/<deck>/index.html.
 // In production the worker's serveStatic resolves a directory request to its
@@ -58,12 +58,12 @@ export default withMermaid(
       siteTitle: "framejs.io",
 
       nav: [
+        { text: "AI", link: "/integrations/claude-mcp" },
         { text: "Docs", link: "/quickstart" },
-        { text: "Use in Claude", link: "/integrations/claude-mcp" },
-        { text: "Examples", link: "/examples/" },
-        { text: "Integrations", link: "/integrations/jupyter" },
-        { text: "Talks", link: "/talks" },
-        { text: "Create", link: "https://framejs.io" },
+        // { text: "Examples", link: "/examples/" },
+        // { text: "Integrations", link: "/integrations/jupyter" },
+        { text: "Blog", link: "/blog/about" },
+        { text: "Create", link: "https://framejs.app" },
       ],
 
       sidebar: [
@@ -75,10 +75,10 @@ export default withMermaid(
           text: "Use with AI",
           items: [
             {
-              text: "Claude Connector (MCP)",
+              text: "MCP: Claude Connector",
               link: "/integrations/claude-mcp",
             },
-            { text: "Agent Skill (CLI)", link: "/guide/ai" },
+            { text: "Console: agent skill", link: "/guide/ai" },
           ],
         },
 
@@ -124,21 +124,23 @@ export default withMermaid(
           ],
         },
         {
-          text: "Story",
+          text: "Blog",
+          collapsed: true,
           items: [
-            { text: "About", link: "/story/about" },
+            { text: "About", link: "/blog/about" },
             {
               text: "What problems is this solving",
-              link: "/story/why",
+              link: "/blog/why",
             },
             {
               text: "Open Infrastructure & FAIR",
-              link: "/story/open-infrastructure",
+              link: "/blog/open-infrastructure",
             },
           ],
         },
         {
           text: "Talks & Slides",
+          collapsed: true,
           items: [
             { text: "All talks", link: "/talks" },
             {
