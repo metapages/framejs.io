@@ -7,19 +7,19 @@ hero:
   tagline: Create interactive charts, dashboards, and apps in the browser — the code lives in the URL, so anyone with the link can run it. No server, no build, no account. Generate with AI or write by hand, then embed or share anywhere.
   actions:
     - theme: brand
+      text: Intro
+      link: /guide/intro
+    - theme: alt
       text: Quickstart
       link: /quickstart
     - theme: brand
       text: Use it in Claude
       link: /integrations/claude-mcp
     - theme: alt
-      text: Intro
-      link: /guide/intro
-    - theme: alt
       text: Create new
       link: https://framejs.io#?edit=true
     - theme: alt
-      text: Latest slides
+      text: Slide deck
       link: /presentations/2026-07-omsf-office-hours/
       target: _blank
 
