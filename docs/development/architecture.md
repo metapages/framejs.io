@@ -27,7 +27,7 @@ metaframe-js/
 
 ## Metaframes and metapages
 
-This website is a [metaframe](https://docs.metapage.io/docs/what-is-a-metaframe): a self-contained web application that communicates via inputs and outputs. Connect metaframes together into apps, workflows, and dashboards called [metapages](https://docs.metapage.io/docs).
+This website is a [metaframe](https://docs.metapage.io/docs/architecture-overview): a self-contained web application that communicates via inputs and outputs. Connect metaframes together into apps, workflows, and dashboards called [metapages](https://docs.metapage.io/docs).
 
 ```mermaid
 graph LR

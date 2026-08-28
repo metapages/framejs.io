@@ -32,7 +32,7 @@ our servers to create, run, edit, embed, or share a Frame.
 ## Why "self-contained" is the whole strategy
 
 Because a Frame is complete in itself — code, state, inputs, all in the URL — it
-is portable *and* private at the same time (see [Why](/story/why)). That same
+is portable *and* private at the same time (see [Why](/blog/why)). That same
 property is what makes it good open infrastructure: there is no proprietary
 runtime you must call home to, no database schema you are locked into, no
 account that owns your work. The most durable copy of anything you make is the
@@ -44,7 +44,7 @@ core, never a replacement for it.
 ## FAIR data
 
 We align framejs with the
-[**FAIR data principles**](https://www.openaire.eu/how-to-make-your-data-fair) —
+[**FAIR data principles**](https://www.go-fair.org/fair-principles/) —
 that data should be **F**indable, **A**ccessible, **I**nteroperable, and
 **R**eusable. The URL-as-program model is a remarkably good fit.
 

@@ -53,7 +53,7 @@ opencode, Goose, OpenAI Codex, pi, and more).
 | Cursor | `~/.cursor/skills/` or `<project>/.cursor/skills/` | [docs](https://cursor.com/docs/context/skills) |
 | Gemini CLI | per Gemini CLI config | [docs](https://geminicli.com/docs/cli/skills/) |
 | opencode | per opencode config | [docs](https://opencode.ai/docs/skills/) |
-| Goose | per Goose config | [docs](https://block.github.io/goose/docs/guides/context-engineering/using-skills/) |
+| Goose | per Goose config | [docs](https://goose-docs.ai/docs/guides/context-engineering/using-skills/) |
 | OpenAI Codex | per Codex config | [docs](https://developers.openai.com/codex/skills/) |
 | pi | prompt-template / skills config | [docs](https://github.com/badlogic/pi-mono/blob/main/packages/coding-agent/docs/skills.md) |
 

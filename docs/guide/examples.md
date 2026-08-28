@@ -10,7 +10,7 @@ Live metapage examples showing metaframe-js in action:
 
 ## Connecting metaframes
 
-metaframe-js is a [metaframe](https://docs.metapage.io/docs/what-is-a-metaframe): connect metaframes together into apps, workflows, and dashboards via [metapages](https://docs.metapage.io/docs).
+metaframe-js is a [metaframe](https://docs.metapage.io/docs/architecture-overview): connect metaframes together into apps, workflows, and dashboards via [metapages](https://docs.metapage.io/docs).
 
 ```mermaid
 graph LR

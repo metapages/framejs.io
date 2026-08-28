@@ -19,7 +19,7 @@ framejs is two cooperating services with different jobs:
 
 The rendering runtime and the content-addressed URL persistence at framejs.io
 are **free and open source, forever** — see [Open Infrastructure &
-FAIR](/story/open-infrastructure). framejs.app adds durable, guaranteed
+FAIR](/blog/open-infrastructure). framejs.app adds durable, guaranteed
 persistence as an optional supported service.
 
 ## The four kinds of URL
@@ -33,7 +33,7 @@ The entire program is encoded in the URL hash. **Nothing is stored on any
 server.** This URL persists for exactly as long as *you* keep it — in a
 bookmark, a document, a message. There is no copy to expire, and no copy anyone
 else can query. It works forever, offline-friendly, and is the most private
-option (see [Why](/story/why)).
+option (see [Why](/blog/why)).
 
 ### 2. Content-addressed short URL — `framejs.io/j/<sha256>`
 
@@ -164,6 +164,6 @@ ephemeral content-addressed URLs. You can always move down the durability ladder
 (export a Frame version to a hash URL you hold yourself) or up it (save a hash
 URL into a Frame for guaranteed persistence).
 
-See [Open Infrastructure & FAIR](/story/open-infrastructure) for how these
+See [Open Infrastructure & FAIR](/blog/open-infrastructure) for how these
 retention commitments map to the FAIR data principles and our open-source
 pledge.
