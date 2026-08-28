@@ -29,10 +29,13 @@ import { MetaframeDefinition } from "@metapages/metapage";
 import { useMetaframe } from "@metapages/metapage-react/hooks";
 import { UploadIcon } from "@phosphor-icons/react";
 
-export const ButtonShortenUrl: React.FC<{
-  iconSize?: string;
-  iconPadding?: string;
-}> = ({ iconSize = "28px", iconPadding = "3px" }) => {
+import { HeaderButtonProps, HeaderMenuItem } from "./types";
+
+export const ButtonShortenUrl: React.FC<HeaderButtonProps> = ({
+  iconSize = "28px",
+  iconPadding = "3px",
+  variant = "icon",
+}) => {
   const [loading, setLoading] = useState(false);
   const [shortenedUrl, setShortenedUrl] = useState("");
   const { onCopy } = useClipboard(shortenedUrl);
@@ -186,6 +189,17 @@ export const ButtonShortenUrl: React.FC<{
       setLoading(false);
     }
   };
+
+  if (variant === "menuitem") {
+    return (
+      <HeaderMenuItem
+        icon={UploadIcon}
+        label={"Create expiring snapshot"}
+        onClick={handleShorten}
+        isDisabled={loading}
+      />
+    );
+  }
 
   return (
     <Tooltip label="Create expiring snapshot">

@@ -56,8 +56,8 @@ build with JavaScript in a browser.
 - Exports: `onInputs(inputs)`, `onResize(width, height)`, `cleanup()`
 - CDN imports: Use jsdelivr (+esm), esm.sh, unpkg, etc.
 - State persistence: Encoded in the URL — fully portable. An app persists its
-  own state with the globals `getJson(key)` / `setJson(key, value)` — NEVER
-  with hand-rolled hash parsing (no regex/split on `location.hash`, no
+  own state with the globals `getJson(key)` / `setJson(key, value)` — NEVER with
+  hand-rolled hash parsing (no regex/split on `location.hash`, no
   `URLSearchParams(location.hash)`, no hand-built `#?key=value`) and never with
   `localStorage`. `setJson` also whitelists the key in the frame's
   `definition.hashParams`, so the state survives save/shorten/copy with no extra
@@ -127,8 +127,7 @@ POST https://framejs.io/api/shorten/json with JSON body:
 
 The optional `definition` whitelists hash params beyond the built-ins —
 undeclared params are stripped when the app is saved or shortened. State written
-with `setJson` needs no entry here: the app declares its own key on first
-write.
+with `setJson` needs no entry here: the app declares its own key on first write.
 
 The server handles encoding. Response:
 `{ "shortUrl": "https://framejs.io/j/<sha256>", "id": "<sha256>" }`

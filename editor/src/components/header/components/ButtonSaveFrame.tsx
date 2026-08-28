@@ -19,6 +19,8 @@ import { MetaframeDefinition } from "@metapages/metapage";
 import { useMetaframe } from "@metapages/metapage-react/hooks";
 import { FloppyDiskIcon } from "@phosphor-icons/react";
 
+import { HeaderButtonProps, HeaderMenuItem } from "./types";
+
 // Matches a canonical UUID (8-4-4-4-12 hex). Keep in sync with the worker's
 // UUID_REGEX (worker/server.ts).
 const UUID_REGEX =
@@ -50,10 +52,11 @@ const navigateTop = (url: string): void => {
 //     state, then open it.
 // The uuid case is best-effort: if the update is rejected (e.g. the frame has
 // been claimed by an owner), we still open the existing framejs.app page.
-export const ButtonSaveFrame: React.FC<{
-  iconSize?: string;
-  iconPadding?: string;
-}> = ({ iconSize = "28px", iconPadding = "3px" }) => {
+export const ButtonSaveFrame: React.FC<HeaderButtonProps> = ({
+  iconSize = "28px",
+  iconPadding = "3px",
+  variant = "icon",
+}) => {
   const [loading, setLoading] = useState(false);
   const toast = useToast();
   const metaframeBlob = useMetaframe();
@@ -166,6 +169,17 @@ export const ButtonSaveFrame: React.FC<{
   // framejs-app.localhost:13298) so it's visible whether FRAMEJS_APP_ORIGIN
   // is correctly wired up.
   const framejsAppHost = new URL(getFramejsAppOrigin()).host;
+
+  if (variant === "menuitem") {
+    return (
+      <HeaderMenuItem
+        icon={FloppyDiskIcon}
+        label={`Save to ${framejsAppHost}`}
+        onClick={handleSave}
+        isDisabled={loading}
+      />
+    );
+  }
 
   return (
     <Tooltip label={`Save to ${framejsAppHost}`}>

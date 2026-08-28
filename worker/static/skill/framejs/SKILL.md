@@ -175,9 +175,9 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   an alias of `setJson`, kept for older frames). NEVER hand-rolled hash parsing:
   no regex or `split` on `location.hash`, no
   `URLSearchParams(location.hash.slice(1))`, no hand-built `#?key=value`, and no
-  `localStorage`. `setJson` whitelists the key itself, so nothing else is
-  needed to make the state survive save / shorten / copy. Writing state does not
-  re-run the app, so a control can write on every input event. See
+  `localStorage`. `setJson` whitelists the key itself, so nothing else is needed
+  to make the state survive save / shorten / copy. Writing state does not re-run
+  the app, so a control can write on every input event. See
   [references/coding-guide.md](references/coding-guide.md).
 - **IMPORTANT: the visualization MUST look good on mobile and adapt to that
   screen size** — use responsive sizing (read `root`'s dimensions / listen for
