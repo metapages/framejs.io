@@ -249,9 +249,9 @@ hand-assembled `#?key=value` strings, and no `localStorage`. The encoding
 exactly what the runtime, the editor, the shortener and the frame API expect; a
 hand-rolled version corrupts values and breaks saving.
 
-Keys are per-frame and free-form, except the reserved built-ins, which
-`setJson` rejects: `js`, `inputs`, `modules`, `og`, `options`, `bgColor`,
-`edit`, `editorWidth`, `hm`, `definition`, `css`.
+Keys are per-frame and free-form, except the reserved built-ins, which `setJson`
+rejects: `js`, `inputs`, `modules`, `og`, `options`, `bgColor`, `edit`,
+`editorWidth`, `hm`, `definition`, `css`.
 
 **Writing your own state does NOT re-run your app.** The frame's source lives in
 the same URL, so the runtime re-executes the app when the URL changes — but it
