@@ -39,7 +39,7 @@ const { Layout } = DefaultTheme;
   width: 100%;
   height: 400px;
   border: 1px solid var(--vp-c-border);
-  border-radius: 8px;
+  border-radius: var(--radius-plate, 2px);
 }
 
 @media (min-width: 960px) {
@@ -60,7 +60,7 @@ const { Layout } = DefaultTheme;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Blueprint: shareable URLs / data callouts render in IBM Plex Mono. */
+  /* Shareable URLs / data callouts render in IBM Plex Mono. */
   font-family: var(--vp-font-family-mono);
 }
 
