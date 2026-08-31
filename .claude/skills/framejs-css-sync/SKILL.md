@@ -4,12 +4,12 @@ description: >
   How this repo's visual style (the editor AND the docs) is derived from
   framejs.app's design system, and the exact steps to re-merge it when
   framejs.app changes. Load whenever restyling the editor or docs, updating
-  palette/fonts/tokens, syncing the "blueprint" look from the framejs-nhost
+  palette/fonts/tokens, syncing the "Offprint" look from the framejs-nhost
   sibling repo, or editing editor/src/styles/blueprint.css, theme.ts, or
   docs/.vitepress/theme/blueprint.css.
 ---
 
-# framejs.io ⇐ framejs.app design system ("blueprint")
+# framejs.io ⇐ framejs.app design system ("Offprint")
 
 This repo's surfaces are **styled to copy framejs.app**, not invented here.
 framejs.app (the `framejs-nhost` sibling repo) owns the design system; we mirror
@@ -25,9 +25,25 @@ framework:
 
 The rest of this doc covers the **editor** first, then the **docs**.
 
-**Design language:** "Blueprint / drafting table" — warm technical paper ground,
-cobalt blueprint ink accent, hairline warm-gray rules, low radii (3–4px), IBM
-Plex Sans (body/chrome) + IBM Plex Mono (labels/wordmark/data/code).
+**Design language:** "Offprint" — bone stock (`#f4f3ef`), near-black ink
+(`#111110`), one vermillion (`#c9350a`), rules and space in place of cards, cut
+2px corners. IBM Plex **Serif** (headings) + Sans (body/chrome) + Mono
+(labels/wordmark/data/code).
+
+> **Migration status (2026-08-30).** framejs.app replaced its previous
+> "Blueprint / drafting table" world — cobalt `#1f2edb` accent, two-axis drafting
+> grid, 3–4px radii — because the cobalt sat in the indigo band and read as
+> AI-generated. **The docs mirror has been migrated. The editor mirror has
+> not**: `editor/src/styles/blueprint.css`, `theme.ts` and `editor/index.html`
+> still carry the cobalt palette. Both mirrors are still *named* `blueprint.css`
+> for now; rename them together once the editor catches up.
+
+**What the editor still needs** (the full re-merge checklist below applies):
+swap the token hexes in `blueprint.css` **and** the mirrored `const` block in
+`theme.ts`, copy the three `ibm-plex-serif-*` woff2 into `editor/public/fonts/`,
+set headings to the serif, drop radii to 2px, retint shadows to
+`rgba(32,26,18,…)`, and change `editor/index.html`'s `theme-color` from
+`#fbfaf7` to `#f4f3ef`.
 
 ## The core tension
 
@@ -44,7 +60,7 @@ classes, and fonts** as plain CSS, and bridge Chakra to the same values.
 | What            | Path (in `framejs-nhost`)                                  |
 | --------------- | ---------------------------------------------------------- |
 | Stylesheet      | `frontend/worker/assets/styles.css`                        |
-| Fonts (6 woff2) | `frontend/worker/static/fonts/ibm-plex-*.woff2`            |
+| Fonts (9 woff2) | `frontend/worker/static/fonts/ibm-plex-*.woff2`            |
 | HTML shell/theme| `frontend/worker/routes/_app.tsx` (theme-color, data-theme)|
 
 Sibling repo root on this machine: `/Users/dion/dev/git/metapages/framejs-nhost`.
@@ -54,7 +70,7 @@ Sibling repo root on this machine: `/Users/dion/dev/git/metapages/framejs-nhost`
 | File                                | Role                                                       |
 | ----------------------------------- | ---------------------------------------------------------- |
 | `editor/src/styles/blueprint.css`   | Plain-CSS mirror of `styles.css` — tokens + classes + fonts|
-| `editor/public/fonts/*.woff2`       | The 6 IBM Plex woff2, served by Vite at `/fonts/`          |
+| `editor/public/fonts/*.woff2`       | The IBM Plex woff2, served by Vite at `/fonts/`            |
 | `editor/src/styles/theme.ts`        | Chakra bridge: maps blueprint token values onto Chakra     |
 | `editor/src/index.tsx`              | `import "/@/styles/blueprint.css"`                         |
 | `editor/index.html`                 | `<html data-theme="light">` + `theme-color` = `#fbfaf7`    |
@@ -131,8 +147,8 @@ overriding VitePress's own `--vp-*` CSS variables — you never touch Chakra her
 
 | File                                       | Role                                             |
 | ------------------------------------------ | ------------------------------------------------ |
-| `docs/.vitepress/theme/blueprint.css`      | Blueprint tokens + `--vp-*` mapping (light+dark) |
-| `docs/.vitepress/theme/fonts/*.woff2`      | The 6 IBM Plex woff2                              |
+| `docs/.vitepress/theme/blueprint.css`      | Design tokens + `--vp-*` mapping (light+dark)    |
+| `docs/.vitepress/theme/fonts/*.woff2`      | The 9 IBM Plex woff2 (serif + sans + mono)        |
 | `docs/.vitepress/theme/index.ts`           | `import "./blueprint.css"`                        |
 | `docs/.vitepress/theme/HomeLayout.vue`     | Hero URL callout set to `--vp-font-family-mono`  |
 
@@ -148,8 +164,27 @@ overriding VitePress's own `--vp-*` CSS variables — you never touch Chakra her
    brand→accent (`--vp-c-brand-{1,2,3}`, `-soft`), brand buttons, and the home
    hero name (`--vp-home-hero-name-color` = accent, `-background` = transparent to
    kill the default gradient). Fonts via `--vp-font-family-{base,mono}`.
-3. A few structural rules restore the low-radius plate feel VitePress otherwise
-   rounds heavily: `.VPButton`, `.VPFeature`, code blocks → `--radius-control/plate`.
+3. A few structural rules restore the cut-corner feel VitePress otherwise rounds
+   heavily: `.VPButton`, `.VPFeature`, code blocks → `--radius-control/plate`.
+4. **Remap VitePress's own neutral scale.** `--vp-c-gray-{1,2,3,soft}` and
+   `--vp-c-default-{1,2,3,soft}` are blue-biased out of the box and back every
+   "default" surface (alt buttons, custom blocks, badges). Left alone they put
+   lilac-gray chips on bone paper. They are pointed at the warm tokens, and the
+   alt-button vars are set to reproduce framejs.app's `.btn-secondary` (plate
+   fill + `line-strong` hairline) rather than a filled gray chip.
+5. **The serif is scoped**, not global: `.vp-doc` headings, `.VPHero .name/.text`
+   and `.VPFeature .title` only. Nav and sidebar stay sans — in framejs.app the
+   chrome is sans/mono and only headings take the serif. Hero weight is forced
+   to 600 (VitePress ships 900; nothing in the system passes 600).
+
+**Two deliberate docs-only divergences:**
+
+- `--warning-soft` is declared here but does **not** exist in framejs.app —
+  nothing there needs a warning fill, and VitePress's warning container does. It
+  used to point at the *green* wash, which was simply a bug.
+- VitePress's "tip" container is mapped to `--ink-2` / `--surface-2`, not the
+  accent. A tip is an aside, not an action; on the accent it made vermillion the
+  loudest thing on a page of prose, breaking the one-bold-move rule.
 
 **Fonts — the base-path catch:** docs run under `base: "/docs/"` (config.ts), so a
 root-absolute `/fonts/…` would resolve to the site root, not `/docs/`. So the docs
@@ -163,8 +198,17 @@ built `dist/assets/*.css` for `url(/docs/assets/ibm-plex-…)`.
 `styles.css`, and if token **values** changed, update them in
 `docs/.vitepress/theme/blueprint.css` `:root`/`.dark`. Because the `--vp-*`
 mapping uses `var(--token)` (not hex), only the token declarations need editing,
-not the mapping. Verify with `just docs/build` + a visual check of the home page
-and one content page in both light and dark.
+not the mapping. Verify with `npm run build` in `docs/` + a visual check of the
+home page and one content page in both light and dark.
+
+Two things that only surface at build/preview time:
+
+- Grep the built CSS for the font URLs — `grep -o "url(/docs/assets/ibm-plex-[^)]*)"
+  .vitepress/dist/assets/*.css` should list all nine faces. A face that fails the
+  base-path rewrite silently falls back to Georgia/system.
+- `npm run preview` + Playwright: the home page embeds a live framejs.io iframe
+  that never goes idle, so screenshot with `waitUntil: "domcontentloaded"` and a
+  fixed wait. `networkidle` will always time out there.
 
 ## Deliberate divergences (don't "fix" these)
 

@@ -1,21 +1,46 @@
 /* ---------------------------------------------------------------------------
-   Blueprint design system for the framejs.io docs (VitePress).
+   framejs design system for the framejs.io docs (VitePress).
 
    Mirror of framejs.app's design language (framejs-nhost
    frontend/worker/assets/styles.css), adapted to VitePress theming: the
-   blueprint CSS custom properties (--paper, --ink, --accent, …) are declared
+   design-system CSS custom properties (--paper, --ink, --accent, …) are declared
    here, then VitePress's own `--vp-*` variables are remapped onto them for
    both light and dark. See the `framejs-css-sync` skill for the derivation.
 
-   "Blueprint / drafting table": warm technical paper ground, cobalt blueprint
-   ink accent, hairline warm-gray rules, low radii, IBM Plex Sans (body) +
-   IBM Plex Mono (labels/data/code).
+   "Offprint": bone stock, near-black ink, one vermillion, rules and space in
+   place of cards, cut 2px corners. IBM Plex Serif (headings) + IBM Plex Sans
+   (body/chrome) + IBM Plex Mono (labels/data/code).
+
+   NOTE: the filename is historical — the previous "blueprint / drafting table"
+   world (cobalt accent, drafting grid) was replaced on 2026-08-30. The editor's
+   mirror still carries the old palette; rename both together when it catches up.
 
    Fonts are co-located in ./fonts and referenced relatively so Vite processes
    them (VitePress runs under a `/docs/` base, where root-absolute /fonts/ paths
    would not resolve).
 --------------------------------------------------------------------------- */
 
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-serif-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-serif-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Serif";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./fonts/ibm-plex-serif-latin-600-normal.woff2") format("woff2");
+}
 @font-face {
   font-family: "IBM Plex Sans";
   font-style: normal;
@@ -59,50 +84,60 @@
   src: url("./fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2");
 }
 
-/* --- Blueprint tokens: light (framejs.app :root) ------------------------- */
+/* --- Tokens: light (framejs.app :root) ----------------------------------- */
 :root {
-  --paper: #fbfaf7;
+  --paper: #f4f3ef;
   --surface: #ffffff;
-  --surface-2: #f4f2ec;
-  --ink: #1a1712;
-  --ink-2: #56514a;
-  --ink-3: #8b857a;
-  --line: #e8e4da;
-  --line-strong: #d5cfc3;
-  --accent: #1f2edb;
-  --accent-hover: #1824ae;
-  --accent-soft: #edeefe;
+  --surface-2: #eceae3;
+  --ink: #111110;
+  --ink-2: #55534c;
+  --ink-3: #6e6c63;
+  --line: #dbd8d0;
+  --rule: #e6e3db;
+  --line-strong: #c1bdb1;
+  --accent: #c9350a;
+  --accent-hover: #a82a06;
+  --accent-soft: #fbeae3;
   --on-accent: #ffffff;
-  --good: #1f883d;
-  --good-soft: #e9f5ec;
-  --warning: #a86709;
-  --danger: #c0392b;
-  --danger-soft: #fbeceb;
+  --good: #1c6b3a;
+  --good-soft: #e7f1ea;
+  --warning: #8a6410;
+  --danger: #8e1b2e;
+  --danger-soft: #fbeaed;
 
-  --radius-plate: 3px;
-  --radius-control: 4px;
+  /* Docs-only. framejs.app has no --warning-soft (nothing there needs a warning
+     fill); VitePress's warning container does, and it was previously pointed at
+     the GREEN wash. Hand-authored here to match the ochre. */
+  --warning-soft: #f6eeda;
+
+  --font-serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+
+  --radius-plate: 2px;
+  --radius-control: 2px;
 }
 
-/* --- Blueprint tokens: dark (framejs.app dark palette) ------------------- */
+/* --- Tokens: dark (framejs.app dark palette) ----------------------------- */
 /* VitePress toggles dark mode with a `.dark` class on <html>. */
 .dark {
-  --paper: #0e1117;
-  --surface: #151a22;
-  --surface-2: #1c222c;
-  --ink: #ece9e1;
-  --ink-2: #a8a99e;
-  --ink-3: #767c86;
-  --line: #262d38;
-  --line-strong: #38414f;
-  --accent: #6e82ff;
-  --accent-hover: #8a9aff;
-  --accent-soft: #1a2136;
-  --on-accent: #0b0e14;
-  --good: #3fb950;
-  --good-soft: #16241a;
-  --warning: #d0a215;
-  --danger: #f0776c;
-  --danger-soft: #2a1a19;
+  --paper: #131311;
+  --surface: #1c1c19;
+  --surface-2: #232320;
+  --ink: #eeece5;
+  --ink-2: #a3a099;
+  --ink-3: #85837b;
+  --line: #2c2b27;
+  --rule: #212120;
+  --line-strong: #413f39;
+  --accent: #ff6a3d;
+  --accent-hover: #ff8a63;
+  --accent-soft: #2a1912;
+  --on-accent: #171512;
+  --good: #4bb267;
+  --good-soft: #16241b;
+  --warning: #d9a441;
+  --danger: #ef7d84;
+  --danger-soft: #2b1619;
+  --warning-soft: #2a2213;
 }
 
 /* --- Map blueprint tokens onto VitePress variables (light) --------------- */
@@ -129,20 +164,36 @@
   --vp-c-divider: var(--line);
   --vp-c-gutter: var(--line);
 
-  /* Brand — cobalt blueprint ink */
+  /* Brand — vermillion, the one saturated colour */
   --vp-c-brand-1: var(--accent);
   --vp-c-brand-2: var(--accent-hover);
   --vp-c-brand-3: var(--accent);
   --vp-c-brand-soft: var(--accent-soft);
   --vp-c-brand: var(--accent);
 
-  /* Status */
-  --vp-c-tip-1: var(--accent);
-  --vp-c-tip-soft: var(--accent-soft);
+  /* Status. A "tip" container is an aside, not an action — leaving it on the
+     accent made vermillion the loudest thing on a page of prose, which breaks
+     the one-bold-move rule the palette depends on. It reads as a quiet ruled
+     aside instead. */
+  --vp-c-tip-1: var(--ink-2);
+  --vp-c-tip-soft: var(--surface-2);
   --vp-c-warning-1: var(--warning);
-  --vp-c-warning-soft: var(--good-soft);
+  --vp-c-warning-soft: var(--warning-soft);
   --vp-c-danger-1: var(--danger);
   --vp-c-danger-soft: var(--danger-soft);
+
+  /* VitePress's own neutral scale is cool (its grays are blue-biased), and it
+     backs every "default" surface: alt buttons, custom blocks, badges. Left
+     unmapped it puts lilac-gray chips on bone paper — the exact cool-neutral
+     clash the palette forbids. Remap the scale itself so all of them follow. */
+  --vp-c-gray-1: var(--line-strong);
+  --vp-c-gray-2: var(--line);
+  --vp-c-gray-3: var(--surface-2);
+  --vp-c-gray-soft: rgba(110, 108, 99, 0.14);
+  --vp-c-default-1: var(--line-strong);
+  --vp-c-default-2: var(--line);
+  --vp-c-default-3: var(--surface-2);
+  --vp-c-default-soft: var(--vp-c-gray-soft);
 
   /* Brand buttons (hero / doc actions) */
   --vp-button-brand-bg: var(--accent);
@@ -153,12 +204,24 @@
   --vp-button-brand-hover-border: transparent;
   --vp-button-brand-hover-text: var(--on-accent);
 
-  /* Home hero: solid cobalt wordmark (not the default gradient) */
+  /* Alt buttons are framejs.app's `.btn-secondary`: plate fill, ink text, a
+     line-strong hairline — not a filled gray chip. */
+  --vp-button-alt-bg: var(--surface);
+  --vp-button-alt-text: var(--ink);
+  --vp-button-alt-border: var(--line-strong);
+  --vp-button-alt-hover-bg: var(--surface-2);
+  --vp-button-alt-hover-text: var(--ink);
+  --vp-button-alt-hover-border: var(--ink-3);
+  --vp-button-alt-active-bg: var(--surface-2);
+  --vp-button-alt-active-text: var(--ink);
+  --vp-button-alt-active-border: var(--ink-3);
+
+  /* Home hero: solid vermillion wordmark (not the default gradient) */
   --vp-home-hero-name-color: var(--accent);
   --vp-home-hero-name-background: transparent;
 }
 
-/* Dark: re-point the VitePress surfaces/text at the dark blueprint tokens.
+/* Dark: re-point the VitePress surfaces/text at the dark tokens.
    (Brand/type vars above already resolve through the tokens, which .dark
    overrides, so they follow automatically — only the raw surfaces need it.) */
 .dark {
@@ -174,7 +237,7 @@
   --vp-c-gutter: var(--line);
 }
 
-/* --- Low-radius "drafting plate" feel (blueprint uses 3–4px, not pills) --- */
+/* --- Cut corners, not pills: the system is 2px everywhere ---------------- */
 .VPButton {
   border-radius: var(--radius-control) !important;
 }
@@ -184,6 +247,33 @@
 .vp-doc div[class*="language-"],
 .vp-doc :not(pre) > code {
   border-radius: var(--radius-control);
+}
+
+/* --- The serif is the display voice -------------------------------------
+   Scoped to content headings, the hero and feature titles. Nav and sidebar stay
+   in the sans: in framejs.app the chrome is sans/mono and only headings are set
+   in the serif, and a serif sidebar reads as a table of contents for the site
+   rather than as navigation. */
+.vp-doc :is(h1, h2, h3, h4, h5, h6),
+.VPHero .name,
+.VPHero .text,
+.VPFeature .title,
+.vp-doc blockquote {
+  font-family: var(--font-serif);
+  letter-spacing: -0.02em;
+}
+.vp-doc :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+}
+/* Nothing in the system goes past 600, and the hero name is the largest type
+   on the site — VitePress ships it at 900. */
+.VPHero .name,
+.VPHero .text {
+  font-weight: 600;
+}
+.vp-doc blockquote {
+  font-style: italic;
+  letter-spacing: normal;
 }
 
 /* Selection + focus, matching framejs.app */
