@@ -204,14 +204,14 @@ _integration-test +args="": _mkcert
     npm --prefix test run test:unit
 
     # Start from a clean slate. The CI runner is shared and long-lived, so a run
-    # that died between `up` and the trap below leaves its containers behind.
-    # The traefik service pins `container_name`, and a stale container holding
-    # that name blocks every later run with a conflict compose cannot resolve
-    # itself: the orphan is not part of this project, so `--remove-orphans`
-    # never reaches it and `up` just fails to create traefik. Without traefik
-    # nothing is routed, so the symptom is the 90s "dev server did not become
-    # ready" below rather than anything naming the real cause.
+    # that died between `up` and the trap below leaves its containers behind,
+    # and a leftover still holding a host port fails the next `up`.
     docker compose down --remove-orphans >/dev/null 2>&1 || true
+    # Legacy: traefik used to pin container_name (see docker-compose.yml). A
+    # machine that last ran that version can still have one, and while it no
+    # longer collides by name it does still hold APP_PORT. Compose does not know
+    # about it — it belongs to no project — so remove it here. Droppable once
+    # every runner and dev box has run this recipe at least once.
     docker rm -f traefik-connect-metaframe-js >/dev/null 2>&1 || true
 
     # Installed BEFORE `up`, not after: a partial `up` (an image that fails to

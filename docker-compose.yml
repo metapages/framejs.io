@@ -165,7 +165,14 @@ services:
 
   traefik:
     image: "traefik:v2.11"
-    container_name: "traefik-connect-metaframe-js"
+    # No container_name on purpose: compose names this metaframe-js-traefik-1,
+    # scoped to the project. A fixed name is global to the docker daemon, so on
+    # a shared machine (the CI runner, or a dev box running several metapages
+    # stacks) any container still holding it — including one stranded by a run
+    # that died mid-`up` — makes every later `up` fail with a name conflict that
+    # compose cannot clear itself: the squatter belongs to no project, so
+    # `down --remove-orphans` does not reach it. Traefik discovers services
+    # through docker.sock labels, so nothing depends on what it is called.
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik=true"
