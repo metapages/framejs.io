@@ -228,7 +228,7 @@ _integration-test +args="": _mkcert
     # Checked explicitly: this recipe does not `set -e`, so an unchecked failure
     # here would fall through to the readiness wait and be reported 90s later as
     # a timeout instead of the build/pull error it actually is.
-    if ! TRAEFIK_WEB_UI_PORT=0 docker compose up --build -d; then
+    if ! MINIO_PORT=0 MINIO_CONSOLE_PORT=0 TRAEFIK_WEB_UI_PORT=0 docker compose up --build -d; then
       echo "❌ docker compose up failed"
       exit 1
     fi

@@ -4,9 +4,16 @@ services:
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
+    # Published only for developer convenience (the console on :9001, and poking
+    # at the API directly). Nothing in the stack or the tests needs them: the
+    # worker and minio-init reach minio at http://minio:9000 over the compose
+    # network, and the browser reaches it through traefik at s3.localhost. So CI
+    # sets both to 0 (ephemeral) — a shared runner may well already have 9000
+    # bound by another stack, and a fixed host port turns that into a failed
+    # `up` for a port no test uses.
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
