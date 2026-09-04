@@ -2024,9 +2024,45 @@
       }
     };
 
+    // The url this cache holds `source` for, or undefined. Used to fold an
+    // unchanged hand-back from the editor back into the reference it came from
+    // (see foldJsSourceToRef). Looked up by value rather than tracked in a
+    // variable so it stays correct however the url has moved since.
+    const refForSource = (source) => {
+      for (const [url, text] of jsSourceCache) {
+        if (text === source) return url;
+      }
+      return undefined;
+    };
+
+    // The editor hands its ENTIRE hash back (see updateCode), so whatever it
+    // holds becomes the frame's url. Once the source has been seeded into the
+    // editor, an unchanged hand-back would therefore swap the compact `js`
+    // reference for the multi-megabyte source it points at — and the embedder
+    // watches this url to decide when to save, so merely OPENING the editor
+    // would write a new version, every time. Fold it back to the reference.
+    //
+    // A real edit no longer matches anything we fetched, so it passes through
+    // as source — which is correct: that is a new version, and framejs.app
+    // re-hoists it.
+    const foldJsSourceToRef = (hashString) => {
+      const incoming = getHashParamValueBase64DecodedFromUrl(
+        window.location.origin + window.location.pathname + hashString,
+        "js",
+      );
+      if (!incoming || isJsSourceUrl(incoming)) return hashString;
+      const ref = refForSource(incoming);
+      if (!ref) return hashString;
+      return setHashParamValueInHashString(
+        hashString,
+        "js",
+        stringToBase64String(ref),
+      );
+    };
+
     // The current hash params with any `js` reference replaced by the source it
-    // points at — what the editor is handed, so it shows and edits code rather
-    // than a URL. Everything else keeps reading currentHashString().
+    // points at — what the editor is seeded with, so it shows and edits code
+    // rather than a URL. Everything else keeps reading currentHashString().
     const currentHashStringWithJsSource = async () => {
       const hashString = currentHashString();
       const value = getJsFromUrl();
@@ -2819,6 +2855,56 @@
       if (resizeHandle) resizeHandle.style.display = "none";
     };
 
+    // Hand the frame's source to the editor without putting it in a url.
+    //
+    // The editor is served from this same origin, so once its document exists
+    // its hash can be written directly. That matters because the source can be
+    // megabytes: as an iframe `src` it is a navigation, and Chrome drops any
+    // navigation past 2MiB (url::kMaxURLChars) onto about:blank#blocked with no
+    // error — the same failure the `js` reference was introduced to fix, which
+    // would otherwise reappear here and open an empty editor on precisely the
+    // frames that are hoisted. A same-document hash write of the same size is
+    // fine, and the editor reads `js` from its own hash (useHashParamBase64),
+    // so it picks the source up with nothing to change on its side.
+    //
+    // Only a reference needs this; inline source already rode in on the url.
+    const seedEditorSource = async (iframe) => {
+      const value = getJsFromUrl();
+      if (!value || !isJsSourceUrl(value)) return;
+      const hashString = await currentHashStringWithJsSource();
+      // Unresolvable: leave the editor showing the reference rather than
+      // blanking it — handing back an empty `js` would erase the frame.
+      if (!hashString) return;
+      // Wait for the editor document itself. A freshly created iframe sits on
+      // `about:blank` — already readyState "complete" — until metapage's src
+      // navigation lands, and a hash written there is thrown away by that
+      // navigation. Polling rather than listening for `load`: metapage may hand
+      // back an iframe that has already loaded, which fires no further event.
+      const deadline = Date.now() + 20000;
+      const seed = () => {
+        let win;
+        try {
+          win = iframe.contentWindow;
+          if (win && win.location.protocol !== "about:") {
+            win.location.hash = hashString;
+            return;
+          }
+        } catch (error) {
+          globalThis.logStderr(
+            `Error handing the frame source to the editor: ${error.message}`,
+          );
+          return;
+        }
+        if (Date.now() < deadline) setTimeout(seed, 50);
+        else {
+          globalThis.logStderr(
+            "Timed out handing the frame source to the editor",
+          );
+        }
+      };
+      seed();
+    };
+
     const onMenuClick = async () => {
       var shortUrlId = window.__SHORT_URL_ID;
       // A uuid short URL (32 hex chars, dashes optional) is backed by
@@ -2877,10 +2963,15 @@
       document.getElementById("editor-root").className =
         "editor-container-shown borderDashedBlue";
 
-      // Modify the metapage editor url hash to our own. A `js` reference is
-      // expanded into the source here so the editor shows code, not a URL.
+      // Modify the metapage editor url hash to our own. The `js` REFERENCE is
+      // passed through as-is — expanding it here would rebuild the very url the
+      // hoist exists to avoid: an iframe src over 2MiB is a navigation Chrome
+      // refuses outright, landing the editor on about:blank#blocked, so the
+      // pane opens empty on exactly the frames that need hoisting. The source
+      // is written into the editor's hash after it loads instead (see
+      // seedEditorSource) — a same-document hash write, which has no such cap.
       const editorUrl = new URL(metapageDef.metaframes.editor.url);
-      editorUrl.hash = await currentHashStringWithJsSource();
+      editorUrl.hash = currentHashString();
       metapageDef.metaframes.editor.url = editorUrl.href;
 
       const mp = await globalThis.metapage.Metapage.from(metapageDef);
@@ -2908,6 +2999,7 @@
       document.getElementById("editor-root").append(
         iframeDivContainer,
       );
+      seedEditorSource(iframe);
       runJsFromUrl();
 
       let pending;
@@ -2917,7 +3009,7 @@
         }
         pending = setTimeout(() => {
           pending = null;
-          window.location.hash = hash;
+          window.location.hash = foldJsSourceToRef(hash);
         }, 400);
       };
       mp.addListener(
