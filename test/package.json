@@ -9,6 +9,7 @@
     "test:unit": "vitest run"
   },
   "devDependencies": {
+    "@metapages/hash-query": "^0.10.0",
     "@playwright/test": "^1.40.0",
     "@testing-library/react": "^14.0.0",
     "@types/react": "^18.2.0",

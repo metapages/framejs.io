@@ -203,16 +203,35 @@ _integration-test +args="": _mkcert
     # Run unit tests (no server needed)
     npm --prefix test run test:unit
 
-    # Start dev stack in background; use port 0 for Traefik web UI to avoid conflicts with host ports
-    TRAEFIK_WEB_UI_PORT=0 docker compose up --build -d
+    # Start from a clean slate. The CI runner is shared and long-lived, so a run
+    # that died between `up` and the trap below leaves its containers behind,
+    # and a leftover still holding a host port fails the next `up`.
+    docker compose down --remove-orphans >/dev/null 2>&1 || true
+    # Legacy: traefik used to pin container_name (see docker-compose.yml). A
+    # machine that last ran that version can still have one, and while it no
+    # longer collides by name it does still hold APP_PORT. Compose does not know
+    # about it — it belongs to no project — so remove it here. Droppable once
+    # every runner and dev box has run this recipe at least once.
+    docker rm -f traefik-connect-metaframe-js >/dev/null 2>&1 || true
 
-    # On exit (success or failure), shut down the dev stack and preserve exit code
+    # Installed BEFORE `up`, not after: a partial `up` (an image that fails to
+    # build or pull halfway through) is exactly the case that strands the
+    # containers it did create, and a trap set afterwards never runs for it.
     cleanup() {
       local code=$?
       docker compose down
       exit $code
     }
     trap cleanup EXIT
+
+    # Start dev stack in background; use port 0 for Traefik web UI to avoid conflicts with host ports
+    # Checked explicitly: this recipe does not `set -e`, so an unchecked failure
+    # here would fall through to the readiness wait and be reported 90s later as
+    # a timeout instead of the build/pull error it actually is.
+    if ! MINIO_PORT=0 MINIO_CONSOLE_PORT=0 TRAEFIK_WEB_UI_PORT=0 docker compose up --build -d; then
+      echo "❌ docker compose up failed"
+      exit 1
+    fi
 
     # Wait for server to be ready
     echo "Waiting for dev server at https://{{ APP_FQDN }}:{{ APP_PORT }}..."

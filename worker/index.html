@@ -988,6 +988,7 @@
       setHashParamInWindow,
       setHashParamValueInHashString,
       setHashParamValueJsonInHashString,
+      stringToBase64String,
     } from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0";
     import {
       isIframe,
@@ -1960,6 +1961,85 @@
       return jsFromUrl;
     };
 
+    // ---------------------------------------------------------------------
+    // `js` as a URL: a REFERENCE to the source rather than the source itself.
+    //
+    // A frame's code normally travels inline in the hash param, which caps how
+    // big a frame can be: Chrome refuses to navigate to a URL over 2MiB and
+    // silently lands the iframe on about:blank#blocked, so a large frame
+    // embedded by hash URL renders as a blank page. framejs.app therefore
+    // hoists an oversize frame's source into its own storage and stores
+    // `js=<https://framejs.app/f/<id>>` instead, keeping the URL small.
+    //
+    // Same rule (and the same one-line-http(s)-URL test) as the `css` param
+    // below, and no new privilege: `js` already runs whatever code the hash
+    // carries, so fetching that code from a URL adds no capability an attacker
+    // who can set the hash did not already have.
+    //
+    // The reference is NEVER expanded back onto window.location.hash. The
+    // embedder (framejs.app) reads its frame's URL to decide when to save a new
+    // version, and a frame that persists its own state with setJson rewrites
+    // that URL on every interaction — expanding here would hand it the whole
+    // multi-megabyte source each time and undo the hoisting. Only the two
+    // readers that genuinely need the source get it: runJsFromUrl (to execute
+    // it) and the editor hand-off (to display it). An edit made in the editor
+    // does replace the reference with real source, which is correct — that is a
+    // new version, and framejs.app re-hoists it.
+    // ---------------------------------------------------------------------
+    const isJsSourceUrl = (value) => {
+      const trimmed = value.trim();
+      return /^https?:\/\/\S+$/.test(trimmed) && !/\s/.test(trimmed);
+    };
+
+    // Fetched sources, keyed by URL. A frame re-runs on every execution-param
+    // change (see runJsFromUrl's hashchange path), and the source behind a
+    // given URL is immutable — framejs.app stores it content-addressed — so it
+    // is fetched at most once per page load.
+    const jsSourceCache = new Map();
+
+    const fetchJsSource = async (url) => {
+      if (jsSourceCache.has(url)) return jsSourceCache.get(url);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`);
+      }
+      const source = await response.text();
+      jsSourceCache.set(url, source);
+      return source;
+    };
+
+    // The frame's source: `value` itself, unless it is a URL referencing it.
+    // A failed fetch reports to the frame's own stderr and yields no code,
+    // rather than throwing — the page keeps its chrome and says what happened.
+    const resolveJsSource = async (value) => {
+      if (!value || !isJsSourceUrl(value)) return value;
+      const url = value.trim();
+      try {
+        return await fetchJsSource(url);
+      } catch (error) {
+        globalThis.logStderr(
+          `Error fetching frame source from ${url}: ${error.message}`,
+        );
+        return "";
+      }
+    };
+
+    // The current hash params with any `js` reference replaced by the source it
+    // points at — what the editor is handed, so it shows and edits code rather
+    // than a URL. Everything else keeps reading currentHashString().
+    const currentHashStringWithJsSource = async () => {
+      const hashString = currentHashString();
+      const value = getJsFromUrl();
+      if (!value || !isJsSourceUrl(value)) return hashString;
+      const source = await resolveJsSource(value);
+      if (!source) return hashString;
+      return setHashParamValueInHashString(
+        hashString,
+        "js",
+        stringToBase64String(source),
+      );
+    };
+
     // TODO: do same as above (modules in hash params) for config
 
     // The id used to tag the injected <style>/<link> so we can find/replace/
@@ -2349,9 +2429,13 @@
       globalThis.scriptUnload = null;
 
       let js = getJsFromUrl();
+      // `js` may be a URL referencing the source (see isJsSourceUrl). Start the
+      // fetch before awaiting the modules so the two overlap.
+      const jsSource = resolveJsSource(js);
 
       // ensure all modules are loaded
       await Promise.all(window.__metaframejs.awaiting);
+      js = await jsSource;
 
       const [_, hashParams] = getUrlHashParamsFromHashString(currentHashString());
 
@@ -2793,9 +2877,10 @@
       document.getElementById("editor-root").className =
         "editor-container-shown borderDashedBlue";
 
-      // Modify the metapage editor url hash to our own
+      // Modify the metapage editor url hash to our own. A `js` reference is
+      // expanded into the source here so the editor shows code, not a URL.
       const editorUrl = new URL(metapageDef.metaframes.editor.url);
-      editorUrl.hash = currentHashString();
+      editorUrl.hash = await currentHashStringWithJsSource();
       metapageDef.metaframes.editor.url = editorUrl.href;
 
       const mp = await globalThis.metapage.Metapage.from(metapageDef);
