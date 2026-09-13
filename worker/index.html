@@ -1006,8 +1006,8 @@
     //
     // A frame that saves state into the hash — see docs/guide/url-state.md and
     // `definition.hashParams` — commits it with history.replaceState, either
-    // directly or through @metapages/hash-query. Two things have to be true for
-    // that to work, and they pull in opposite directions:
+    // directly or through @metapages/hash-query. Three things have to be true
+    // for that to work, and they pull in opposite directions:
     //
     //  1. It must be ANNOUNCED. replaceState/pushState do not fire `hashchange`,
     //     so on their own the write is invisible outside this page: the metaframe
@@ -1024,12 +1024,31 @@
     //     in-memory state — dragging a slider would reload the app. Frames have
     //     had to choose between the two, and picking (2) meant losing (1).
     //
-    // So: flag the write as self-originated, announce it, and let the hashchange
-    // listener skip the re-run for exactly those. A genuinely external hash
-    // change (address bar, an embedder rewriting the url) still re-runs as
-    // before. The flag is cleared synchronously — dispatchEvent runs its
-    // listeners inline — so it can never leak into a later event.
-    let selfHashWrite = false;
+    //  3. It must NOT reach the frame's OWN `hashchange` listeners. This used
+    //     to be done by dispatching a synthetic window-wide event, which
+    //     satisfied (1) and — via a `selfHashWrite` flag the listener below
+    //     checked — (2). But a window-wide event reaches every listener, and a
+    //     frame that both saves state and re-renders on `hashchange` (a very
+    //     natural pairing: "the url changed, reload my state from it") got its
+    //     own save handed back as if someone else had made it. Re-rendering
+    //     tears down the DOM, so the input the user was typing in was destroyed
+    //     and rebuilt: the caret jumped out of the field mid-edit, roughly one
+    //     debounce after every keystroke. The frame cannot tell the event apart
+    //     from a real external change, so the runtime must not send it.
+    //
+    // So: do not broadcast. Run the runtime's own hash-change bookkeeping
+    // directly, and notify the metaframe client directly, both via
+    // `onSelfHashWrite` (wired up next to that bookkeeping, further down). A
+    // genuinely external hash change (address bar, an embedder rewriting the
+    // url) still arrives as a real `hashchange` and still re-runs the frame,
+    // exactly as before.
+    //
+    // `onSelfHashWrite` is assigned later in this module. The patch installed
+    // here only CALLS it, and the earliest a frame can write its own state is
+    // inside the user JS that `runJsFromUrl` imports — which is async and
+    // awaits module loading, so evaluation of this module is long finished by
+    // then. The fallback covers the impossible case rather than losing a write.
+    let onSelfHashWrite = null;
     const announceSelfHashWrites = (method) => {
       const original = globalThis.history[method];
       if (typeof original !== "function") {
@@ -1039,11 +1058,10 @@
         const before = globalThis.location.hash;
         const result = original.apply(this, args);
         if (globalThis.location.hash !== before) {
-          selfHashWrite = true;
-          try {
+          if (onSelfHashWrite) {
+            onSelfHashWrite();
+          } else {
             globalThis.dispatchEvent(new HashChangeEvent("hashchange"));
-          } finally {
-            selfHashWrite = false;
           }
         }
         return result;
@@ -2657,11 +2675,15 @@
       return true;
     };
 
-    // reload on hash changes and refresh service worker config
-    globalThis.addEventListener("hashchange", () => {
-      // True when this event came from the frame writing its own state (see
-      // announceSelfHashWrites above), rather than from an external edit.
-      const isSelfWrite = selfHashWrite;
+    // Everything the runtime does in response to the hash changing, as a
+    // function rather than only a listener body: a self-write (the frame
+    // persisting its own state) has to run all of it WITHOUT a window-wide
+    // `hashchange`, which would also reach the frame's own listeners and make
+    // the frame re-render over its own save. See announceSelfHashWrites above.
+    //
+    // `isSelfWrite` is passed in rather than read off a flag, so there is no
+    // shared state to leak between a self-write and a real event.
+    const handleHashChange = (isSelfWrite) => {
       // Refresh service worker config when hash changes
       const newConfig = getServiceWorkerConfig();
       globalThis.serviceWorkerConfig = newConfig;
@@ -2699,7 +2721,37 @@
       if (executionParamsChanged && !isSelfWrite) {
         runJsFromUrl();
       }
-    }, false);
+    };
+
+    // A real hash change: the address bar, an embedder rewriting the url, a
+    // hash-query write. Never a frame's own state write — those come through
+    // onSelfHashWrite below instead.
+    globalThis.addEventListener(
+      "hashchange",
+      () => handleHashChange(false),
+      false,
+    );
+
+    // The frame wrote its own state (announceSelfHashWrites above calls this).
+    // It gets the same bookkeeping and the same notification upward as a real
+    // hash change — just not the broadcast, so the frame's own `hashchange`
+    // listeners never see it and the DOM it is mid-edit survives.
+    onSelfHashWrite = () => {
+      handleHashChange(true);
+      // How the write reaches an embedder (framejs.app saves a new frame
+      // version off it). The client normally picks this up from its own
+      // `hashchange` listener; with no broadcast, call its handler directly.
+      // It takes no arguments — it reads window.location.hash itself.
+      const client = globalThis.metaframe;
+      if (typeof client?._onHashUrlChange === "function") {
+        client._onHashUrlChange();
+      } else {
+        // A metapage upgrade renamed the handler. Fall back to the broadcast:
+        // the frame re-renders again (the bug this guards against), but its
+        // state still persists, which is the worse of the two to lose silently.
+        globalThis.dispatchEvent(new HashChangeEvent("hashchange"));
+      }
+    };
 
     const metapageDef = {
       metaframes: {
