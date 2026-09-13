@@ -8,7 +8,10 @@ import { expect, type Page, test } from "@playwright/test";
  *  1. the value round-trips through the URL,
  *  2. `setJson` declares the key in `definition.hashParams` itself, so the
  *     state is not stripped on save / shorten / copy, and
- *  3. saving does NOT re-run the frame (in-memory state and the DOM survive).
+ *  3. saving does NOT re-run the frame (in-memory state and the DOM survive),
+ *  4. saving is not delivered to the frame's own `hashchange` listeners, so a
+ *     frame that re-renders on `hashchange` does not re-render over its own
+ *     save — which used to yank focus out of the input being typed into.
  *
  * `saveJson` is a kept alias of `setJson`; the last test pins that.
  */
@@ -19,6 +22,7 @@ declare global {
     __getJson: (key: string) => unknown;
     __setJson: (key: string, value: unknown) => void;
     __saveJson: (key: string, value: unknown) => void;
+    __hashEvents: number;
   }
 }
 
@@ -182,4 +186,67 @@ test("saveJson is an alias of setJson", async ({ page }) => {
     }
   });
   expect(error).toContain("saveJson:");
+});
+
+
+// A frame that persists state AND re-renders on `hashchange` — a very natural
+// pairing ("the url changed, load my state from it") and the one that used to
+// break. `setJson` announced itself with a window-wide synthetic event, the
+// frame could not tell it from an external edit, and rebuilt its DOM out from
+// under the input the user was typing in.
+const rerenderingFrame = `
+window.__hashEvents = 0;
+window.__setJson = setJson;
+const draw = () => {
+  const state = getJson('state');
+  root.innerHTML = '<input id="field" value="' + ((state && state.text) || '') + '">';
+};
+window.addEventListener('hashchange', () => {
+  window.__hashEvents++;
+  draw();
+});
+draw();
+`;
+
+const loadRerendering = async (page: Page) => {
+  await page.goto(urlForJs(rerenderingFrame));
+  await page.waitForLoadState("load");
+  await expect.poll(() => page.locator("#field").count()).toBe(1);
+};
+
+test("setJson is not delivered to the frame's own hashchange listener", async ({
+  page,
+}) => {
+  await loadRerendering(page);
+
+  await page.locator("#field").click();
+  await page.keyboard.type("hello");
+
+  // Exactly what a debounced autosave does after the user stops typing.
+  await page.evaluate(() => window.__setJson("state", { text: "hello" }));
+
+  // Give a stray event a chance to arrive before asserting it did not.
+  await page.waitForTimeout(500);
+
+  expect(await page.evaluate(() => window.__hashEvents)).toBe(0);
+  // The decisive one: same element, still focused, still holding what was typed.
+  // A re-render would have replaced the input and blanked both.
+  expect(await page.evaluate(() => document.activeElement?.id)).toBe("field");
+  expect(await page.locator("#field").inputValue()).toBe("hello");
+});
+
+test("a genuine external hash change still reaches the frame", async ({
+  page,
+}) => {
+  await loadRerendering(page);
+
+  // `hm` only decides whether the frame's own edit button shows, so it is a
+  // NON_EXECUTION_PARAM: a real external hash change that must be delivered to
+  // the frame without re-running its JS (a re-run would reset the counter).
+  await page.evaluate(() => {
+    globalThis.location.hash = globalThis.location.hash + "&hm=disabled";
+  });
+
+  await expect.poll(() => page.evaluate(() => window.__hashEvents))
+    .toBeGreaterThanOrEqual(1);
 });
