@@ -1044,12 +1044,34 @@
     // url) still arrives as a real `hashchange` and still re-runs the frame,
     // exactly as before.
     //
-    // `onSelfHashWrite` is assigned later in this module. The patch installed
-    // here only CALLS it, and the earliest a frame can write its own state is
-    // inside the user JS that `runJsFromUrl` imports — which is async and
-    // awaits module loading, so evaluation of this module is long finished by
-    // then. The fallback covers the impossible case rather than losing a write.
+    // `onSelfHashWrite` is assigned much further down, next to the bookkeeping
+    // it runs. The patch installed here only CALLS it, but it can be installed
+    // and fire before that assignment: this module suspends at a top-level
+    // `await` (the one that lets the DOM parse an injected import map), and
+    // anything that writes the hash while it is suspended lands here early.
+    // Broadcasting instead is not a fallback — the runtime's own `hashchange`
+    // listener is registered down there too, so an early write would be
+    // announced to nobody and silently lost. Remember it and flush it once the
+    // handler exists.
     let onSelfHashWrite = null;
+    let pendingSelfHashWrite = false;
+    // Never let runtime bookkeeping escape into the caller. A self-write is
+    // triggered from INSIDE the frame's own `setJson`/`replaceState` call, so a
+    // throw here would propagate out of the frame's code — aborting a module
+    // that was only trying to save state. The synthetic `hashchange` this
+    // replaced could not do that: exceptions in event listeners never reach the
+    // code that dispatched the event.
+    const notifySelfHashWrite = () => {
+      if (!onSelfHashWrite) {
+        pendingSelfHashWrite = true;
+        return;
+      }
+      try {
+        onSelfHashWrite();
+      } catch (error) {
+        console.error("Error handling a self-originated hash write", error);
+      }
+    };
     const announceSelfHashWrites = (method) => {
       const original = globalThis.history[method];
       if (typeof original !== "function") {
@@ -1059,11 +1081,7 @@
         const before = globalThis.location.hash;
         const result = original.apply(this, args);
         if (globalThis.location.hash !== before) {
-          if (onSelfHashWrite) {
-            onSelfHashWrite();
-          } else {
-            globalThis.dispatchEvent(new HashChangeEvent("hashchange"));
-          }
+          notifySelfHashWrite();
         }
         return result;
       };
@@ -1372,6 +1390,35 @@
         root.removeChild(root.firstChild);
       }
       scheduleLogScroll(root);
+    };
+
+    // A frame's code — or a library it imports — can reject or throw ANY value,
+    // not just an Error: `throw undefined`, a rejected promise with no reason, a
+    // string. Reading `.message` off that crashes the catch block itself, which
+    // is strictly worse than the original failure: the real cause is never
+    // printed, and the TypeError escapes whatever was running (for
+    // runJsFromUrl, mid-way through setting the frame up) as an unhandled
+    // rejection. So describe the value defensively and never touch `.message`
+    // directly.
+    const describeError = (value) => {
+      if (value instanceof Error) {
+        const described = `${value.name}: ${value.message}`;
+        if (!value.stack) return described;
+        // Chrome's stack already starts with "Name: message"; Firefox's does not.
+        return value.stack.startsWith(value.name)
+          ? value.stack
+          : `${described}\n${value.stack}`;
+      }
+      if (value === undefined) return "undefined (a non-Error value was thrown)";
+      if (value === null) return "null (a non-Error value was thrown)";
+      try {
+        const described = typeof value === "object"
+          ? JSON.stringify(value)
+          : String(value);
+        return `${described} (a non-Error value was thrown)`;
+      } catch (_) {
+        return `${typeof value} (a non-Error value was thrown)`;
+      }
     };
 
     globalThis.foundImportMap = false;
@@ -2035,8 +2082,9 @@
       try {
         return await fetchJsSource(url);
       } catch (error) {
+        console.error(`Error fetching frame source from ${url}`, error);
         globalThis.logStderr(
-          `Error fetching frame source from ${url}: ${error.message}`,
+          `Error fetching frame source from ${url}: ${describeError(error)}`,
         );
         return "";
       }
@@ -2498,8 +2546,9 @@
             // Dynamically import the module using the Blob URL
             module = await import(url);
           } catch (error) {
+            console.error("Error importing module", error);
             globalThis.logStderr(
-              `Error importing module: ${error.message}`,
+              `Error importing module: ${describeError(error)}`,
             );
           } finally {
             // Clean up by revoking the object URL
@@ -2836,6 +2885,16 @@
         globalThis.dispatchEvent(new HashChangeEvent("hashchange"));
       }
     };
+
+    // A hash write that happened while this module was still evaluating (see
+    // notifySelfHashWrite) has had no bookkeeping and no notification upward.
+    // Run it now, once, against the hash as it stands — but in a microtask, so
+    // the rest of this module (removeEditor and friends, which handleHashChange
+    // reaches for) is defined by the time it runs.
+    if (pendingSelfHashWrite) {
+      pendingSelfHashWrite = false;
+      queueMicrotask(notifySelfHashWrite);
+    }
 
     const metapageDef = {
       metaframes: {
