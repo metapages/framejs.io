@@ -27,9 +27,9 @@ const servePresentationIndex = {
 
 export default withMermaid(
   defineConfig({
-    title: "framejs.io — share interactive visualizations in a URL",
+    title: "framejs.io — open web artifacts that embed anywhere",
     description:
-      "Create and share interactive JavaScript visualizations, charts, dashboards, and apps in the browser. The code lives in the URL — no server, build, or account. Generate it with AI or write it by hand.",
+      "Open web artifacts: interactive browser apps, figures, and tools that live in a shareable URL. Build them with AI or by hand, embed them live in any page, notebook, or slide, and fork or self-host the open-source runtime. No server, no build step, no account.",
     base: "/docs/",
     // Generate links without the .html suffix (e.g. /docs/guide/intro instead of
     // /docs/guide/intro.html). Requires the server to serve `foo.html` when `/foo`

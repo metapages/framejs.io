@@ -1,12 +1,12 @@
 <div align="center">
 
 <a href="https://framejs.io">
-  <img src="worker/static/share/og-image.png" alt="FrameJS — visualize with AI, share anywhere" width="720" />
+  <img src="worker/static/share/og-image.png" alt="FrameJS — open web artifacts, embed them anywhere" width="720" />
 </a>
 
 # framejs.io
 
-**Interactive JavaScript that lives in a URL.** Prompt AI to build it, then embed or share it anywhere.
+**Open web artifacts — interactive JavaScript that lives in a URL.** Prompt AI to build one, then embed or share it anywhere.
 
 [**Live Docs →**](https://framejs.io/docs) · [Create now](https://framejs.io#?edit=true) · [Examples](https://framejs.io/docs/examples/) · [Developer docs](./docs/development/README.md)
 
@@ -16,13 +16,16 @@
 
 ## What is it?
 
-[framejs.io](https://framejs.io) is an open-source, embeddable, editable web app. You write (or ask AI to write) an ES6 JavaScript module — a visualization, dashboard, widget, app, or game — and **all of the code and state is encoded in the URL**. There is no server storage and no account required: the URL *is* the program, so anyone with the link can run it instantly.
+[framejs.io](https://framejs.io) is an open-source, embeddable, editable web app. You write (or ask AI to write) an ES6 JavaScript module — an interactive figure, dashboard, widget, app, or game — and **all of the code and state is encoded in the URL**. There is no server storage and no account required: the URL *is* the program, so anyone with the link can run it instantly.
+
+It is the same unit of work as an artifact built inside Claude or ChatGPT, with the platform taken out from underneath it: because the artifact is a plain URL running open-source code, it embeds live in someone else's page, takes inputs, carries a citable version, and can be forked or self-hosted.
 
 - 🤖 **Create with AI** — describe what you want in plain language; works with Claude, ChatGPT, or any LLM.
 - 🔗 **Share via URL** — copy the link and it just runs. Content-addressed short URLs too.
 - 🧩 **Embed anywhere** — Notion, Obsidian, Confluence, Google Docs, Jupyter, or your own site.
 - 📓 **Notebook widgets** — use any frame as an interactive Jupyter or marimo widget.
 - 🕸️ **Connect frames** — wire inputs and outputs together to build pipelines and dashboards.
+- 🔓 **Open source, self-hostable** — MIT-licensed runtime and a documented URL format; run the whole thing on your own infrastructure.
 - 🖼️ **Rich previews** — links render with an Open Graph title, description, and image in Slack, Discord, and social media.
 
 ## Fastest start (AI)

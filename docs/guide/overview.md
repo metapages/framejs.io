@@ -2,11 +2,12 @@
 
 ## What is framejs.io?
 
-[framejs.io](https://framejs.io) aims to be a user-centric web primitive.
+[framejs.io](https://framejs.io) aims to be a user-centric web primitive: an
+**open web artifact**, complete in its own URL.
 
 Run arbitrary javascript directly in the browser, with all code embedded in the URL. There is no server-side storage: the URL *is* the program.
 
-It is designed for embedding code safely anywhere, creating custom, editable dashboards, widgets, notebook components, shareable visualizations, editable apps, and more.
+It is designed for embedding code safely anywhere, creating custom, editable dashboards, widgets, notebook components, interactive figures, editable apps, and more.
 
 `framejs.io` pages can combine and connect into [metapages](https://metapage.io), where inputs and outputs can flow between, or be embedded in [jupyter notebook](../integrations/jupyter) code. 
 
