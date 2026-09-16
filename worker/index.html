@@ -1157,6 +1157,25 @@
       window.location.search + currentHashString();
 
     // ---------------------------------------------------------------------
+    // `readonly=true` — the code is VIEWABLE but not editable.
+    //
+    // Set by whoever serves the frame when its content is fixed: a PUBLISHED
+    // version (`/j/<uuid>?v=<sha256>`, immutable by definition) served by this
+    // worker, or framejs.app's frame page embedding one. It is chrome, not
+    // content — like `edit` and `hm` — so it never re-runs the frame and is
+    // never stored as part of a frame.
+    //
+    // What it changes: the editor pane opens read-only (the flag rides along
+    // into the editor's own hash, where it sets Monaco's readOnly and strips
+    // the mutating actions), the pane's edits are never written back to the
+    // hash, and the frame's own button says "View" instead of "Edit".
+    // ---------------------------------------------------------------------
+    const isReadOnly = () => {
+      const [, params] = getUrlHashParamsFromHashString(currentHashString());
+      return params["readonly"] === "true";
+    };
+
+    // ---------------------------------------------------------------------
     // getJson / setJson — the core URL-state API (`saveJson` is an alias of
     // `setJson`, kept because frames already in the wild call it).
     //
@@ -1192,6 +1211,7 @@
       "modules",
       "og",
       "options",
+      "readonly",
     ]);
 
     // The metaframe definition with `key` declared under hashParams, or
@@ -1801,6 +1821,17 @@
         return;
       }
       const menuButton = document.getElementById("menu-button");
+      // Read-only (a published version): the button still opens the pane, but
+      // it opens it to LOOK at the code — saying "Edit" would promise an edit
+      // that the pane then refuses.
+      const menuButtonLabel = menuButton.querySelector("span");
+      if (menuButtonLabel) {
+        const readOnly = hashParams["readonly"] === "true";
+        menuButtonLabel.textContent = readOnly ? "View" : "Edit";
+        menuButton.title = readOnly
+          ? "View this version's code (read-only)"
+          : "Edit this frame's code";
+      }
       if (hashParams["hm"] === "disabled") {
         menuButton.style.display = "none";
       } else {
@@ -2767,6 +2798,7 @@
       "editorWidth",
       "edit",
       "hm",
+      "readonly",
     ]);
 
     // Build a lightweight snapshot from the raw hash string by filtering
@@ -2943,10 +2975,20 @@
       // framejs.app expects the uuid with the dashes removed. `#?edit=true`
       // tells framejs.app to open the embedded editor right away; framejs.app
       // consumes and strips it so its URL stays clean.
+      //
+      // A PINNED version (/j/<uuid>?v=<sha256>) hands off to that version's
+      // framejs.app page instead — pin forwarded, and WITHOUT edit=true. The
+      // published version is immutable, so dropping the user straight into the
+      // editor would be a lie; the page shows its "published version" label and
+      // they click edit there to start editing the live frame.
       if (isUuidShortUrl) {
         var uuidNoDashes = shortUrlId.replace(/-/g, "");
+        var pinnedVersion = window.__SHORT_URL_VERSION;
         var editUrl = (window.__FRAMEJS_APP_ORIGIN || window.location.origin) +
-          "/j/" + uuidNoDashes + "#?edit=true";
+          "/j/" + uuidNoDashes +
+          (pinnedVersion
+            ? "?v=" + encodeURIComponent(pinnedVersion)
+            : "#?edit=true");
         if (isIframe()) {
           window.open(editUrl, "_blank");
         } else {
@@ -3034,6 +3076,11 @@
       mp.addListener(
         globalThis.metapage.Metapage.DEFINITION,
         (event) => {
+          // Read-only: the editor is already locked (readOnly Monaco), so this
+          // is belt and braces — nothing the pane emits may reach the hash, and
+          // therefore nothing can reach an embedder (framejs.app saves what it
+          // sees here as a new version).
+          if (isReadOnly()) return;
           const url = event?.definition?.metaframes?.editor?.url;
           if (url) {
             const urlBlob = new URL(url);

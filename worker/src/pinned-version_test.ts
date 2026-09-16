@@ -2,9 +2,9 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   brandingScript,
   extractBranding,
-  pinnedBannerScript,
   pinnedVersionFromQuery,
   pinnedVersionSuffix,
+  runtimeHashParams,
 } from "./pinned-version.ts";
 
 // Build a query lookup from a plain object, mimicking Hono's c.req.query(key).
@@ -77,32 +77,45 @@ Deno.test("extractBranding ignores a non-string branding value", () => {
 });
 
 // ---------------------------------------------------------------------------
-// pinnedBannerScript — read-only banner with a "view latest" link
+// runtimeHashParams — drop `edit`, mark a pin read-only
 // ---------------------------------------------------------------------------
 
-Deno.test("pinnedBannerScript marks it published, read-only, with the short hash", () => {
-  const html = pinnedBannerScript(
-    "12345678123442348234123456789abc",
-    "abcdef1234567890",
+Deno.test("runtimeHashParams drops edit so a load can't enter edit mode", () => {
+  assertEquals(
+    runtimeHashParams("?js=abc&edit=true&inputs=xyz"),
+    "?js=abc&inputs=xyz",
   );
-  assert(html.startsWith('<script id="pinned-banner">'));
-  assertStringIncludes(html, "Published version");
-  assertStringIncludes(html, "read-only");
-  // Only the first 8 chars of the sha256 are shown.
-  assertStringIncludes(html, "abcdef12");
-  assertEquals(html.includes("abcdef1234567890"), false);
 });
 
-Deno.test("pinnedBannerScript links back to the current (latest) version", () => {
-  const html = pinnedBannerScript(
-    "12345678123442348234123456789abc",
-    "abcdef1234567890",
+Deno.test("runtimeHashParams leaves an unpinned frame editable", () => {
+  assertEquals(runtimeHashParams("?js=abc"), "?js=abc");
+  assertEquals(runtimeHashParams("?js=abc").includes("readonly"), false);
+});
+
+Deno.test("runtimeHashParams marks a pinned version read-only", () => {
+  assertEquals(
+    runtimeHashParams("?js=abc", "a".repeat(64)),
+    "?js=abc&readonly=true",
   );
-  // Wording matches the framejs.app page banner's back-link for a consistent
-  // cross-app read-only experience.
-  assertStringIncludes(html, "View latest version");
-  // The link target is the unpinned /j/<uuid> path.
-  assertStringIncludes(html, '"/j/12345678123442348234123456789abc"');
+});
+
+Deno.test("runtimeHashParams ignores an inbound readonly — the pin decides", () => {
+  // A stored frame carrying readonly=true must not lock the LIVE view...
+  assertEquals(runtimeHashParams("?js=abc&readonly=true"), "?js=abc");
+  // ...and must not double up on a pinned one.
+  assertEquals(
+    runtimeHashParams("?readonly=true&js=abc", "b".repeat(64)),
+    "?js=abc&readonly=true",
+  );
+});
+
+Deno.test("runtimeHashParams is empty when nothing survives", () => {
+  assertEquals(runtimeHashParams(""), "");
+  assertEquals(runtimeHashParams("?edit=true"), "");
+  assertEquals(
+    runtimeHashParams("?edit=true", "c".repeat(64)),
+    "?readonly=true",
+  );
 });
 
 // ---------------------------------------------------------------------------

@@ -82,6 +82,11 @@ Both apps serve it: `framejs.app/j/<uuid>?v=<sha256>` renders the pinned version
 in the account UI (with a link back to the latest version), and
 `framejs.io/j/<uuid>?v=<sha256>` renders the same snapshot on the runtime.
 
+A published version **cannot be edited** — that is what makes it citable. Its
+code is still there to read: **View code** on the Frame page opens the editor
+**read-only** (marked as such, with the mutating actions removed). To build on
+it, **clone** the version into a Frame of your own, or copy the code out.
+
 > **Status:** shipped. Open a public Frame, choose **Publish version**, and share
 > the `?v=` link. The current version at `framejs.app/j/<uuid>` is always
 > available too.

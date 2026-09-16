@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { useMetaframeUrl } from "/@/hooks/useMetaframeUrl";
 import { useOptions } from "/@/hooks/useOptions";
+import { useReadOnly } from "/@/hooks/useReadOnly";
 import { getFramejsAppOrigin } from "/@/utils/origin";
 
 import {
@@ -15,6 +16,7 @@ import { MetaframeStandaloneComponent } from "@metapages/metapage-react";
 export const PanelCode: React.FC = () => {
   let [code, setCode] = useHashParamBase64("js");
   const [edit] = useHashParamBoolean("edit");
+  const readOnly = useReadOnly();
   const { url } = useMetaframeUrl();
   // deal with bad double encoded data from old version of hash-query
   if (
@@ -29,7 +31,11 @@ export const PanelCode: React.FC = () => {
   if ((!code || !code.trim()) && !edit) {
     return <HowTo />;
   }
-  return url ? <LocalEditor code={code} setCode={setCode} /> : <></>;
+  return url ? (
+    <LocalEditor code={code} setCode={setCode} readOnly={readOnly} />
+  ) : (
+    <></>
+  );
 };
 
 const HowTo: React.FC = () => (
@@ -50,7 +56,9 @@ const CODE_COMMIT_DEBOUNCE_MS = 800;
 const LocalEditor: React.FC<{
   code: string;
   setCode: (code: string) => void;
-}> = ({ code, setCode }) => {
+  /** Published version: show the code, refuse every edit. */
+  readOnly: boolean;
+}> = ({ code, setCode, readOnly }) => {
   const [themeOptions] = useOptions();
   // Track what the editor last sent us, so we can distinguish editor-initiated
   // changes from external changes (e.g. file upload injecting code comments)
@@ -73,9 +81,13 @@ const LocalEditor: React.FC<{
       hidemenuififrame: true,
       mode: "javascript",
       theme: themeOptions?.theme || "vs-light",
+      // Monaco's own readOnly: the buffer cannot be typed into at all, so there
+      // is no edit to reject later. The editor metaframe also drops its send
+      // button when this is set.
+      readOnly,
     });
     return `https://editor.mtfm.io/#?hm=disabled&options=${options}`;
-  }, [themeOptions]);
+  }, [themeOptions, readOnly]);
 
   // Debounce commits: the embedded editor emits on every keystroke, and each
   // commit rewrites the URL and reloads the running frame.
@@ -84,6 +96,10 @@ const LocalEditor: React.FC<{
 
   const onCodeOutputsUpdate = useCallback(
     (outputs: MetaframeInputMap) => {
+      // Belt and braces next to Monaco's readOnly: a published version's code
+      // must never be written back to the hash, which is what the runtime (and
+      // through it framejs.app) would persist.
+      if (readOnly) return;
       // Record immediately so the external-change effect above doesn't bounce
       // our own in-flight edit back into the editor.
       lastEditorOutput.current = outputs.text;
@@ -93,7 +109,7 @@ const LocalEditor: React.FC<{
         CODE_COMMIT_DEBOUNCE_MS,
       );
     },
-    [setCode],
+    [setCode, readOnly],
   );
 
   return (
