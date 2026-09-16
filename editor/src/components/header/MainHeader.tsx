@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import { useAiText } from "/@/hooks/useAiText";
+import { useReadOnly } from "/@/hooks/useReadOnly";
 import { useStore } from "/@/store";
 
 import {
@@ -20,6 +21,7 @@ import {
   FilePlusIcon,
   GearIcon,
   ListIcon,
+  LockSimpleIcon,
   MagicWandIcon,
   QuestionMarkIcon,
   XIcon,
@@ -51,6 +53,10 @@ type HeaderAction = {
 
 export const MainHeader: React.FC = () => {
   const [_edit, setEdit] = useHashParamBoolean("edit");
+  // A published version: the code is here to be READ, copied or cloned — never
+  // changed. Every action that would write (settings, file embed, shorten, save
+  // frame) is removed rather than left to fail, and the badge below says why.
+  const readOnly = useReadOnly();
   const { copyToClipboard } = useAiText();
 
   // only show the edit button if the command points to a script in the inputs
@@ -194,13 +200,13 @@ export const MainHeader: React.FC = () => {
       <Portal>
         <MenuList zIndex={20}>
           {actionMenuItem(codeAction)}
-          {actionMenuItem(settingsAction)}
-          {actionMenuItem(embedFileAction)}
+          {readOnly ? null : actionMenuItem(settingsAction)}
+          {readOnly ? null : actionMenuItem(embedFileAction)}
           {actionMenuItem(aiCopyAction)}
           <ButtonCopyExternalLink variant="menuitem" />
           {actionMenuItem(docsAction)}
-          <ButtonShortenUrl variant="menuitem" />
-          <ButtonSaveFrame variant="menuitem" />
+          {readOnly ? null : <ButtonShortenUrl variant="menuitem" />}
+          {readOnly ? null : <ButtonSaveFrame variant="menuitem" />}
         </MenuList>
       </Portal>
     </Menu>
@@ -258,6 +264,36 @@ export const MainHeader: React.FC = () => {
             js
           </Button>
         )}
+        {/* Why the code cannot be typed into. It sits beside the "js" button
+            rather than over the editor: an overlay on a code pane reads as a
+            failure, this reads as the state the version is in. Kept in the
+            narrow layout too — it is the one thing that must not be collapsed
+            into a menu the user has to open to discover. */}
+        {readOnly && (
+          <Tooltip label="This is a published version — its code is fixed. Clone it or copy the code to make changes.">
+            <HStack
+              spacing={1}
+              px={2}
+              h={"24px"}
+              flexShrink={0}
+              borderRadius={4}
+              bg={"gray.100"}
+              color={"gray.600"}
+              cursor={"default"}
+              data-testid="read-only-badge"
+            >
+              <Icon as={LockSimpleIcon} boxSize={"14px"} />
+              <Box
+                fontSize={"xs"}
+                fontWeight={600}
+                letterSpacing={"0.04em"}
+                whiteSpace={"nowrap"}
+              >
+                Read-only
+              </Box>
+            </HStack>
+          </Tooltip>
+        )}
       </Box>
       <HStack
         borderLeft={isNarrow ? undefined : "1px"}
@@ -272,16 +308,20 @@ export const MainHeader: React.FC = () => {
       >
         {isNarrow ? null : (
           <>
-            {actionIcon(settingsAction)}
-            {actionIcon(embedFileAction)}
+            {readOnly ? null : actionIcon(settingsAction)}
+            {readOnly ? null : actionIcon(embedFileAction)}
             {actionIcon(aiCopyAction)}
             <ButtonCopyExternalLink
               iconSize={iconSize}
               iconPadding={iconPadding}
             />
             {actionIcon(docsAction)}
-            <ButtonShortenUrl iconSize={iconSize} iconPadding={iconPadding} />
-            <ButtonSaveFrame iconSize={iconSize} iconPadding={iconPadding} />
+            {readOnly ? null : (
+              <ButtonShortenUrl iconSize={iconSize} iconPadding={iconPadding} />
+            )}
+            {readOnly ? null : (
+              <ButtonSaveFrame iconSize={iconSize} iconPadding={iconPadding} />
+            )}
           </>
         )}
         {closeIcon}
