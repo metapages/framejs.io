@@ -405,7 +405,16 @@
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap"
         > -->
 
-        <iframe src="https://framejs.app/howto"
+        <!-- `data-src`, NOT `src`: a hidden iframe still loads. This guide is a
+             cross-origin page, so a plain `src` here fetched framejs.app/howto
+             on EVERY frame load — behind display:none, while the user's own
+             frame was starting up — and when the guide still embedded a live
+             framejs.io demo it recursed (guide → demo frame → guide → ...).
+             The browser tears those nested documents down mid-load, which
+             aborts the demo frame's in-flight `import(blobUrl)` and printed
+             "Error importing module" into the console of unrelated frames.
+             showLandingContent() promotes it when the landing is shown. -->
+        <iframe data-src="https://framejs.app/howto"
           style="border: none; width: 100%; height: 100%;" frameborder="0"
           allow="clipboard-read; clipboard-write"></iframe>
         <!-- <h1
@@ -564,14 +573,26 @@
     <!-- Show landing content only if no JS is pending (no short URL, no js hash param) -->
     <script>
     (function () {
+      // Reveal the landing content AND start loading the iframes inside it
+      // (they carry `data-src` so nothing loads while it is hidden — see the
+      // comment on the guide iframe above). Also used by runJsFromUrl when the
+      // user clears their code and the landing is restored.
+      globalThis.showLandingContent = function () {
+        var el = document.getElementById("landing-content");
+        if (!el) return;
+        el.style.display = "";
+        var frames = el.querySelectorAll("iframe[data-src]");
+        for (var i = 0; i < frames.length; i++) {
+          frames[i].src = frames[i].getAttribute("data-src");
+          frames[i].removeAttribute("data-src");
+        }
+      };
+
       var hash = window.location.hash || "";
       var hasJsParam = hash.indexOf("js=") > -1;
       var hasShortUrl = !!window.__SHORT_URL_READY;
       if (!hasJsParam && !hasShortUrl) {
-        var el = document.getElementById("landing-content");
-        if (el) {
-          el.style.display = "";
-        }
+        globalThis.showLandingContent();
       }
     })();
     </script>
@@ -1439,6 +1460,61 @@
       } catch (_) {
         return `${typeof value} (a non-Error value was thrown)`;
       }
+    };
+
+    // A failed `import(blobUrl)` of a frame's code is the least informative
+    // error the platform produces: the browser never names the import that
+    // failed, Chrome throws a bare "Failed to fetch dynamically imported
+    // module: blob:…" and Firefox rejects with `undefined` outright — which is
+    // what "Error importing module undefined" in the console meant. Neither
+    // tells the author anything actionable, so reconstruct what we can: the
+    // kind of failure, and the specifiers the code actually imports (one of
+    // them is the culprit ~every time).
+    const STATIC_IMPORT_RE =
+      /(?:^|[\s;}])import\s+(?:[^'";]*?\bfrom\s*)?["']([^"']+)["']/gm;
+    const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
+    const MAX_LISTED_IMPORTS = 8;
+
+    const importSpecifiers = (source) => {
+      const found = [];
+      for (const re of [STATIC_IMPORT_RE, DYNAMIC_IMPORT_RE]) {
+        re.lastIndex = 0;
+        let match;
+        while ((match = re.exec(source)) !== null) {
+          if (!found.includes(match[1])) found.push(match[1]);
+        }
+      }
+      return found;
+    };
+
+    const describeImportFailure = (error, source) => {
+      const lines = [`Error importing module: ${describeError(error)}`];
+      if (error instanceof SyntaxError) {
+        lines.push(
+          "The code did not parse, or a named import does not exist in the module it was imported from.",
+        );
+      } else {
+        lines.push(
+          "The module graph could not be loaded. The browser does not say which import failed. Usual causes:",
+          "  • an import URL that 404s, is offline, or is blocked (CSP, an ad blocker, a wrong CDN version)",
+          "  • a bare specifier like \"react\" — imports must be full https:// URLs",
+          "  • the frame was removed or reloaded while it was still loading (Firefox reports that as `undefined`)",
+        );
+      }
+      const specifiers = importSpecifiers(source);
+      if (specifiers.length) {
+        const listed = specifiers.slice(0, MAX_LISTED_IMPORTS);
+        lines.push(
+          `This frame imports (open one in a tab to check it resolves): ${
+            listed.join(", ")
+          }${
+            specifiers.length > listed.length
+              ? ` … and ${specifiers.length - listed.length} more`
+              : ""
+          }`,
+        );
+      }
+      return lines.join("\n");
     };
 
     globalThis.foundImportMap = false;
@@ -2577,10 +2653,12 @@
             // Dynamically import the module using the Blob URL
             module = await import(url);
           } catch (error) {
-            console.error("Error importing module", error);
-            globalThis.logStderr(
-              `Error importing module: ${describeError(error)}`,
-            );
+            const described = describeImportFailure(error, js);
+            // The raw value goes last so the console still offers its stack to
+            // expand — `error` is often `undefined`, which on its own is what
+            // made this message useless.
+            console.error(described, error);
+            globalThis.logStderr(described);
           } finally {
             // Clean up by revoking the object URL
             URL.revokeObjectURL(url);
@@ -2745,10 +2823,11 @@
           console.error(err);
         }
       } else {
-        // No code — restore and show the landing content
+        // No code — restore and show the landing content. showLandingContent()
+        // also promotes the guide iframe's data-src, which the snapshot still
+        // carries whenever the landing never showed on this load.
         root.innerHTML = __landingHtml;
-        const landing = document.getElementById("landing-content");
-        if (landing) landing.style.display = "";
+        globalThis.showLandingContent?.();
       }
     };
 
