@@ -17,17 +17,17 @@ import theme from "@metapages/metaframe-chakra-theme";
  */
 
 // Blueprint light palette — mirror of :root in blueprint.css
-const paper = "#fbfaf7";
+const paper = "#f4f3ef";
 const surface = "#ffffff";
-const surface2 = "#f4f2ec";
-const ink = "#1a1712";
-const ink2 = "#56514a";
-const ink3 = "#8b857a";
-const line = "#e8e4da";
-const lineStrong = "#d5cfc3";
-const accent = "#1f2edb";
-const accentHover = "#1824ae";
-const accentSoft = "#edeefe";
+const surface2 = "#eceae3";
+const ink = "#111110";
+const ink2 = "#55534c";
+const ink3 = "#6e6c63";
+const line = "#dbd8d0";
+const lineStrong = "#c1bdb1";
+const accent = "#465775";
+const accentHover = "#354462";
+const accentSoft = "#e9ecf2";
 
 export const mfTheme = extendTheme(
   {

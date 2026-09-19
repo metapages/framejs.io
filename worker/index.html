@@ -11,7 +11,7 @@
       content="AI creates and runs interactive browser apps and visualizations.
       No build, server, or account required. Communicate complex ideas instantly."
     >
-    <meta name="theme-color" content="#F5F2EC" />
+    <meta name="theme-color" content="#f4f3ef" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -123,7 +123,7 @@
       top: 10px;
       left: calc(100vw - 90px);
       z-index: 1000;
-      background-color: #f9f9f9;
+      background-color: #f4f3ef;
       border: 0;
       padding: 0;
       margin: 0;
@@ -132,9 +132,9 @@
       display: flex;
       justify-content: space-around;
       align-items: center;
-      border: 1px solid #e0e0e0;
+      border: 1px solid #dbd8d0;
       border-radius: 3px;
-      color: #818382;
+      color: #6e6c63;
       font-family: monospace;
       font-size: 13px;
       padding: 8px;
@@ -244,10 +244,10 @@
 
     /* Base style for <pre> blocks */
     .pre-stdout {
-      background-color: #f8f8f8;
+      background-color: #eceae3;
       /* light grey background */
       /* border: 3px solid yellow;  */
-      border-left: 3px solid #000;
+      border-left: 1px solid #111110;
       /* teal accent on the left */
       /* padding: 10px; */
       overflow: auto;
@@ -263,12 +263,12 @@
 
     /* Style for stderr to make it stand out */
     .pre-stderr {
-      background-color: #fff0f0;
+      background-color: #fbeaed;
       /* light red background */
       /* border: 1px solid #ffcccc; light red border */
-      border-left: 3px solid #e53935;
+      border-left: 1px solid #8e1b2e;
       /* darker red accent on the left */
-      color: #d32f2f;
+      color: #8e1b2e;
       /* darker red text color */
       /* padding: 10px; */
       overflow: auto;
@@ -337,7 +337,7 @@
       transform: translateX(-50%);
       height: 100%;
       width: 1px;
-      background: #d0d0d0;
+      background: #c1bdb1;
       transition: background 0.15s, width 0.15s;
     }
 
@@ -352,14 +352,14 @@
       left: 50%;
       right: 0;
       height: 100%;
-      border-top: 1px solid #d0d0d0;
-      border-bottom: 1px solid #d0d0d0;
+      border-top: 1px solid #dbd8d0;
+      border-bottom: 1px solid #dbd8d0;
       pointer-events: none;
     }
 
     #editor-resize-handle:hover::after,
     #editor-resize-handle.dragging::after {
-      background: #2563eb;
+      background: #465775;
       width: 3px;
     }
 
@@ -385,7 +385,7 @@
         xmlns="http://www.w3.org/2000/svg"
         width="15"
         height="15"
-        fill="#818382"
+        fill="#6e6c63"
         viewbox="0 0 256 256"
       >
         <path
@@ -398,7 +398,7 @@
     <div id="root" class="root borderFatSolidGreen transparent">
       <div
         id="landing-content"
-        style="background-color: #FBFAF7; display: none; height: 100%; width: 100%; margin: 4px auto; padding: 0 4px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1c1c1c; line-height: 1.6"
+        style="background-color: #f4f3ef; display: none; height: 100%; width: 100%; margin: 4px auto; padding: 0 4px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #111110; line-height: 1.6"
       >
         <!-- <link
           rel="stylesheet"
@@ -412,8 +412,9 @@
              framejs.io demo it recursed (guide → demo frame → guide → ...).
              The browser tears those nested documents down mid-load, which
              aborts the demo frame's in-flight `import(blobUrl)` and printed
-             "Error importing module" into the console of unrelated frames.
-             showLandingContent() promotes it when the landing is shown. -->
+             "Error importing module undefined" into the console of unrelated
+             frames. showLandingContent() promotes it when the landing is
+             shown. -->
         <iframe data-src="https://framejs.app/howto"
           style="border: none; width: 100%; height: 100%;" frameborder="0"
           allow="clipboard-read; clipboard-write"></iframe>

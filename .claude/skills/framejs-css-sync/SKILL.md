@@ -26,24 +26,33 @@ framework:
 The rest of this doc covers the **editor** first, then the **docs**.
 
 **Design language:** "Offprint" — bone stock (`#f4f3ef`), near-black ink
-(`#111110`), one vermillion (`#c9350a`), rules and space in place of cards, cut
+(`#111110`), one dusk blue (`#465775`), rules and space in place of cards, cut
 2px corners. IBM Plex **Serif** (headings) + Sans (body/chrome) + Mono
 (labels/wordmark/data/code).
 
-> **Migration status (2026-08-30).** framejs.app replaced its previous
-> "Blueprint / drafting table" world — cobalt `#1f2edb` accent, two-axis drafting
-> grid, 3–4px radii — because the cobalt sat in the indigo band and read as
-> AI-generated. **The docs mirror has been migrated. The editor mirror has
-> not**: `editor/src/styles/blueprint.css`, `theme.ts` and `editor/index.html`
-> still carry the cobalt palette. Both mirrors are still *named* `blueprint.css`
-> for now; rename them together once the editor catches up.
+> **Migration status (2026-09-19).** The accent is now **dusk blue**
+> `#465775` (dark peer `#9cb2d2`). It replaced a vermillion `#c9350a`, which had
+> itself replaced a "Blueprint / drafting table" world built on cobalt
+> `#1f2edb`. Both predecessors were rejected for the same reason: a *saturated*
+> accent at mid lightness reads as AI-generated, whatever the hue. Dusk blue
+> sits at 40% saturation / 46% value — see the Low Chroma Rule in the app's
+> DESIGN.md.
+>
+> **All three mirrors are now on the same palette**: the docs mirror, the runtime
+> (`worker/static/blueprint.css`, `worker/index.html`), and the editor
+> (`editor/src/styles/blueprint.css`, `theme.ts`, `editor/index.html`) — the
+> editor's neutrals and status colours came across too, not just the accent, so
+> its cool blue-black dark ground is gone. Radii there are still 3–4px against
+> the app's 2px; that is shape, not colour, and is the remaining divergence.
+> Both mirrors are still *named* `blueprint.css`; rename them together whenever
+> that churn is acceptable.
 
 **What the editor still needs** (the full re-merge checklist below applies):
 swap the token hexes in `blueprint.css` **and** the mirrored `const` block in
 `theme.ts`, copy the three `ibm-plex-serif-*` woff2 into `editor/public/fonts/`,
 set headings to the serif, drop radii to 2px, retint shadows to
 `rgba(32,26,18,…)`, and change `editor/index.html`'s `theme-color` from
-`#fbfaf7` to `#f4f3ef`.
+`#f4f3ef` to `#f4f3ef`.
 
 ## The core tension
 
@@ -73,7 +82,7 @@ Sibling repo root on this machine: `/Users/dion/dev/git/metapages/framejs-nhost`
 | `editor/public/fonts/*.woff2`       | The IBM Plex woff2, served by Vite at `/fonts/`            |
 | `editor/src/styles/theme.ts`        | Chakra bridge: maps blueprint token values onto Chakra     |
 | `editor/src/index.tsx`              | `import "/@/styles/blueprint.css"`                         |
-| `editor/index.html`                 | `<html data-theme="light">` + `theme-color` = `#fbfaf7`    |
+| `editor/index.html`                 | `<html data-theme="light">` + `theme-color` = `#f4f3ef`    |
 
 ## How `styles.css` → `blueprint.css` (the transform)
 
@@ -110,7 +119,7 @@ scales onto the blueprint neutrals + accent and sets the fonts:
 - `colors.gray.{50..900}` → blueprint neutrals (surface / surface-2 / line /
   line-strong / ink-3 / ink-2 / ink), so existing components (header, panels,
   dividers that use `gray.*`) adopt the palette with no per-component edits.
-- `colors.blue.{...}` → cobalt accent (`--accent` / `--accent-hover` / `--accent-soft`).
+- `colors.blue.{...}` → dusk accent (`--accent` / `--accent-hover` / `--accent-soft`).
 - `borders."1px"` → warm hairline (`--line`) so `borderBottom="1px"` follows.
 - `styles.global.body` → paper bg + ink text.
 
@@ -183,7 +192,7 @@ overriding VitePress's own `--vp-*` CSS variables — you never touch Chakra her
   nothing there needs a warning fill, and VitePress's warning container does. It
   used to point at the *green* wash, which was simply a bug.
 - VitePress's "tip" container is mapped to `--ink-2` / `--surface-2`, not the
-  accent. A tip is an aside, not an action; on the accent it made vermillion the
+  accent. A tip is an aside, not an action; on the accent it made the accent the
   loudest thing on a page of prose, breaking the one-bold-move rule.
 
 **Fonts — the base-path catch:** docs run under `base: "/docs/"` (config.ts), so a
