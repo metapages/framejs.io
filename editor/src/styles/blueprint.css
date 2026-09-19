@@ -64,24 +64,24 @@
 /* --- Palette: light (default) ------------------------------------------- */
 :root,
 :root[data-theme="light"] {
-  --paper: #fbfaf7; /* warm drafting paper — app ground */
+  --paper: #f4f3ef; /* warm drafting paper — app ground */
   --surface: #ffffff; /* plates / cards */
-  --surface-2: #f4f2ec; /* recessed fills, hovers */
-  --ink: #1a1712; /* warm near-black — primary text */
-  --ink-2: #56514a; /* secondary text */
-  --ink-3: #8b857a; /* muted / captions */
-  --line: #e8e4da; /* hairline rules & borders */
-  --line-strong: #d5cfc3; /* emphasized rule / hover border */
-  --accent: #1f2edb; /* blueprint cobalt — the one bold move */
-  --accent-hover: #1824ae;
-  --accent-soft: #edeefe; /* accent-tinted fill */
+  --surface-2: #eceae3; /* recessed fills, hovers */
+  --ink: #111110; /* warm near-black — primary text */
+  --ink-2: #55534c; /* secondary text */
+  --ink-3: #6e6c63; /* muted / captions */
+  --line: #dbd8d0; /* hairline rules & borders */
+  --line-strong: #c1bdb1; /* emphasized rule / hover border */
+  --accent: #465775; /* dusk blue — the one bold move */
+  --accent-hover: #354462;
+  --accent-soft: #e9ecf2; /* accent-tinted fill */
   --on-accent: #ffffff;
-  --good: #1f883d; /* live / running / success */
-  --good-soft: #e9f5ec;
-  --warning: #a86709;
-  --danger: #c0392b;
-  --danger-soft: #fbeceb;
-  --focus: #1f2edb;
+  --good: #1c6b3a; /* live / running / success */
+  --good-soft: #e7f1ea;
+  --warning: #8a6410;
+  --danger: #8e1b2e;
+  --danger-soft: #fbeaed;
+  --focus: #465775;
 
   /* type + shape tokens (framejs.app maps these via @theme; kept plain here) */
   --font-sans:
@@ -100,46 +100,46 @@
    but kept verbatim so a future theme toggle matches framejs.app exactly. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0e1117; /* true-blueprint blue-black ground */
-    --surface: #151a22;
-    --surface-2: #1c222c;
-    --ink: #ece9e1;
-    --ink-2: #a8a99e;
-    --ink-3: #767c86;
-    --line: #262d38;
-    --line-strong: #38414f;
-    --accent: #6e82ff;
-    --accent-hover: #8a9aff;
-    --accent-soft: #1a2136;
-    --on-accent: #0b0e14;
-    --good: #3fb950;
-    --good-soft: #16241a;
-    --warning: #d0a215;
-    --danger: #f0776c;
-    --danger-soft: #2a1a19;
-    --focus: #6e82ff;
+    --paper: #131311; /* warm near-black ground */
+    --surface: #1c1c19;
+    --surface-2: #232320;
+    --ink: #eeece5;
+    --ink-2: #a3a099;
+    --ink-3: #85837b;
+    --line: #2c2b27;
+    --line-strong: #413f39;
+    --accent: #9cb2d2;
+    --accent-hover: #b9cae4;
+    --accent-soft: #1a1f2b;
+    --on-accent: #171512;
+    --good: #4bb267;
+    --good-soft: #16241b;
+    --warning: #d9a441;
+    --danger: #ef7d84;
+    --danger-soft: #2b1619;
+    --focus: #9cb2d2;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --paper: #0e1117;
-  --surface: #151a22;
-  --surface-2: #1c222c;
-  --ink: #ece9e1;
-  --ink-2: #a8a99e;
-  --ink-3: #767c86;
-  --line: #262d38;
-  --line-strong: #38414f;
-  --accent: #6e82ff;
-  --accent-hover: #8a9aff;
-  --accent-soft: #1a2136;
-  --on-accent: #0b0e14;
-  --good: #3fb950;
-  --good-soft: #16241a;
-  --warning: #d0a215;
-  --danger: #f0776c;
-  --danger-soft: #2a1a19;
-  --focus: #6e82ff;
+  --paper: #131311;
+  --surface: #1c1c19;
+  --surface-2: #232320;
+  --ink: #eeece5;
+  --ink-2: #a3a099;
+  --ink-3: #85837b;
+  --line: #2c2b27;
+  --line-strong: #413f39;
+  --accent: #9cb2d2;
+  --accent-hover: #b9cae4;
+  --accent-soft: #1a1f2b;
+  --on-accent: #171512;
+  --good: #4bb267;
+  --good-soft: #16241b;
+  --warning: #d9a441;
+  --danger: #ef7d84;
+  --danger-soft: #2b1619;
+  --focus: #9cb2d2;
   color-scheme: dark;
 }
 
@@ -253,11 +253,10 @@
 
 /* --- Utilities ----------------------------------------------------------- */
 /* Blueprint drafting grid — for heroes and empty states. */
+/* Ruled stock — RETIRED: kept as a no-op because this file is a public API
+   (https://framejs.io/blueprint.css) and old frames still reference it. */
 .bg-grid {
-  background-image:
-    linear-gradient(to right, var(--line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
-  background-size: 26px 26px;
+  background-image: none;
 }
 
 /* Registration corner ticks — a small drafting-plate flourish.

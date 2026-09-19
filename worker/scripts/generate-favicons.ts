@@ -13,8 +13,8 @@ const RESVG_WASM_URL =
   "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm";
 
 // Light-theme colors from favicon.svg's :root block.
-const BG = "#fbfaf7";
-const ACCENT = "#1f2edb";
+const BG = "#f4f3ef";
+const ACCENT = "#465775";
 
 const STATIC_DIR = new URL("../static/", import.meta.url);
 const SVG_PATH = new URL("favicon.svg", STATIC_DIR);

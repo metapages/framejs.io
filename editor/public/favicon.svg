@@ -2,13 +2,13 @@
   aria-label="framejs.io">
   <style>
   :root {
-    --bg: #fbfaf7;
-    --accent: #1f2edb;
+    --bg: #f4f3ef;
+    --accent: #465775;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0e1117;
-      --accent: #6e82ff;
+      --bg: #131311;
+      --accent: #9cb2d2;
     }
   }
   </style>
