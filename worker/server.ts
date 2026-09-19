@@ -34,9 +34,9 @@ import { buildOgMetaTags, escapeHtmlAttr } from "./src/og.ts";
 import {
   brandingScript,
   extractBranding,
-  pinnedBannerScript,
   pinnedVersionFromQuery,
   pinnedVersionSuffix,
+  runtimeHashParams,
 } from "./src/pinned-version.ts";
 
 /**
@@ -835,26 +835,15 @@ app.get("/j/:sha256", async (c) => {
         }" />\n`
         : "";
 
-      // For a pin, overlay a small banner marking it a fixed published version
-      // with a link back to the current (latest) version at /j/<uuid>.
-      const pinnedBanner = pinnedVersion
-        ? pinnedBannerScript(id, pinnedVersion)
-        : "";
-
       // Free-tier "Made with framejs" overlay: framejs.app returns the exact HTML
       // as the `branding` field of the LIVE version (Pro removes it; pinned
       // versions never carry it). Inject it as innerHTML immediately after #root,
       // bottom-right. Self-contained markup from our own origin — safe to inject.
       const brandingOverlay = branding ? brandingScript(branding) : "";
 
-      // Strip edit=true so the app doesn't immediately exit short-URL mode on load.
-      const s = hashParams.startsWith("?") ? hashParams.slice(1) : hashParams;
-      const cleanedParams = s
-        .split("&")
-        .filter((p) => p.split("=")[0] !== "edit");
-      const cleanedHashParams = cleanedParams.length
-        ? "?" + cleanedParams.join("&")
-        : "";
+      // Drop `edit` (it would exit short-URL mode on load) and mark a pinned
+      // version read-only — see runtimeHashParams.
+      const cleanedHashParams = runtimeHashParams(hashParams, pinnedVersion);
 
       // Set the same __SHORT_URL_* globals as the sha256 handler so:
       //  - module scripts await __SHORT_URL_READY before reading hash params
@@ -864,18 +853,25 @@ app.get("/j/:sha256", async (c) => {
       // The params are NOT written into the URL: the uuid already identifies
       // the frame, so expanding them into the address bar (and stripping them
       // again after the code ran) only flashed the base64 payload at the user.
+      //
+      // __SHORT_URL_VERSION carries the pin (when there is one) so the edit
+      // button can hand off to framejs.app's page for THIS version. A pinned
+      // frame renders with no banner or chrome here — the "published version"
+      // label belongs to the framejs.app page.
       const injectedScript =
         `<script id="short-url-init">window.__SHORT_URL_ID=${
           JSON.stringify(id)
         };window.__FRAMEJS_APP_ORIGIN=${
           JSON.stringify(FRAMEJS_APP_ORIGIN)
+        };window.__SHORT_URL_VERSION=${
+          JSON.stringify(pinnedVersion ?? null)
         };window.__SHORT_URL_HASH_PARAMS=${
           JSON.stringify(cleanedHashParams)
         };window.__SHORT_URL_READY=Promise.resolve();</script>`;
 
       return await serveShortUrlHtml(
         ogMetaTags,
-        injectedScript + pinnedBanner + brandingOverlay,
+        injectedScript + brandingOverlay,
         favicon,
       );
     } catch (error) {

@@ -4,7 +4,9 @@
 // "Publish version" action) is permanently public and immutable — it keeps
 // resolving even if the Frame is later made private or deleted (like a public
 // commit or gist). framejs.io renders it by proxying the pinned JSON from
-// framejs.app and overlaying a small read-only banner.
+// framejs.app — with no banner or other chrome of its own: the runtime shows
+// the frame and nothing else. The "published version" label lives on the
+// framejs.app frame page, which is where the edit button hands off to.
 //
 // These are the pure pieces of that feature — the query suffix, the branding
 // split, and the injected client scripts — pulled out of server.ts so they can
@@ -32,6 +34,36 @@ export function pinnedVersionSuffix(version?: string): string {
 }
 
 /**
+ * The hash params the RUNTIME should be handed for a `/j/<uuid>` render.
+ *
+ * Two rewrites, both about chrome rather than content:
+ *  - `edit` is dropped, so a stored `edit=true` can't drag the page out of
+ *    short-URL mode the moment it loads;
+ *  - a pinned (published) version gets `readonly=true`, because that version is
+ *    immutable: the runtime then opens its code pane read-only, labels its own
+ *    button "View", and never writes the pane's contents back. Any inbound
+ *    `readonly` is dropped first — this decides it, not the stored frame.
+ *
+ * Takes and returns the leading-`?` form (`"?js=..."`), empty when nothing is
+ * left.
+ */
+export function runtimeHashParams(
+  hashParams: string,
+  version?: string,
+): string {
+  const raw = hashParams.startsWith("?") ? hashParams.slice(1) : hashParams;
+  const params = raw
+    .split("&")
+    .filter((pair) => {
+      if (!pair) return false;
+      const key = pair.split("=")[0];
+      return key !== "edit" && key !== "readonly";
+    });
+  if (version) params.push("readonly=true");
+  return params.length ? "?" + params.join("&") : "";
+}
+
+/**
  * framejs.app returns a reserved `branding` field (the free-tier "Made with
  * framejs" overlay HTML) only on a LIVE version. It is NOT frame content, so
  * pull it out of the decoded JSON (mutating `json`) before the remainder is
@@ -46,20 +78,6 @@ export function extractBranding(
     : undefined;
   delete json.branding;
   return branding;
-}
-
-/**
- * Client script injecting a fixed, top-of-page read-only banner that marks a
- * published version (showing the first 8 chars of the sha256) with a link back
- * to the current (latest) version at `/j/<uuid>`. The uuid is dashless as
- * served on the path.
- */
-export function pinnedBannerScript(uuid: string, version: string): string {
-  return `<script id="pinned-banner">(function(){function b(){var d=document.createElement('div');d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483647;display:flex;align-items:center;gap:12px;justify-content:center;padding:6px 12px;font:500 13px system-ui,-apple-system,sans-serif;background:rgba(20,20,40,.85);color:#fff;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)';d.innerHTML='<span>\\uD83D\\uDCCC Published version <code style=\\'opacity:.7;font-size:11px\\'>'+${
-    JSON.stringify(version.slice(0, 8))
-  }+'</code> \\u2014 read-only</span>';var a=document.createElement('a');a.href=${
-    JSON.stringify(`/j/${uuid}`)
-  };a.textContent='View latest version \\u2192';a.style.cssText='color:#a5b4fc;text-decoration:underline;white-space:nowrap';d.appendChild(a);document.body.appendChild(d);}if(document.body)b();else document.addEventListener('DOMContentLoaded',b);})();</script>`;
 }
 
 /**

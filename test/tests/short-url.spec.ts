@@ -578,3 +578,64 @@ test("uuid short URL: clicking edit hands off to framejs.app via window.open", a
   // Handoff does not exit short URL mode on the source page.
   expect(result.stillShortUrlId).toBe(uuid);
 });
+
+test("pinned uuid short URL: clicking edit hands off to the pinned framejs.app page, not edit mode", async ({
+  page,
+}) => {
+  // Same iframe trick as the test above (the test stack can't mint a real uuid
+  // short URL), plus the pin that server.ts injects as __SHORT_URL_VERSION for a
+  // `/j/<uuid>?v=<sha256>` request.
+  const { id } = await createShortUrl(
+    page.request,
+    'document.getElementById("root").textContent = "pinned edit test";',
+  );
+
+  await page.goto(`/j/${id}`);
+  await page.waitForLoadState("load");
+
+  const uuid = "12345678-1234-4234-8234-123456789abc";
+  const uuidNoDashes = uuid.replace(/-/g, "");
+  const version = "a".repeat(64);
+
+  const result = await page.evaluate(
+    async ({ path, uuid, version }) => {
+      const iframe = document.createElement("iframe");
+      iframe.src = path;
+      const loaded = new Promise<void>((res) => {
+        iframe.onload = () => res();
+      });
+      document.body.appendChild(iframe);
+      await loaded;
+
+      const cw = iframe.contentWindow as any;
+
+      const start = Date.now();
+      while (cw.__SHORT_URL_HASH_PARAMS === undefined) {
+        if (Date.now() - start > 10_000) throw new Error("iframe app not ready");
+        await new Promise((r) => setTimeout(r, 50));
+      }
+
+      cw.__SHORT_URL_ID = uuid;
+      cw.__SHORT_URL_VERSION = version;
+      const openCalls: string[] = [];
+      cw.open = (url?: string) => {
+        openCalls.push(String(url ?? ""));
+        return null;
+      };
+
+      cw.document.getElementById("menu-button").click();
+
+      return { openCalls, framejsAppOrigin: cw.__FRAMEJS_APP_ORIGIN };
+    },
+    { path: `/j/${id}`, uuid, version },
+  );
+
+  expect(result.openCalls).toHaveLength(1);
+  const handoffUrl = new URL(result.openCalls[0]);
+  expect(handoffUrl.origin).toBe(new URL(result.framejsAppOrigin).origin);
+  expect(handoffUrl.pathname).toBe(`/j/${uuidNoDashes}`);
+  // The pin is forwarded, so framejs.app shows THAT published version...
+  expect(handoffUrl.searchParams.get("v")).toBe(version);
+  // ...in view mode: no edit=true, so the user clicks Edit there deliberately.
+  expect(handoffUrl.hash).toBe("");
+});

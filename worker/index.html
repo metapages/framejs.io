@@ -406,14 +406,15 @@
         > -->
 
         <!-- `data-src`, NOT `src`: a hidden iframe still loads. This guide is a
-             cross-origin page that itself embeds a framejs.io demo frame, so a
-             plain `src` here fetched framejs.app/howto on EVERY frame load —
-             behind display:none — and then recursed (guide → demo frame →
-             guide → ...). The browser tears those nested documents down
-             mid-load, which aborts the demo frame's in-flight
-             `import(blobUrl)` and printed "Error importing module undefined"
-             into the console of unrelated frames. showLandingContent()
-             promotes it when the landing is actually shown. -->
+             cross-origin page, so a plain `src` here fetched framejs.app/howto
+             on EVERY frame load — behind display:none, while the user's own
+             frame was starting up — and when the guide still embedded a live
+             framejs.io demo it recursed (guide → demo frame → guide → ...).
+             The browser tears those nested documents down mid-load, which
+             aborts the demo frame's in-flight `import(blobUrl)` and printed
+             "Error importing module undefined" into the console of unrelated
+             frames. showLandingContent() promotes it when the landing is
+             shown. -->
         <iframe data-src="https://framejs.app/howto"
           style="border: none; width: 100%; height: 100%;" frameborder="0"
           allow="clipboard-read; clipboard-write"></iframe>
@@ -1178,6 +1179,25 @@
       window.location.search + currentHashString();
 
     // ---------------------------------------------------------------------
+    // `readonly=true` — the code is VIEWABLE but not editable.
+    //
+    // Set by whoever serves the frame when its content is fixed: a PUBLISHED
+    // version (`/j/<uuid>?v=<sha256>`, immutable by definition) served by this
+    // worker, or framejs.app's frame page embedding one. It is chrome, not
+    // content — like `edit` and `hm` — so it never re-runs the frame and is
+    // never stored as part of a frame.
+    //
+    // What it changes: the editor pane opens read-only (the flag rides along
+    // into the editor's own hash, where it sets Monaco's readOnly and strips
+    // the mutating actions), the pane's edits are never written back to the
+    // hash, and the frame's own button says "View" instead of "Edit".
+    // ---------------------------------------------------------------------
+    const isReadOnly = () => {
+      const [, params] = getUrlHashParamsFromHashString(currentHashString());
+      return params["readonly"] === "true";
+    };
+
+    // ---------------------------------------------------------------------
     // getJson / setJson — the core URL-state API (`saveJson` is an alias of
     // `setJson`, kept because frames already in the wild call it).
     //
@@ -1213,6 +1233,7 @@
       "modules",
       "og",
       "options",
+      "readonly",
     ]);
 
     // The metaframe definition with `key` declared under hashParams, or
@@ -1440,6 +1461,61 @@
       } catch (_) {
         return `${typeof value} (a non-Error value was thrown)`;
       }
+    };
+
+    // A failed `import(blobUrl)` of a frame's code is the least informative
+    // error the platform produces: the browser never names the import that
+    // failed, Chrome throws a bare "Failed to fetch dynamically imported
+    // module: blob:…" and Firefox rejects with `undefined` outright — which is
+    // what "Error importing module undefined" in the console meant. Neither
+    // tells the author anything actionable, so reconstruct what we can: the
+    // kind of failure, and the specifiers the code actually imports (one of
+    // them is the culprit ~every time).
+    const STATIC_IMPORT_RE =
+      /(?:^|[\s;}])import\s+(?:[^'";]*?\bfrom\s*)?["']([^"']+)["']/gm;
+    const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
+    const MAX_LISTED_IMPORTS = 8;
+
+    const importSpecifiers = (source) => {
+      const found = [];
+      for (const re of [STATIC_IMPORT_RE, DYNAMIC_IMPORT_RE]) {
+        re.lastIndex = 0;
+        let match;
+        while ((match = re.exec(source)) !== null) {
+          if (!found.includes(match[1])) found.push(match[1]);
+        }
+      }
+      return found;
+    };
+
+    const describeImportFailure = (error, source) => {
+      const lines = [`Error importing module: ${describeError(error)}`];
+      if (error instanceof SyntaxError) {
+        lines.push(
+          "The code did not parse, or a named import does not exist in the module it was imported from.",
+        );
+      } else {
+        lines.push(
+          "The module graph could not be loaded. The browser does not say which import failed. Usual causes:",
+          "  • an import URL that 404s, is offline, or is blocked (CSP, an ad blocker, a wrong CDN version)",
+          "  • a bare specifier like \"react\" — imports must be full https:// URLs",
+          "  • the frame was removed or reloaded while it was still loading (Firefox reports that as `undefined`)",
+        );
+      }
+      const specifiers = importSpecifiers(source);
+      if (specifiers.length) {
+        const listed = specifiers.slice(0, MAX_LISTED_IMPORTS);
+        lines.push(
+          `This frame imports (open one in a tab to check it resolves): ${
+            listed.join(", ")
+          }${
+            specifiers.length > listed.length
+              ? ` … and ${specifiers.length - listed.length} more`
+              : ""
+          }`,
+        );
+      }
+      return lines.join("\n");
     };
 
     globalThis.foundImportMap = false;
@@ -1822,6 +1898,17 @@
         return;
       }
       const menuButton = document.getElementById("menu-button");
+      // Read-only (a published version): the button still opens the pane, but
+      // it opens it to LOOK at the code — saying "Edit" would promise an edit
+      // that the pane then refuses.
+      const menuButtonLabel = menuButton.querySelector("span");
+      if (menuButtonLabel) {
+        const readOnly = hashParams["readonly"] === "true";
+        menuButtonLabel.textContent = readOnly ? "View" : "Edit";
+        menuButton.title = readOnly
+          ? "View this version's code (read-only)"
+          : "Edit this frame's code";
+      }
       if (hashParams["hm"] === "disabled") {
         menuButton.style.display = "none";
       } else {
@@ -2567,10 +2654,12 @@
             // Dynamically import the module using the Blob URL
             module = await import(url);
           } catch (error) {
-            console.error("Error importing module", error);
-            globalThis.logStderr(
-              `Error importing module: ${describeError(error)}`,
-            );
+            const described = describeImportFailure(error, js);
+            // The raw value goes last so the console still offers its stack to
+            // expand — `error` is often `undefined`, which on its own is what
+            // made this message useless.
+            console.error(described, error);
+            globalThis.logStderr(described);
           } finally {
             // Clean up by revoking the object URL
             URL.revokeObjectURL(url);
@@ -2789,6 +2878,7 @@
       "editorWidth",
       "edit",
       "hm",
+      "readonly",
     ]);
 
     // Build a lightweight snapshot from the raw hash string by filtering
@@ -2965,10 +3055,20 @@
       // framejs.app expects the uuid with the dashes removed. `#?edit=true`
       // tells framejs.app to open the embedded editor right away; framejs.app
       // consumes and strips it so its URL stays clean.
+      //
+      // A PINNED version (/j/<uuid>?v=<sha256>) hands off to that version's
+      // framejs.app page instead — pin forwarded, and WITHOUT edit=true. The
+      // published version is immutable, so dropping the user straight into the
+      // editor would be a lie; the page shows its "published version" label and
+      // they click edit there to start editing the live frame.
       if (isUuidShortUrl) {
         var uuidNoDashes = shortUrlId.replace(/-/g, "");
+        var pinnedVersion = window.__SHORT_URL_VERSION;
         var editUrl = (window.__FRAMEJS_APP_ORIGIN || window.location.origin) +
-          "/j/" + uuidNoDashes + "#?edit=true";
+          "/j/" + uuidNoDashes +
+          (pinnedVersion
+            ? "?v=" + encodeURIComponent(pinnedVersion)
+            : "#?edit=true");
         if (isIframe()) {
           window.open(editUrl, "_blank");
         } else {
@@ -3056,6 +3156,11 @@
       mp.addListener(
         globalThis.metapage.Metapage.DEFINITION,
         (event) => {
+          // Read-only: the editor is already locked (readOnly Monaco), so this
+          // is belt and braces — nothing the pane emits may reach the hash, and
+          // therefore nothing can reach an embedder (framejs.app saves what it
+          // sees here as a new version).
+          if (isReadOnly()) return;
           const url = event?.definition?.metaframes?.editor?.url;
           if (url) {
             const urlBlob = new URL(url);
