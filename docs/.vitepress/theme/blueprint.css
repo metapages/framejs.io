@@ -293,6 +293,15 @@
   font-weight: 400;
 }
 
+/* --- "Create" is not an external site on framejs.app ---
+   The nav link is the absolute https://framejs.app so it is right from either
+   origin, but on the framejs.app copy of these docs that IS this origin. The
+   config marks that case with target="_self" (see .vitepress/config.ts); drop
+   the external-link arrow VitePress adds from the href alone. */
+.VPNavBarMenuLink.vp-external-link-icon[target="_self"]::after {
+  display: none;
+}
+
 /* --- Opt-in word-wrap for a single code block ---
    Wrap a fenced block in <div class="wrap-code">…</div> to make its
    long lines wrap instead of scroll. Formatting/highlighting preserved. */
