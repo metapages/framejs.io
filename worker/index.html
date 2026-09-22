@@ -10,7 +10,7 @@
       name="description"
       content="An AI-built artifact that is just a URL: embed it live in any page, notebook, or slide, wire it to data, cite it, fork or self-host it. Open source, no account."
     >
-    <meta name="theme-color" content="#F5F2EC" />
+    <meta name="theme-color" content="#f4f3ef" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -122,7 +122,7 @@
       top: 10px;
       left: calc(100vw - 90px);
       z-index: 1000;
-      background-color: #f9f9f9;
+      background-color: #f4f3ef;
       border: 0;
       padding: 0;
       margin: 0;
@@ -131,9 +131,9 @@
       display: flex;
       justify-content: space-around;
       align-items: center;
-      border: 1px solid #e0e0e0;
+      border: 1px solid #dbd8d0;
       border-radius: 3px;
-      color: #818382;
+      color: #6e6c63;
       font-family: monospace;
       font-size: 13px;
       padding: 8px;
@@ -243,10 +243,10 @@
 
     /* Base style for <pre> blocks */
     .pre-stdout {
-      background-color: #f8f8f8;
+      background-color: #eceae3;
       /* light grey background */
       /* border: 3px solid yellow;  */
-      border-left: 3px solid #000;
+      border-left: 1px solid #111110;
       /* teal accent on the left */
       /* padding: 10px; */
       overflow: auto;
@@ -262,12 +262,12 @@
 
     /* Style for stderr to make it stand out */
     .pre-stderr {
-      background-color: #fff0f0;
+      background-color: #fbeaed;
       /* light red background */
       /* border: 1px solid #ffcccc; light red border */
-      border-left: 3px solid #e53935;
+      border-left: 1px solid #8e1b2e;
       /* darker red accent on the left */
-      color: #d32f2f;
+      color: #8e1b2e;
       /* darker red text color */
       /* padding: 10px; */
       overflow: auto;
@@ -336,7 +336,7 @@
       transform: translateX(-50%);
       height: 100%;
       width: 1px;
-      background: #d0d0d0;
+      background: #c1bdb1;
       transition: background 0.15s, width 0.15s;
     }
 
@@ -351,14 +351,14 @@
       left: 50%;
       right: 0;
       height: 100%;
-      border-top: 1px solid #d0d0d0;
-      border-bottom: 1px solid #d0d0d0;
+      border-top: 1px solid #dbd8d0;
+      border-bottom: 1px solid #dbd8d0;
       pointer-events: none;
     }
 
     #editor-resize-handle:hover::after,
     #editor-resize-handle.dragging::after {
-      background: #2563eb;
+      background: #465775;
       width: 3px;
     }
 
@@ -384,7 +384,7 @@
         xmlns="http://www.w3.org/2000/svg"
         width="15"
         height="15"
-        fill="#818382"
+        fill="#6e6c63"
         viewbox="0 0 256 256"
       >
         <path
@@ -397,14 +397,24 @@
     <div id="root" class="root borderFatSolidGreen transparent">
       <div
         id="landing-content"
-        style="background-color: #FBFAF7; display: none; height: 100%; width: 100%; margin: 4px auto; padding: 0 4px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1c1c1c; line-height: 1.6"
+        style="background-color: #f4f3ef; display: none; height: 100%; width: 100%; margin: 4px auto; padding: 0 4px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #111110; line-height: 1.6"
       >
         <!-- <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap"
         > -->
 
-        <iframe src="https://framejs.app/howto"
+        <!-- `data-src`, NOT `src`: a hidden iframe still loads. This guide is a
+             cross-origin page, so a plain `src` here fetched framejs.app/howto
+             on EVERY frame load — behind display:none, while the user's own
+             frame was starting up — and when the guide still embedded a live
+             framejs.io demo it recursed (guide → demo frame → guide → ...).
+             The browser tears those nested documents down mid-load, which
+             aborts the demo frame's in-flight `import(blobUrl)` and printed
+             "Error importing module undefined" into the console of unrelated
+             frames. showLandingContent() promotes it when the landing is
+             shown. -->
+        <iframe data-src="https://framejs.app/howto"
           style="border: none; width: 100%; height: 100%;" frameborder="0"
           allow="clipboard-read; clipboard-write"></iframe>
         <!-- <h1
@@ -563,14 +573,26 @@
     <!-- Show landing content only if no JS is pending (no short URL, no js hash param) -->
     <script>
     (function () {
+      // Reveal the landing content AND start loading the iframes inside it
+      // (they carry `data-src` so nothing loads while it is hidden — see the
+      // comment on the guide iframe above). Also used by runJsFromUrl when the
+      // user clears their code and the landing is restored.
+      globalThis.showLandingContent = function () {
+        var el = document.getElementById("landing-content");
+        if (!el) return;
+        el.style.display = "";
+        var frames = el.querySelectorAll("iframe[data-src]");
+        for (var i = 0; i < frames.length; i++) {
+          frames[i].src = frames[i].getAttribute("data-src");
+          frames[i].removeAttribute("data-src");
+        }
+      };
+
       var hash = window.location.hash || "";
       var hasJsParam = hash.indexOf("js=") > -1;
       var hasShortUrl = !!window.__SHORT_URL_READY;
       if (!hasJsParam && !hasShortUrl) {
-        var el = document.getElementById("landing-content");
-        if (el) {
-          el.style.display = "";
-        }
+        globalThis.showLandingContent();
       }
     })();
     </script>
@@ -1006,8 +1028,8 @@
     //
     // A frame that saves state into the hash — see docs/guide/url-state.md and
     // `definition.hashParams` — commits it with history.replaceState, either
-    // directly or through @metapages/hash-query. Two things have to be true for
-    // that to work, and they pull in opposite directions:
+    // directly or through @metapages/hash-query. Three things have to be true
+    // for that to work, and they pull in opposite directions:
     //
     //  1. It must be ANNOUNCED. replaceState/pushState do not fire `hashchange`,
     //     so on their own the write is invisible outside this page: the metaframe
@@ -1024,12 +1046,53 @@
     //     in-memory state — dragging a slider would reload the app. Frames have
     //     had to choose between the two, and picking (2) meant losing (1).
     //
-    // So: flag the write as self-originated, announce it, and let the hashchange
-    // listener skip the re-run for exactly those. A genuinely external hash
-    // change (address bar, an embedder rewriting the url) still re-runs as
-    // before. The flag is cleared synchronously — dispatchEvent runs its
-    // listeners inline — so it can never leak into a later event.
-    let selfHashWrite = false;
+    //  3. It must NOT reach the frame's OWN `hashchange` listeners. This used
+    //     to be done by dispatching a synthetic window-wide event, which
+    //     satisfied (1) and — via a `selfHashWrite` flag the listener below
+    //     checked — (2). But a window-wide event reaches every listener, and a
+    //     frame that both saves state and re-renders on `hashchange` (a very
+    //     natural pairing: "the url changed, reload my state from it") got its
+    //     own save handed back as if someone else had made it. Re-rendering
+    //     tears down the DOM, so the input the user was typing in was destroyed
+    //     and rebuilt: the caret jumped out of the field mid-edit, roughly one
+    //     debounce after every keystroke. The frame cannot tell the event apart
+    //     from a real external change, so the runtime must not send it.
+    //
+    // So: do not broadcast. Run the runtime's own hash-change bookkeeping
+    // directly, and notify the metaframe client directly, both via
+    // `onSelfHashWrite` (wired up next to that bookkeeping, further down). A
+    // genuinely external hash change (address bar, an embedder rewriting the
+    // url) still arrives as a real `hashchange` and still re-runs the frame,
+    // exactly as before.
+    //
+    // `onSelfHashWrite` is assigned much further down, next to the bookkeeping
+    // it runs. The patch installed here only CALLS it, but it can be installed
+    // and fire before that assignment: this module suspends at a top-level
+    // `await` (the one that lets the DOM parse an injected import map), and
+    // anything that writes the hash while it is suspended lands here early.
+    // Broadcasting instead is not a fallback — the runtime's own `hashchange`
+    // listener is registered down there too, so an early write would be
+    // announced to nobody and silently lost. Remember it and flush it once the
+    // handler exists.
+    let onSelfHashWrite = null;
+    let pendingSelfHashWrite = false;
+    // Never let runtime bookkeeping escape into the caller. A self-write is
+    // triggered from INSIDE the frame's own `setJson`/`replaceState` call, so a
+    // throw here would propagate out of the frame's code — aborting a module
+    // that was only trying to save state. The synthetic `hashchange` this
+    // replaced could not do that: exceptions in event listeners never reach the
+    // code that dispatched the event.
+    const notifySelfHashWrite = () => {
+      if (!onSelfHashWrite) {
+        pendingSelfHashWrite = true;
+        return;
+      }
+      try {
+        onSelfHashWrite();
+      } catch (error) {
+        console.error("Error handling a self-originated hash write", error);
+      }
+    };
     const announceSelfHashWrites = (method) => {
       const original = globalThis.history[method];
       if (typeof original !== "function") {
@@ -1039,12 +1102,7 @@
         const before = globalThis.location.hash;
         const result = original.apply(this, args);
         if (globalThis.location.hash !== before) {
-          selfHashWrite = true;
-          try {
-            globalThis.dispatchEvent(new HashChangeEvent("hashchange"));
-          } finally {
-            selfHashWrite = false;
-          }
+          notifySelfHashWrite();
         }
         return result;
       };
@@ -1120,6 +1178,25 @@
       window.location.search + currentHashString();
 
     // ---------------------------------------------------------------------
+    // `readonly=true` — the code is VIEWABLE but not editable.
+    //
+    // Set by whoever serves the frame when its content is fixed: a PUBLISHED
+    // version (`/j/<uuid>?v=<sha256>`, immutable by definition) served by this
+    // worker, or framejs.app's frame page embedding one. It is chrome, not
+    // content — like `edit` and `hm` — so it never re-runs the frame and is
+    // never stored as part of a frame.
+    //
+    // What it changes: the editor pane opens read-only (the flag rides along
+    // into the editor's own hash, where it sets Monaco's readOnly and strips
+    // the mutating actions), the pane's edits are never written back to the
+    // hash, and the frame's own button says "View" instead of "Edit".
+    // ---------------------------------------------------------------------
+    const isReadOnly = () => {
+      const [, params] = getUrlHashParamsFromHashString(currentHashString());
+      return params["readonly"] === "true";
+    };
+
+    // ---------------------------------------------------------------------
     // getJson / setJson — the core URL-state API (`saveJson` is an alias of
     // `setJson`, kept because frames already in the wild call it).
     //
@@ -1155,6 +1232,7 @@
       "modules",
       "og",
       "options",
+      "readonly",
     ]);
 
     // The metaframe definition with `key` declared under hashParams, or
@@ -1353,6 +1431,90 @@
         root.removeChild(root.firstChild);
       }
       scheduleLogScroll(root);
+    };
+
+    // A frame's code — or a library it imports — can reject or throw ANY value,
+    // not just an Error: `throw undefined`, a rejected promise with no reason, a
+    // string. Reading `.message` off that crashes the catch block itself, which
+    // is strictly worse than the original failure: the real cause is never
+    // printed, and the TypeError escapes whatever was running (for
+    // runJsFromUrl, mid-way through setting the frame up) as an unhandled
+    // rejection. So describe the value defensively and never touch `.message`
+    // directly.
+    const describeError = (value) => {
+      if (value instanceof Error) {
+        const described = `${value.name}: ${value.message}`;
+        if (!value.stack) return described;
+        // Chrome's stack already starts with "Name: message"; Firefox's does not.
+        return value.stack.startsWith(value.name)
+          ? value.stack
+          : `${described}\n${value.stack}`;
+      }
+      if (value === undefined) return "undefined (a non-Error value was thrown)";
+      if (value === null) return "null (a non-Error value was thrown)";
+      try {
+        const described = typeof value === "object"
+          ? JSON.stringify(value)
+          : String(value);
+        return `${described} (a non-Error value was thrown)`;
+      } catch (_) {
+        return `${typeof value} (a non-Error value was thrown)`;
+      }
+    };
+
+    // A failed `import(blobUrl)` of a frame's code is the least informative
+    // error the platform produces: the browser never names the import that
+    // failed, Chrome throws a bare "Failed to fetch dynamically imported
+    // module: blob:…" and Firefox rejects with `undefined` outright — which is
+    // what "Error importing module undefined" in the console meant. Neither
+    // tells the author anything actionable, so reconstruct what we can: the
+    // kind of failure, and the specifiers the code actually imports (one of
+    // them is the culprit ~every time).
+    const STATIC_IMPORT_RE =
+      /(?:^|[\s;}])import\s+(?:[^'";]*?\bfrom\s*)?["']([^"']+)["']/gm;
+    const DYNAMIC_IMPORT_RE = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
+    const MAX_LISTED_IMPORTS = 8;
+
+    const importSpecifiers = (source) => {
+      const found = [];
+      for (const re of [STATIC_IMPORT_RE, DYNAMIC_IMPORT_RE]) {
+        re.lastIndex = 0;
+        let match;
+        while ((match = re.exec(source)) !== null) {
+          if (!found.includes(match[1])) found.push(match[1]);
+        }
+      }
+      return found;
+    };
+
+    const describeImportFailure = (error, source) => {
+      const lines = [`Error importing module: ${describeError(error)}`];
+      if (error instanceof SyntaxError) {
+        lines.push(
+          "The code did not parse, or a named import does not exist in the module it was imported from.",
+        );
+      } else {
+        lines.push(
+          "The module graph could not be loaded. The browser does not say which import failed. Usual causes:",
+          "  • an import URL that 404s, is offline, or is blocked (CSP, an ad blocker, a wrong CDN version)",
+          "  • a bare specifier like \"react\" — imports must be full https:// URLs",
+          "  • the frame was removed or reloaded while it was still loading (Firefox reports that as `undefined`)",
+        );
+      }
+      const specifiers = importSpecifiers(source);
+      if (specifiers.length) {
+        const listed = specifiers.slice(0, MAX_LISTED_IMPORTS);
+        lines.push(
+          `This frame imports (open one in a tab to check it resolves): ${
+            listed.join(", ")
+          }${
+            specifiers.length > listed.length
+              ? ` … and ${specifiers.length - listed.length} more`
+              : ""
+          }`,
+        );
+      }
+      return lines.join("\n");
     };
 
     globalThis.foundImportMap = false;
@@ -1735,6 +1897,17 @@
         return;
       }
       const menuButton = document.getElementById("menu-button");
+      // Read-only (a published version): the button still opens the pane, but
+      // it opens it to LOOK at the code — saying "Edit" would promise an edit
+      // that the pane then refuses.
+      const menuButtonLabel = menuButton.querySelector("span");
+      if (menuButtonLabel) {
+        const readOnly = hashParams["readonly"] === "true";
+        menuButtonLabel.textContent = readOnly ? "View" : "Edit";
+        menuButton.title = readOnly
+          ? "View this version's code (read-only)"
+          : "Edit this frame's code";
+      }
       if (hashParams["hm"] === "disabled") {
         menuButton.style.display = "none";
       } else {
@@ -2016,8 +2189,9 @@
       try {
         return await fetchJsSource(url);
       } catch (error) {
+        console.error(`Error fetching frame source from ${url}`, error);
         globalThis.logStderr(
-          `Error fetching frame source from ${url}: ${error.message}`,
+          `Error fetching frame source from ${url}: ${describeError(error)}`,
         );
         return "";
       }
@@ -2479,9 +2653,12 @@
             // Dynamically import the module using the Blob URL
             module = await import(url);
           } catch (error) {
-            globalThis.logStderr(
-              `Error importing module: ${error.message}`,
-            );
+            const described = describeImportFailure(error, js);
+            // The raw value goes last so the console still offers its stack to
+            // expand — `error` is often `undefined`, which on its own is what
+            // made this message useless.
+            console.error(described, error);
+            globalThis.logStderr(described);
           } finally {
             // Clean up by revoking the object URL
             URL.revokeObjectURL(url);
@@ -2646,10 +2823,11 @@
           console.error(err);
         }
       } else {
-        // No code — restore and show the landing content
+        // No code — restore and show the landing content. showLandingContent()
+        // also promotes the guide iframe's data-src, which the snapshot still
+        // carries whenever the landing never showed on this load.
         root.innerHTML = __landingHtml;
-        const landing = document.getElementById("landing-content");
-        if (landing) landing.style.display = "";
+        globalThis.showLandingContent?.();
       }
     };
 
@@ -2699,6 +2877,7 @@
       "editorWidth",
       "edit",
       "hm",
+      "readonly",
     ]);
 
     // Build a lightweight snapshot from the raw hash string by filtering
@@ -2740,11 +2919,15 @@
       return true;
     };
 
-    // reload on hash changes and refresh service worker config
-    globalThis.addEventListener("hashchange", () => {
-      // True when this event came from the frame writing its own state (see
-      // announceSelfHashWrites above), rather than from an external edit.
-      const isSelfWrite = selfHashWrite;
+    // Everything the runtime does in response to the hash changing, as a
+    // function rather than only a listener body: a self-write (the frame
+    // persisting its own state) has to run all of it WITHOUT a window-wide
+    // `hashchange`, which would also reach the frame's own listeners and make
+    // the frame re-render over its own save. See announceSelfHashWrites above.
+    //
+    // `isSelfWrite` is passed in rather than read off a flag, so there is no
+    // shared state to leak between a self-write and a real event.
+    const handleHashChange = (isSelfWrite) => {
       // Refresh service worker config when hash changes
       const newConfig = getServiceWorkerConfig();
       globalThis.serviceWorkerConfig = newConfig;
@@ -2782,7 +2965,47 @@
       if (executionParamsChanged && !isSelfWrite) {
         runJsFromUrl();
       }
-    }, false);
+    };
+
+    // A real hash change: the address bar, an embedder rewriting the url, a
+    // hash-query write. Never a frame's own state write — those come through
+    // onSelfHashWrite below instead.
+    globalThis.addEventListener(
+      "hashchange",
+      () => handleHashChange(false),
+      false,
+    );
+
+    // The frame wrote its own state (announceSelfHashWrites above calls this).
+    // It gets the same bookkeeping and the same notification upward as a real
+    // hash change — just not the broadcast, so the frame's own `hashchange`
+    // listeners never see it and the DOM it is mid-edit survives.
+    onSelfHashWrite = () => {
+      handleHashChange(true);
+      // How the write reaches an embedder (framejs.app saves a new frame
+      // version off it). The client normally picks this up from its own
+      // `hashchange` listener; with no broadcast, call its handler directly.
+      // It takes no arguments — it reads window.location.hash itself.
+      const client = globalThis.metaframe;
+      if (typeof client?._onHashUrlChange === "function") {
+        client._onHashUrlChange();
+      } else {
+        // A metapage upgrade renamed the handler. Fall back to the broadcast:
+        // the frame re-renders again (the bug this guards against), but its
+        // state still persists, which is the worse of the two to lose silently.
+        globalThis.dispatchEvent(new HashChangeEvent("hashchange"));
+      }
+    };
+
+    // A hash write that happened while this module was still evaluating (see
+    // notifySelfHashWrite) has had no bookkeeping and no notification upward.
+    // Run it now, once, against the hash as it stands — but in a microtask, so
+    // the rest of this module (removeEditor and friends, which handleHashChange
+    // reaches for) is defined by the time it runs.
+    if (pendingSelfHashWrite) {
+      pendingSelfHashWrite = false;
+      queueMicrotask(notifySelfHashWrite);
+    }
 
     const metapageDef = {
       metaframes: {
@@ -2831,10 +3054,20 @@
       // framejs.app expects the uuid with the dashes removed. `#?edit=true`
       // tells framejs.app to open the embedded editor right away; framejs.app
       // consumes and strips it so its URL stays clean.
+      //
+      // A PINNED version (/j/<uuid>?v=<sha256>) hands off to that version's
+      // framejs.app page instead — pin forwarded, and WITHOUT edit=true. The
+      // published version is immutable, so dropping the user straight into the
+      // editor would be a lie; the page shows its "published version" label and
+      // they click edit there to start editing the live frame.
       if (isUuidShortUrl) {
         var uuidNoDashes = shortUrlId.replace(/-/g, "");
+        var pinnedVersion = window.__SHORT_URL_VERSION;
         var editUrl = (window.__FRAMEJS_APP_ORIGIN || window.location.origin) +
-          "/j/" + uuidNoDashes + "#?edit=true";
+          "/j/" + uuidNoDashes +
+          (pinnedVersion
+            ? "?v=" + encodeURIComponent(pinnedVersion)
+            : "#?edit=true");
         if (isIframe()) {
           window.open(editUrl, "_blank");
         } else {
@@ -2922,6 +3155,11 @@
       mp.addListener(
         globalThis.metapage.Metapage.DEFINITION,
         (event) => {
+          // Read-only: the editor is already locked (readOnly Monaco), so this
+          // is belt and braces — nothing the pane emits may reach the hash, and
+          // therefore nothing can reach an embedder (framejs.app saves what it
+          // sees here as a new version).
+          if (isReadOnly()) return;
           const url = event?.definition?.metaframes?.editor?.url;
           if (url) {
             const urlBlob = new URL(url);

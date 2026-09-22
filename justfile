@@ -233,12 +233,24 @@ _integration-test +args="": _mkcert
       exit 1
     fi
 
-    # Wait for server to be ready
-    echo "Waiting for dev server at https://{{ APP_FQDN }}:{{ APP_PORT }}..."
-    if ! timeout 90 bash -c 'until curl -skf "https://{{ APP_FQDN }}:{{ APP_PORT }}" >/dev/null 2>&1; do sleep 2; done'; then
-      echo "❌ Dev server did not become ready within 90s"
-      exit 1
-    fi
+    # Wait for BOTH the runtime and the editor to be ready.
+    #
+    # The runtime is not a proxy for the editor: they are separate containers,
+    # and the runtime is the LATER of the two to start (it waits on minio-init)
+    # yet the first to answer, because the editor has to cold-install its deps
+    # and boot Vite. Waiting only on the runtime let Playwright start while
+    # /editor/ was still 404ing from traefik — and a test that opens the editor
+    # pane then gets a ONE-SHOT iframe load of that 404, which the browser never
+    # retries, so no per-assertion timeout can recover from it. That is what
+    # made tests/readonly-editor.spec.ts fail on a cold runner (the editor's
+    # node_modules are wiped by CI checkout) while passing everywhere warm.
+    for target in "" "/editor/"; do
+      echo "Waiting for https://{{ APP_FQDN }}:{{ APP_PORT }}${target}..."
+      if ! timeout 90 bash -c "until curl -skf 'https://{{ APP_FQDN }}:{{ APP_PORT }}${target}' >/dev/null 2>&1; do sleep 2; done"; then
+        echo "❌ https://{{ APP_FQDN }}:{{ APP_PORT }}${target} did not become ready within 90s"
+        exit 1
+      fi
+    done
     echo "Dev server ready."
 
     # Run playwright integration tests

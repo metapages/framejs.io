@@ -261,7 +261,9 @@ every input event without reloading itself. Own writes are still announced, so
 the frame is saved as a new version. A change from _outside_ the frame — the
 address bar, an embedder rewriting the url — does re-run the app, as before. To
 react to those in place instead, listen for `hashchange` and re-read with
-`getJson`.
+`getJson`. That listener only ever sees outside changes — your own `setJson`
+never fires it — so a handler that rebuilds the UI cannot render over an input
+the user is still typing in.
 
 When **modifying** an existing frame, `fetch` it first and pass its existing
 `definition` back through unchanged — dropping it un-whitelists params the app

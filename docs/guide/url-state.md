@@ -67,9 +67,10 @@ window.addEventListener("hashchange", () => {
 ```
 
 ::: tip
-That listener also fires for your own writes. Compare against the state you last
-applied and ignore anything already reflected in the UI, so a write can't cause
-a render loop.
+That listener does **not** fire for your own `setJson` writes — only for changes
+from outside the frame. So a handler that rebuilds the UI is safe: it cannot be
+triggered by the app's own save, and cannot render over an input the user is
+still typing in.
 :::
 
 ## What `setJson` does for you

@@ -1,6 +1,43 @@
 import { defineConfig } from 'vitepress';
 import { withMermaid } from 'vitepress-plugin-mermaid';
 
+// ---------------------------------------------------------------------------
+// Two origins, one docs site.
+//
+// These docs are served from BOTH https://framejs.io/docs (the runtime) and
+// https://framejs.app/docs (the account app), each with its own copy of the
+// build. A reader who lands on one should never be bounced to the other just by
+// clicking a link, so every build is parameterised by the origin it will be
+// served from and every in-docs link is kept relative.
+//
+//   FRAMEJS_DOCS_ORIGIN  the origin this build will be served from.
+//                        Default https://framejs.io (`just docs/build`).
+//                        framejs.app passes https://framejs.app — see
+//                        framejs.app's frontend/worker/justfile `build-docs`.
+//   FRAMEJS_DOCS_OUT     where to write the build. Default .vitepress/dist.
+//                        framejs.app points this straight at its static/docs.
+//
+// Links to the framejs.io RUNTIME (/j/…, /#?js=…, /api/…, /skill/…, /llms-*)
+// stay absolute in both builds on purpose: those are the runtime, which only
+// framejs.io serves. Only the docs themselves are mirrored.
+// ---------------------------------------------------------------------------
+const SITE_ORIGIN = process.env.FRAMEJS_DOCS_ORIGIN ?? "https://framejs.io";
+const BRAND = new URL(SITE_ORIGIN).host; // "framejs.io" | "framejs.app"
+const TAGLINE = "open web artifacts that embed anywhere";
+
+// The canonical copy is the one on framejs.app: two public copies of the same
+// pages is duplicate content, so both builds point search engines at that one.
+const CANONICAL_ORIGIN = "https://framejs.app";
+const APP_ORIGIN = "https://framejs.app";
+const isAppOrigin = SITE_ORIGIN === APP_ORIGIN;
+
+// An absolute link to EITHER copy of these docs. Rewritten to a site-relative
+// path so the reader stays on the origin they are already on. The path is made
+// relative to the site `base` (/docs/) because VitePress's own link plugin
+// prepends `base` to every leading-slash href (see linkPlugin in
+// vitepress/dist/node) — a `/docs/...` href here would resolve to /docs/docs/....
+const DOCS_URL_RE = /^https?:\/\/framejs\.(?:io|app)\/docs(?=$|[/?#])/;
+
 // Standalone reveal.js decks live in public/presentations/<deck>/index.html.
 // In production the worker's serveStatic resolves a directory request to its
 // index.html, but the VitePress *dev* server (used by `just dev`) does not —
@@ -27,7 +64,7 @@ const servePresentationIndex = {
 
 export default withMermaid(
   defineConfig({
-    title: "framejs.io — open web artifacts that embed anywhere",
+    title: `${BRAND} — ${TAGLINE}`,
     description:
       "Open web artifacts: interactive browser apps, figures, and tools that live in a shareable URL. Build them with AI or by hand, embed them live in any page, notebook, or slide, and fork or self-host the open-source runtime. No server, no build step, no account.",
     base: "/docs/",
@@ -37,6 +74,42 @@ export default withMermaid(
     cleanUrls: true,
 
     ignoreDeadLinks: [/^http:\/\/localhost/],
+
+    // framejs.app builds its own copy straight into its static dir.
+    outDir: process.env.FRAMEJS_DOCS_OUT || undefined,
+
+    // Both copies name the framejs.app one as canonical, so the duplicate does
+    // not split search ranking between the two origins.
+    transformHead({ pageData }) {
+      const path = pageData.relativePath
+        .replace(/(^|\/)index\.md$/, "$1")
+        .replace(/\.md$/, "");
+      return [[
+        "link",
+        { rel: "canonical", href: `${CANONICAL_ORIGIN}/docs/${path}` },
+      ]];
+    },
+
+    markdown: {
+      // Keep the reader on the origin they arrived at. A link written as
+      // https://framejs.io/docs/... (or .app) points at the OTHER copy of these
+      // same pages; rewrite it to a site-relative path, which VitePress then
+      // resolves against `base` and routes client-side like any internal link.
+      //
+      // This wraps VitePress's own link_open rule (registered by linkPlugin
+      // before `config` runs), so by the time that rule sees the href it is
+      // already internal — no target="_blank", no external-link icon.
+      config(md) {
+        const renderLink = md.renderer.rules.link_open!;
+        md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+          const href = tokens[idx].attrGet("href");
+          if (href && DOCS_URL_RE.test(href)) {
+            tokens[idx].attrSet("href", href.replace(DOCS_URL_RE, "") || "/");
+          }
+          return renderLink(tokens, idx, options, env, self);
+        };
+      },
+    },
 
     vite: {
       plugins: [servePresentationIndex],
@@ -55,7 +128,7 @@ export default withMermaid(
       // via CSS (::after in blueprint.css) only when there is no sidebar — on
       // doc pages the sidebar shrinks the navbar and the tagline would overlap
       // the search box. `title` above still carries the full text for <title>.
-      siteTitle: "framejs.io",
+      siteTitle: BRAND,
 
       nav: [
         { text: "AI", link: "/integrations/claude-mcp" },
@@ -63,7 +136,14 @@ export default withMermaid(
         // { text: "Examples", link: "/examples/" },
         // { text: "Integrations", link: "/integrations/jupyter" },
         { text: "Blog", link: "/blog/about" },
-        { text: "Create", link: "https://framejs.app" },
+        // The account app. When THIS build is the copy framejs.app serves that
+        // is the same origin, so keep it in the current tab instead of letting
+        // VitePress treat it as an external site.
+        {
+          text: "Create",
+          link: APP_ORIGIN,
+          ...(isAppOrigin ? { target: "_self" as const } : {}),
+        },
       ],
 
       sidebar: [

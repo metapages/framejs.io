@@ -59,6 +59,12 @@ services:
     depends_on:
       minio-init:
         condition: service_completed_successfully
+      # The runtime embeds the editor from /editor/ on this same origin, so a
+      # worker that is up before the editor serves its first byte hands the
+      # browser a 404 in that iframe. The editor's healthcheck already existed;
+      # this is what makes compose actually wait on it.
+      editor:
+        condition: service_healthy
     healthcheck:
       test: curl --fail http://localhost:3000 || exit 1
       interval: 5s
