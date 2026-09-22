@@ -289,7 +289,7 @@
    navbar is narrower and the tagline would overlap the search box — suppress
    it there so only the brand shows. */
 .VPNavBarTitle:not(.has-sidebar) .title span::after {
-  content: " — share interactive visualizations in a URL";
+  content: " — open web artifacts that embed anywhere";
   font-weight: 400;
 }
 

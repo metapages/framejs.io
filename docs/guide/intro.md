@@ -1,11 +1,21 @@
 
 # What is framejs.io?
 
-[framejs.io](https://framejs.io) is an open-source, embeddable, editable web app.
+[framejs.io](https://framejs.io) makes **open web artifacts**: a small,
+self-contained web app that lives in a URL and runs wherever you paste it. Open
+source, embeddable, and editable in place.
+
+If you have made an artifact inside Claude or ChatGPT, this is the same idea —
+one file of browser code that just runs — with the platform taken out from
+underneath it. The artifact is a plain URL, so it embeds live in someone else's
+page, takes inputs, carries a citable version, and can be forked or self-hosted.
 
 Designed to be as simple to create and modify with AI tools.
 
-You can embed code safely anywhere, creating custom, editable dashboards, widgets, notebook components, visualizations, editable apps, and more. It is open-source, and aims to be a user-first web primitive. It looks good and is self-descriptive wherever you paste it.
+You can embed code safely anywhere, creating custom, editable dashboards,
+widgets, notebook components, visualizations, editable apps, and more. It aims
+to be a user-first web primitive: it looks good and is self-descriptive wherever
+you paste it.
 
 <p class="feature-link"><a href="/docs/examples/">Examples &rarr;</a></p>
 
@@ -15,7 +25,7 @@ You can embed code safely anywhere, creating custom, editable dashboards, widget
 
 ## Create with AI
 
-Describe what you want in plain language — visualizations, dashboards, apps, games — and AI builds it for you. Works with Claude, ChatGPT, or any LLM.
+Describe what you want in plain language — figures, dashboards, apps, games — and AI builds the artifact for you. Works with Claude, ChatGPT, or any LLM.
 
 In the **Claude apps**, add the connector URL `https://framejs.app/mcp` — no
 install, no terminal. In a **coding agent**, install the skill with one line.

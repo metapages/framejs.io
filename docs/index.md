@@ -3,8 +3,12 @@ layout: home
 
 hero:
   name: framejs.io
-  text: Share interactive visualizations in a URL
-  tagline: Create interactive charts, dashboards, and apps in the browser — the code lives in the URL, so anyone with the link can run it. No server, no build, no account. Generate with AI or write by hand, then embed or share anywhere.
+  text: Open web artifacts, yours to embed anywhere
+  tagline: >-
+    Same idea as a Claude or ChatGPT artifact — one file of browser code that
+    just runs. Except this one is a URL of its own: embed it live in a notebook,
+    paper, or slide, wire it to data, cite an exact version, fork it, self-host
+    it. Open source, and nobody needs an account to open what you made.
   actions:
     - theme: brand
       text: Intro
@@ -26,22 +30,28 @@ hero:
 features:
   - title: Use it in Claude — no install
     details: |
-      Paste one connector URL into Claude Desktop, web, or mobile. Claude then builds, edits, and finds your visualizations in the conversation. No terminal, no build, nothing to download.
+      Paste one connector URL into Claude Desktop, web, or mobile. Claude builds and edits your artifacts in the conversation — and each one leaves the chat as a link that runs on its own. No terminal, nothing to download.
     link: /integrations/claude-mcp
     linkText: Add the connector
   - title: Edit with AI in your coding agent
     details: |
       One-line skill install for Claude Code, Cursor, Gemini CLI and ~40 others — describe what you want, and reference local files.
     link: /guide/ai
-  - title: Share via URL
-    details: All state is embedded in the URL — no server storage. Copy the link and anyone can run your code.
+  - title: The URL is the artifact
+    details: Code and state both live in the URL — no server copy, nothing to deploy. Copy the link and anyone can run it, exactly as you left it.
     link: /guide/url-state
+  - title: Embed it live, anywhere
+    details: One iframe drops the running artifact into a paper, an LMS, a docs site, or a slide. Not a screenshot and not an export — the real thing, still interactive.
+    link: /guide/embedding
   - title: Notebook Widgets
-    details: Use any metaframe as an interactive Jupyter or marimo widget with the metaframe-widget Python package. Visualizations from notebooks preserve state like visualization inputs.
+    details: Use any metaframe as an interactive Jupyter or marimo widget with the metaframe-widget Python package. Values pass both ways, so your Python and the artifact stay in step.
     link: /integrations/jupyter
   - title: Connect Metaframes
-    details: Wire inputs and outputs between metaframes to build apps, workflows, and dashboards.
+    details: Wire inputs and outputs between metaframes, so several artifacts compose into an app, a workflow, or a dashboard instead of sitting in separate links.
     link: /guide/overview
+  - title: Open source, and yours to host
+    details: The rendering runtime is MIT-licensed and the URL format is documented. Fork it, run it inside your own network, and every artifact keeps working.
+    link: /blog/open-infrastructure
 ---
 
 <div class="home-video">
