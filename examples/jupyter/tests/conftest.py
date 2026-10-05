@@ -49,7 +49,7 @@ def lab_url():
 
     The server is started from the package root so that the notebook at
     examples/demo.ipynb is accessible as 'examples/demo.ipynb' in the lab.
-    The metaframe_widget package must already be installed in the environment
+    The framejs package must already be installed in the environment
     (e.g. via `pip install -e ".[dev]"`).
     """
     port = _find_free_port()

@@ -1,5 +1,5 @@
 """
-Browser integration tests for MetaframeWidget using Playwright + marimo.
+Browser integration tests for Frame using Playwright + marimo.
 
 Test tiers:
   @pytest.mark.integration  — needs a running marimo server (marimo_url fixture)

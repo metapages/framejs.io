@@ -1,0 +1,35 @@
+# The FINAL release of `metaframe-widget`: a compatibility shim.
+#
+# The package was renamed to `framejs` in 0.4.0 (same code, same behaviour).
+# This ships no code of its own — it depends on `framejs` and re-exports it, so
+# an existing `pip install metaframe-widget` keeps working and quietly picks up
+# the new package. New work should depend on `framejs` directly.
+#
+# Version-locked to the `framejs` release it forwards to, so the two never drift.
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "metaframe-widget"
+version = "0.4.0"
+description = "Renamed to `framejs` — this package forwards to it and is no longer developed"
+license = "MIT"
+requires-python = ">=3.8"
+readme = "README.md"
+dependencies = [
+    "framejs>=0.4.0",
+]
+classifiers = [
+    "Development Status :: 7 - Inactive",
+    "Framework :: Jupyter",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Homepage = "https://pypi.org/project/framejs/"
+Repository = "https://github.com/metapages/framejs.io"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/metaframe_widget"]

@@ -44,7 +44,7 @@ features:
     details: One iframe drops the running artifact into a paper, an LMS, a docs site, or a slide. Not a screenshot and not an export — the real thing, still interactive.
     link: /guide/embedding
   - title: Notebook Widgets
-    details: Use any metaframe as an interactive Jupyter or marimo widget with the metaframe-widget Python package. Values pass both ways, so your Python and the artifact stay in step.
+    details: Use any metaframe as an interactive Jupyter or marimo widget with the framejs Python package. Values pass both ways, so your Python and the artifact stay in step.
     link: /integrations/jupyter
   - title: Connect Metaframes
     details: Wire inputs and outputs between metaframes, so several artifacts compose into an app, a workflow, or a dashboard instead of sitting in separate links.

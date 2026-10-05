@@ -39,11 +39,11 @@ export default {
         // When the widget's height is set below 350px, the floor wins and the
         // content is cut off at 350px. Override the floors so the metaframe fills
         // our explicit height at any size (large heights already fill via 1fr).
-        style.textContent = ".metaframe-widget-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .metaframe-widget-container * { box-sizing: border-box; min-height: 0 !important; } .metaframe-widget-container > div { height: 100%; } .metaframe-widget-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
+        style.textContent = ".framejs-frame-container { box-sizing: border-box; flex: 1 1 auto; min-height: 0; width: 100%; } .framejs-frame-container * { box-sizing: border-box; min-height: 0 !important; } .framejs-frame-container > div { height: 100%; } .framejs-frame-container iframe { border: none; display: block; margin: 0; padding: 0; box-sizing: border-box; width: 100%; height: 100%; }";
         root.appendChild(style);
 
         const container = document.createElement("div");
-        container.className = "metaframe-widget-container";
+        container.className = "framejs-frame-container metaframe-widget-container";
         root.appendChild(container);
 
         // Footer showing the latest short URL produced by editing + saving.
@@ -102,7 +102,9 @@ export default {
             }
             container.innerHTML = "";
 
-            const url = model.get("url");
+            // The runtime URL, not the one the user typed -- see runtime_url()
+            // in _widget.py. Falls back to `url` so an empty trait is harmless.
+            const url = model.get("_runtime_url") || model.get("url");
             if (!url) return;
 
             const definition = {
@@ -132,6 +134,13 @@ export default {
             }
         }
 
+        // NOTE: the message `type` below is a WIRE PROTOCOL string shared with the
+        // framejs editor (editor/src/.../ButtonShortenUrl.tsx). It is deliberately
+        // NOT renamed with the package: the editor is deployed once and talks to
+        // every installed version of this package, including releases that predate
+        // the framejs rename, so changing it here would make old installs stop
+        // receiving snapshot URLs.
+        //
         // The embedded editor (same-origin to the URL-shortening worker) mints an
         // expiring /j/<sha256> snapshot when the user clicks "Create expiring
         // snapshot", then postMessages it here. We record it in `saved_url`
@@ -139,7 +148,9 @@ export default {
         // torn down and reloaded.
         function expectedOrigin() {
             try {
-                return new URL(model.get("url") || "").origin;
+                // Must be the URL the iframe actually loaded, or a snapshot
+                // message from the embedded editor is dropped as cross-origin.
+                return new URL(model.get("_runtime_url") || model.get("url") || "").origin;
             } catch {
                 return null;
             }
@@ -161,7 +172,10 @@ export default {
         };
         window.addEventListener("message", onMessage);
 
-        model.on("change:url", createMetapage);
+        // `_runtime_url` is derived from `url`, so this covers a url change too --
+        // and a change that maps to the SAME frame (the .app and .io spellings of
+        // one URL) correctly does not tear the iframe down.
+        model.on("change:_runtime_url", createMetapage);
         model.on("change:saved_url", renderSavedUrl);
 
         model.on("change:inputs", () => {

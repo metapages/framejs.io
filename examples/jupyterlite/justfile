@@ -14,9 +14,9 @@ build:
     mkdir -p _build_content
     cp -r content/* _build_content/
     if [[ "$OSTYPE" == "darwin"* ]]; then
-      sed -i '' "s|%pip install ../../python|%pip install metaframe-widget==${VERSION}|g" _build_content/metaframe_demo.ipynb
+      sed -i '' "s|%pip install ../../python|%pip install framejs==${VERSION}|g" _build_content/metaframe_demo.ipynb
     else
-      sed -i "s|%pip install ../../python|%pip install metaframe-widget==${VERSION}|g" _build_content/metaframe_demo.ipynb
+      sed -i "s|%pip install ../../python|%pip install framejs==${VERSION}|g" _build_content/metaframe_demo.ipynb
     fi
     jupyter lite build --contents _build_content --output-dir _output
     rm -rf _build_content

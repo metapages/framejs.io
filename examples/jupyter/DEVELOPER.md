@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains integration tests and example notebooks for `metaframe-widget`. The widget source code lives in [`python/`](../../python/) at the repo root.
+This directory contains integration tests and example notebooks for `framejs`. The widget source code lives in [`python/`](../../python/) at the repo root.
 
 ## Running locally with Docker
 

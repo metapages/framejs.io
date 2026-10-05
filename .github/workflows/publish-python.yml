@@ -1,3 +1,9 @@
+# Publishes BOTH Python packages from ONE workflow file, deliberately:
+# PyPI trusted publishing pins the workflow FILENAME (plus repo + environment),
+# so moving either package into its own workflow would need a new publisher
+# configured on PyPI first. `metaframe-widget` is now a compatibility shim that
+# forwards to `framejs` (see python-compat/) and is published with
+# `skip-existing`, so a release that only bumps `framejs` is not an error.
 name: Publish Python Package
 
 on:
@@ -15,6 +21,10 @@ jobs:
           python-version: "3.12"
       - run: pip install -e "python/[dev]"
       - run: cd python && pytest tests/ -v
+      # The shim must import and re-export the real package, or an existing
+      # `pip install metaframe-widget` breaks on upgrade.
+      - run: pip install -e python-compat/
+      - run: python -c "import metaframe_widget, framejs; assert metaframe_widget.MetaframeWidget is framejs.Frame"
 
   publish:
     needs: test
@@ -23,7 +33,7 @@ jobs:
       id-token: write
     environment:
       name: pypi
-      url: https://pypi.org/project/metaframe-widget/
+      url: https://pypi.org/project/framejs/
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,3 +44,12 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python/dist/
+
+      # The `metaframe-widget` shim. Its version tracks `framejs`, so most tags
+      # re-publish an unchanged version — `skip-existing` makes that a no-op
+      # instead of a "file already exists" failure.
+      - run: cd python-compat && hatch build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python-compat/dist/
+          skip-existing: true

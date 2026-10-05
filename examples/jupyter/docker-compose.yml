@@ -1,6 +1,6 @@
 services:
 
-  # JupyterLab with editable metaframe-widget (same image as tests). Open the URL
+  # JupyterLab with editable framejs (same image as tests). Open the URL
   # printed in the logs (includes access token unless JUPYTER_TOKEN is set).
   # A named volume persists the cookie secret so browser sessions survive restarts.
   jupyter:

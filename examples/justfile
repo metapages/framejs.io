@@ -61,7 +61,7 @@ _free-port desired:
             s.bind(("", 0)); print(s.getsockname()[1])
     ' "{{ desired }}"
 
-# Run JupyterLab in Docker (editable metaframe-widget). Uses JUPYTER_PORT (default 8888), or the next free port if that one is taken. Copy the access URL from the container logs.
+# Run JupyterLab in Docker (editable framejs). Uses JUPYTER_PORT (default 8888), or the next free port if that one is taken. Copy the access URL from the container logs.
 jupyter-docker: _build-jupyter-docker
     #!/usr/bin/env bash
     set -euo pipefail
@@ -98,7 +98,7 @@ test-marimo:
     just test-marimo-unit
     just test-marimo-browser
 
-# Run marimo in Docker (editable metaframe-widget). Uses MARIMO_PORT (default 2718), or the next free port if that one is taken.
+# Run marimo in Docker (editable framejs). Uses MARIMO_PORT (default 2718), or the next free port if that one is taken.
 marimo-docker:
     #!/usr/bin/env bash
     set -euo pipefail

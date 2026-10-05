@@ -1,11 +1,11 @@
 # marimo
 
-Use metaframe-js widgets in [marimo](https://marimo.io) notebooks with reactive bindings.
+Use framejs frames as widgets in [marimo](https://marimo.io) notebooks with reactive bindings.
 
 ## Installation
 
 ```bash
-pip install metaframe-widget
+pip install framejs
 ```
 
 ## Basic usage
@@ -14,9 +14,9 @@ Wrap the widget with `mo.ui.anywidget()` to get reactive bindings:
 
 ```python
 import marimo as mo
-from metaframe_widget import MetaframeWidget
+from framejs import Frame
 
-w = mo.ui.anywidget(MetaframeWidget(url="https://framejs.io/"))
+w = mo.ui.anywidget(Frame(url="https://framejs.app/j/f14d583125634c23851453c8038ddb7c", height="200px"))
 w
 ```
 
@@ -24,14 +24,14 @@ The `url` can be any metaframe URL form:
 
 ```python
 # Raw / full URL — code inlined in the hash
-MetaframeWidget(url="https://framejs.io/#?js=...")
+Frame(url="https://framejs.io/#?js=...")
 
 # Expiring snapshot — content-addressed, kept ~30 days (editor: "Create expiring snapshot")
-MetaframeWidget(url="https://framejs.io/j/<sha256>")
+Frame(url="https://framejs.io/j/<sha256>")
 
 # Durable, editable frame — permanent (editor: "Save")
 # framejs.io/j/<uuid> and framejs.app/j/<uuid> are equivalent
-MetaframeWidget(url="https://framejs.io/j/<uuid>")
+Frame(url="https://framejs.io/j/<uuid>")
 ```
 
 Prefer the durable `/j/<uuid>` form in notebooks you keep — see

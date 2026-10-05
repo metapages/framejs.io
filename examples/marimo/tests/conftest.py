@@ -54,7 +54,7 @@ def marimo_url():
     """Start a marimo server in run mode and yield its base URL.
 
     The server is started from the package root so that demo.py is accessible.
-    The metaframe_widget package must already be installed in the environment
+    The framejs package must already be installed in the environment
     (e.g. via `pip install -e ".[dev]"`).
     """
     port = _find_free_port()

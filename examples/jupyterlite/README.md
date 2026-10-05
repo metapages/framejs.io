@@ -1,10 +1,10 @@
 # JupyterLite Example
 
-Run `metaframe-widget` entirely in the browser — no Python server required.
+Run `framejs` entirely in the browser — no Python server required.
 
 JupyterLite uses WebAssembly (Pyodide) to run a full Jupyter environment
 client-side. The `anywidget` package is pre-installed at build time (required
-for widget module registration), while `metaframe-widget` is installed at
+for widget module registration), while `framejs` is installed at
 runtime via `%pip install`.
 
 ## Prerequisites
@@ -45,5 +45,5 @@ The `_output/` directory is a self-contained static site. Deploy it anywhere
 - **anywidget must be pre-installed** in the JupyterLite build. It cannot be
   installed via `micropip` at runtime due to how JupyterLab widget module
   registration works ([anywidget#534](https://github.com/manzt/anywidget/issues/534)).
-- `metaframe-widget` is pure Python and installs fine via `%pip install` at
+- `framejs` is pure Python and installs fine via `%pip install` at
   runtime inside the Pyodide kernel.

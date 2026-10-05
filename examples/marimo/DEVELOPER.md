@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains integration tests and examples for `metaframe-widget` in marimo. The widget source code lives in [`python/`](../../python/) at the repo root.
+This directory contains integration tests and examples for `framejs` in marimo. The widget source code lives in [`python/`](../../python/) at the repo root.
 
 ## Running locally with Docker
 
