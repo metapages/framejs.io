@@ -517,7 +517,7 @@ ligand_network
 
 </div>
 
-Note: The notebook story closes the loop. `pip install metaframe-widget`, and
+Note: The notebook story closes the loop. `pip install framejs`, and
 any framejs page becomes an interactive widget in JupyterLab, classic Notebook,
 VS Code, or Colab. You can load it from a short URL or write the JS inline. Data
 flows both ways: `set_inputs` pushes from Python into the widget, outputs come

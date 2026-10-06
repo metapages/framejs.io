@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 
 import { PanelHeader } from "/@/components/common/PanelHeader";
+import { useFrameSource } from "/@/hooks/useFrameSource";
 
 import {
   Box,
@@ -13,8 +14,6 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { Copy } from "@phosphor-icons/react";
-import { getHashParamValueBase64DecodedFromUrl } from "@metapages/hash-query";
-import { useHashParamBase64 } from "@metapages/hash-query/react-hooks";
 
 const llmsCode = `// Your code here:
 export const onInputs = (inputs) => {
@@ -23,7 +22,7 @@ export const onInputs = (inputs) => {
 
 export const PanelLlms: React.FC = () => {
   const [aiBaseContent, setAiBaseContent] = useState<string>("");
-  const [code] = useHashParamBase64("js");
+  const [code] = useFrameSource();
   const [fullAiText, setFullAiText] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +60,8 @@ export const PanelLlms: React.FC = () => {
       if (!aiBaseContent) return;
       let text = aiBaseContent;
       text = text.replace(llmsCode, "");
-      text += getHashParamValueBase64DecodedFromUrl(window.location.href, "js");
+      // From the store, not the url: `js` is not a hash param here any more.
+      text += code ?? "";
       await navigator.clipboard.writeText(text);
       toast({
         title: "Copied AI guide to clipboard",

@@ -35,11 +35,21 @@ test-jupyter-browser: _build-jupyter-docker
 test-jupyter-browser-network: _build-jupyter-docker
     docker compose -f jupyter/docker-compose.yml run --rm test-browser-network
 
-# Run all Jupyter-related tests in Docker (unit + notebook + browser, no external network)
+# Run all Jupyter-related tests in Docker (unit + notebook + browser INCLUDING the network tier)
+# The network tier is the only one that loads a real widget and checks data flows
+# through it. With it excluded, a widget that rendered but never received inputs
+# (framejs.app's embed wrapper not relaying the metapage protocol) passed for weeks.
 test-jupyter:
     just test-jupyter-unit
     just test-jupyter-notebook
-    just test-jupyter-browser
+    just test-jupyter-browser-network
+
+# Build the docs' JupyterLite demo and test it in a browser: the bundle loads, and running the demo draws data inside its widgets
+test-jupyterlite:
+    just jupyterlite/build
+    npm --prefix ../test install
+    npx --prefix ../test playwright install chromium
+    cd ../test && npx playwright test --config playwright.jupyterlite.config.ts
 
 # Pick a free host port: try the desired one, otherwise fall back to an OS-assigned free port.
 _free-port desired:
@@ -61,7 +71,7 @@ _free-port desired:
             s.bind(("", 0)); print(s.getsockname()[1])
     ' "{{ desired }}"
 
-# Run JupyterLab in Docker (editable metaframe-widget). Uses JUPYTER_PORT (default 8888), or the next free port if that one is taken. Copy the access URL from the container logs.
+# Run JupyterLab in Docker (editable framejs). Uses JUPYTER_PORT (default 8888), or the next free port if that one is taken. Copy the access URL from the container logs.
 jupyter-docker: _build-jupyter-docker
     #!/usr/bin/env bash
     set -euo pipefail
@@ -98,7 +108,7 @@ test-marimo:
     just test-marimo-unit
     just test-marimo-browser
 
-# Run marimo in Docker (editable metaframe-widget). Uses MARIMO_PORT (default 2718), or the next free port if that one is taken.
+# Run marimo in Docker (editable framejs). Uses MARIMO_PORT (default 2718), or the next free port if that one is taken.
 marimo-docker:
     #!/usr/bin/env bash
     set -euo pipefail

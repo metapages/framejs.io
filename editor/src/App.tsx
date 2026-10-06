@@ -3,6 +3,7 @@ import "/@/debug.css";
 import React, { useCallback, useEffect, useRef } from "react";
 import { useStore } from "/@/store";
 import { useHandleFilesUploaded, uploadFile } from "/@/hooks/useFileUpload";
+import { useFrameSourceSeed } from "/@/hooks/useFrameSource";
 import { useShortUrlMode } from "/@/hooks/useShortUrlMode";
 
 import { Box, useToast, VStack } from "@chakra-ui/react";
@@ -14,6 +15,9 @@ import { PanelSettings } from "./components/sections/PanelSettings";
 
 export const App: React.FC = () => {
   useShortUrlMode();
+  // The frame's source arrives from the runtime over postMessage, not in the
+  // url. Seed the store before anything reads it.
+  useFrameSourceSeed();
   const shownPanel = useStore((state) => state.shownPanel);
   const setFileUploadTrigger = useStore((state) => state.setFileUploadTrigger);
   const fileInputRef = useRef<HTMLInputElement>(null);

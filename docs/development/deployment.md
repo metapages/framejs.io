@@ -165,22 +165,37 @@ actually disappear.
 
 ## Python package (PyPI)
 
-The `metaframe-widget` package is published to PyPI:
+Two packages are published to PyPI, and both come from one release:
+
+| Source | Package | What it is |
+| --- | --- | --- |
+| `python/` | [`framejs`](https://pypi.org/project/framejs/) | the real package |
+| `python-compat/` | [`metaframe-widget`](https://pypi.org/project/metaframe-widget/) | a shim that depends on `framejs` and re-exports it |
+
+`metaframe-widget` was the original name (renamed in 0.4.0). The shim exists so
+an existing `pip install metaframe-widget` keeps working; it ships no code and
+its version tracks `framejs`.
 
 ```bash
-just build-python    # builds python/dist/
-just publish-python  # publishes to PyPI
+just build-python    # builds python/dist/ AND python-compat/dist/
+just publish-python  # publishes both — framejs FIRST, since the shim requires it
 ```
 
 Requires `HATCH_INDEX_USER` and `HATCH_INDEX_AUTH` env vars, or interactive login.
 
 ### CI publishing
 
-Push a git tag to trigger CI:
+Push a git tag to trigger CI (preferred — it uses PyPI trusted publishing):
 
 ```bash
-git tag python-v0.1.0 && git push origin python-v0.1.0
+git tag python-v0.4.0 && git push origin python-v0.4.0
 ```
+
+Both packages are published from `.github/workflows/publish-python.yml`. They
+share one workflow deliberately: PyPI's trusted publishing is pinned to a
+workflow **filename**, so splitting them would need a new publisher configured
+on PyPI first. The shim is published with `skip-existing`, so a release that
+only bumps `framejs` is a no-op for it rather than a failure.
 
 ---
 

@@ -1,6 +1,19 @@
-anywidget
-jupyterlab-widgets==3.0.13
-jupyterlab~=4.3
+# EXACT pins, all of them. jupyterlite-core bundles a fixed JupyterLab/Notebook
+# frontend, and every pip-installed labextension (notebook, jupyterlab-widgets,
+# anywidget) is loaded into it as a module-federation remote that must agree on
+# shared packages. A floating pin (this file once said `notebook~=7.3`, which
+# allows 7.6) federates a newer extension into the old host and the whole page
+# renders blank with "The getter for the shared module is not a function"
+# (#RUNTIME-012, shareKey @jupyterlab/docregistry).
+#
+# jupyterlab/notebook MUST match what jupyterlite-core declares in its `lab`
+# extra (0.5.1: jupyterlab>=4.3.4,<4.4 / notebook>=7.3.2,<7.4). Bump them
+# together, never one alone. test/tests/jupyterlite.spec.ts catches skew.
 jupyterlite-core==0.5.1
 jupyterlite-pyodide-kernel==0.5.2
-notebook~=7.3
+jupyterlab==4.3.8
+notebook==7.3.3
+jupyterlab-widgets==3.0.13
+# The notebook's `%pip install` (see justfile) installs this SAME anywidget
+# version into the Pyodide kernel, so the frontend and kernel halves agree.
+anywidget==0.11.0

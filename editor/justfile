@@ -109,12 +109,9 @@ _css-debug-layer-setup:
         echo -e "👉 {{green}}created src/debug.css{{normal}}" ; 
     fi
 
-# Deletes: ../.certs dist docs
-clean:
-    rm -rf \
-        dist \
-        ../.certs \
-        ../docs
+# Deletes: dist
+@clean:
+    rm -rf dist
 
 # Rebuild the client on changes, but do not serve
 watch BUILD_SUB_DIR="":

@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 
 import { injectUploadCommentIntoCode } from "/@/utils/codeComments";
+import { useFrameSource } from "/@/hooks/useFrameSource";
 
 import {
   Button,
@@ -38,7 +39,7 @@ export const AddInputButtonAndModal: React.FC<{
 }> = ({ add, text }) => {
   const { isOpen, onClose, onToggle } = useDisclosure();
   const toast = useToast();
-  const [code, setCode] = useHashParamBase64("js");
+  const [code, setCode] = useFrameSource();
 
   const [mode, setMode] = useState<"inline" | "url" | "file">("inline");
   const [name, setName] = useState("");

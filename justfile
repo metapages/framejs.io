@@ -24,7 +24,7 @@ cyan := "\\e[36m"
     echo -e ""
     echo -e "    Github  URL 🔗        {{ green }}https://github.com/metapages/framejs.io{{ normal }}"
     echo -e "    Production URL 🔗     {{ green }}https://framejs.io/{{ normal }}"
-    echo -e "    Python Package URL 🔗 {{ green }}https://pypi.org/project/metaframe-widget/{{ normal }}"
+    echo -e "    Python Package URL 🔗 {{ green }}https://pypi.org/project/framejs/{{ normal }}"
     echo -e "    Local develop URL 🔗  {{ green }}https://{{ APP_FQDN }}:{{ APP_PORT }}/{{ normal }}"
     echo -e "    Deploy Console URL 🔗 {{ green }}https://console.deno.com/metapage/metaframe-js{{ normal }}"
     echo -e "    Analytics Dashboard 🔗{{ green }}https://cloud.umami.is/analytics/us/websites/774a7551-b487-4691-a52a-9b2b79a20872{{ normal }}"
@@ -159,19 +159,26 @@ test:
     just worker/test
     just _integration-test
     just examples/test-jupyter
+    just examples/test-jupyterlite
     just examples/test-marimo
 
-# Run canonical metaframe-widget unit tests
+# Run canonical framejs unit tests
 test-python:
     cd python && pytest tests/ -v
 
-# Build the metaframe-widget package (outputs to python/dist/)
+# Build the framejs package AND the metaframe-widget compatibility shim
 build-python:
     cd python && hatch build
+    cd python-compat && hatch build
 
-# Build and publish metaframe-widget to PyPI (requires HATCH_INDEX_USER and HATCH_INDEX_AUTH env vars, or interactive login)
+# Build and publish BOTH to PyPI (requires HATCH_INDEX_USER and HATCH_INDEX_AUTH env vars, or interactive login).
+# Prefer the tagged CI release (`git tag python-v<version> && git push --tags`),
+# which publishes the same two packages via trusted publishing.
+# framejs goes FIRST: the shim declares framejs>=<version> and is uninstallable
+# until that version is on the index.
 publish-python: build-python
     cd python && hatch publish
+    cd python-compat && hatch publish
 
 # The default host is *.localhost, which makes the page origin itself "local".
 # Running on a hostname that isn't is how you check behaviour keyed off

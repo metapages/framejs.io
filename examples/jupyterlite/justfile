@@ -5,20 +5,53 @@
 build:
     #!/usr/bin/env bash
     set -euo pipefail
-    python3 -m venv .venv
+    # Recreate the venv whenever requirements.txt changes. Reusing one only ever
+    # ADDS packages, so a version installed by an older requirements.txt lingers
+    # and gets federated into the build (see the comment in requirements.txt).
+    REQ_HASH=$(shasum requirements.txt | cut -d' ' -f1)
+    if [[ "$(cat .venv/.requirements.sha 2>/dev/null)" != "$REQ_HASH" ]]; then
+      rm -rf .venv
+      python3 -m venv .venv
+      .venv/bin/pip install -q -r requirements.txt
+      echo "$REQ_HASH" > .venv/.requirements.sha
+    fi
     source .venv/bin/activate
-    pip install -q -r requirements.txt
-    # Get version from pyproject.toml and patch notebook for JupyterLite (micropip can't use local paths)
+    # Build THIS REPO's wheel and hand it to jupyterlite.
+    #
+    # The notebook's `%pip install` runs in Pyodide, where it is micropip —
+    # which cannot take a local path, so `%pip install ../../python` (what the
+    # source notebook says, for a normal Jupyter kernel) has to be rewritten.
+    # It used to be rewritten to a PINNED PyPI VERSION, which made the build
+    # depend on a release: bump the version in pyproject.toml and both the demo
+    # and its test broke until that version was published. A test that cannot
+    # pass on an unreleased commit is not testing the commit.
+    #
+    # `--piplite-wheels` copies the wheel into the output AND indexes it, so
+    # micropip resolves `framejs==<version>` from that index instead of PyPI.
+    # The notebook keeps the honest command a reader should copy, the build
+    # tests the code in this checkout, and the published demo carries its own
+    # wheel rather than depending on PyPI at page-load time.
     VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('../../python/pyproject.toml','rb'))['project']['version'])")
+    ANYWIDGET_VERSION=$(sed -n 's/^anywidget==//p' requirements.txt)
+    # anywidget stays a PyPI install, pinned to the SAME version the frontend
+    # was built with — otherwise micropip grabs the newest and the kernel and
+    # frontend halves disagree.
+    INSTALL="%pip install anywidget==${ANYWIDGET_VERSION} framejs==${VERSION}"
+    python3 -m pip install -q build
+    rm -rf ../../python/dist
+    (cd ../../python && python3 -m build --wheel --outdir dist . >/dev/null)
+    WHEEL=$(ls ../../python/dist/framejs-*-py3-none-any.whl)
+    echo "📦 bundling $(basename "$WHEEL") — built from ./python, not PyPI"
     rm -rf _output .jupyterlite.doit.db
     mkdir -p _build_content
     cp -r content/* _build_content/
     if [[ "$OSTYPE" == "darwin"* ]]; then
-      sed -i '' "s|%pip install ../../python|%pip install metaframe-widget==${VERSION}|g" _build_content/metaframe_demo.ipynb
+      sed -i '' "s|%pip install ../../python|${INSTALL}|g" _build_content/metaframe_demo.ipynb
     else
-      sed -i "s|%pip install ../../python|%pip install metaframe-widget==${VERSION}|g" _build_content/metaframe_demo.ipynb
+      sed -i "s|%pip install ../../python|${INSTALL}|g" _build_content/metaframe_demo.ipynb
     fi
-    jupyter lite build --contents _build_content --output-dir _output
+    jupyter lite build --contents _build_content --output-dir _output \
+      --piplite-wheels "$WHEEL"
     rm -rf _build_content
     rm -rf ../../docs/public/jupyterlite
     cp -r _output ../../docs/public/jupyterlite

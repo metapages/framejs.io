@@ -214,19 +214,19 @@ These will be added to the root div (see below) so if your own code manipulates 
 
 ## Jupyter Notebook Widget
 
-Use any metaframe as an interactive Jupyter notebook widget. Install the `metaframe-widget` package:
+Use any metaframe as an interactive Jupyter notebook widget. Install the `framejs` package:
 
 ```bash
-pip install metaframe-widget
+pip install framejs
 ```
 
 ### Basic usage
 
 ```python
-from metaframe_widget import MetaframeWidget
+from framejs import Frame
 
 # From a URL — paste any metaframe URL
-w = MetaframeWidget(url="https://framejs.io/#?js=...")
+w = Frame(url="https://framejs.io/#?js=...")
 w  # renders the iframe in the notebook
 ```
 
@@ -248,7 +248,14 @@ w.set_input("count", 42)
 print(w.outputs)
 
 # React to output changes
-w.on_outputs_change(lambda change: print("Got:", change["new"]))
+# NOTE: a bare print() in this callback has no cell to print into (it runs while
+# the kernel handles a browser message), so JupyterLab hides it in the Log
+# Console. Append to an Output widget to see it in the notebook.
+import ipywidgets as widgets
+
+log = widgets.Output()
+w.on_outputs_change(lambda change: log.append_stdout(f"Got: {change['new']}\n"))
+log
 ```
 
 ### Pipe widgets together
@@ -256,8 +263,8 @@ w.on_outputs_change(lambda change: print("Got:", change["new"]))
 Connect the output of one widget to the input of another:
 
 ```python
-source = MetaframeWidget(url="https://framejs.io/j/...")
-sink = MetaframeWidget(url="https://framejs.io/j/...")
+source = Frame(url="https://framejs.io/j/...")
+sink = Frame(url="https://framejs.io/j/...")
 
 # When source emits "doubled", push it to sink's "data" input
 source.pipe_to(sink, output_key="doubled", input_key="data")
@@ -271,9 +278,9 @@ In [marimo](https://marimo.io), wrap the widget with `mo.ui.anywidget()` to get 
 
 ```python
 import marimo as mo
-from metaframe_widget import MetaframeWidget
+from framejs import Frame
 
-w = mo.ui.anywidget(MetaframeWidget(url="https://framejs.io/"))
+w = mo.ui.anywidget(Frame(url="https://framejs.app/j/f14d583125634c23851453c8038ddb7c", height="200px"))
 w
 ```
 

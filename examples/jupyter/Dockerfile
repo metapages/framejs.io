@@ -5,7 +5,7 @@ FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
 
 WORKDIR /app
 
-# Install the canonical metaframe-widget package from python/ first
+# Install the canonical framejs package from python/ first
 COPY python/pyproject.toml python/README.md python/LICENSE ./python/
 COPY python/src/ ./python/src/
 RUN pip install --no-cache-dir -e "./python"

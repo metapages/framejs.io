@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "metaframe-widget"
-version = "0.3.12"
-description = "anywidget for embedding metaframe URLs in Jupyter and marimo notebooks"
+name = "framejs"
+version = "0.4.0"
+description = "Embed framejs frames as interactive widgets in Jupyter and marimo notebooks"
 license = "MIT"
 requires-python = ">=3.8"
 readme = "README.md"
@@ -15,6 +15,7 @@ dependencies = [
 ]
 classifiers = [
     "Framework :: Jupyter",
+    "Framework :: Jupyter :: JupyterLab",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
@@ -26,9 +27,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/metapages/framejs.io"
+Homepage = "https://framejs.io/docs/integrations/jupyter"
 Repository = "https://github.com/metapages/framejs.io"
 Issues = "https://github.com/metapages/framejs.io/issues"
+Changelog = "https://github.com/metapages/framejs.io/blob/main/python/README.md"
 
 [project.optional-dependencies]
 jupyter = ["jupyterlab"]
@@ -36,4 +38,4 @@ marimo = ["marimo"]
 dev = ["pytest"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/metaframe_widget"]
+packages = ["src/framejs"]
