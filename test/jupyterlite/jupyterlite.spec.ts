@@ -53,8 +53,15 @@ test("the notebook UI loads (federated extensions agree with the host)", async (
     .toBeGreaterThanOrEqual(5);
   await expect(page.getByText("Python (Pyodide)").first()).toBeVisible();
 
+  // Notebook 7.3's "Last Checkpoint" top-bar widget read
+  // `checkpoints[checkpoints.length - 1].last_modified` without checking for an
+  // empty list — and a notebook served from files/ has no checkpoints in this
+  // browser yet, so every load threw "Cannot read properties of undefined
+  // (reading 'last_modified')". It re-runs on a 2s Poll: give it a few ticks.
+  await page.waitForTimeout(5_000);
+
   expect(
-    errors.filter((m) => /shared module|RUNTIME-\d+|federat/i.test(m)),
+    errors.filter((m) => /shared module|RUNTIME-\d+|federat|last_modified/i.test(m)),
   ).toEqual([]);
 });
 
