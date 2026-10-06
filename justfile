@@ -172,13 +172,63 @@ build-python:
     cd python-compat && hatch build
 
 # Build and publish BOTH to PyPI (requires HATCH_INDEX_USER and HATCH_INDEX_AUTH env vars, or interactive login).
-# Prefer the tagged CI release (`git tag python-v<version> && git push --tags`),
+# Prefer the tagged CI release (`just python-release <version>`),
 # which publishes the same two packages via trusted publishing.
 # framejs goes FIRST: the shim declares framejs>=<version> and is uninstallable
 # until that version is on the index.
 publish-python: build-python
     cd python && hatch publish
     cd python-compat && hatch publish
+
+# Bump python/ + python-compat/ versions, commit, tag + push a release (CI publishes it). No version: print the current version
+python-release version="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    toml_files=(python/pyproject.toml python-compat/pyproject.toml)
+    toml_version=$(sed -nE 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' python/pyproject.toml | head -1)
+    latest_tag=$(git tag -l 'python-v*' --sort=-v:refname | head -1)
+    if [ -z "{{ version }}" ]; then
+        echo -e "python/pyproject.toml version: {{ bold }}$toml_version{{ normal }}"
+        echo -e "latest release tag:            {{ bold }}${latest_tag:-<none>}{{ normal }}"
+        echo -e "{{ grey }}release with: just python-release <version>{{ normal }}"
+        exit 0
+    fi
+    version="{{ version }}"
+    version="${version#v}"
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "❌ '$version' is not a semver version (e.g. 0.5.1)"; exit 1
+    fi
+    tag="python-v$version"
+    # 1) on main, and main is up to date with origin
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    if [ "$branch" != "main" ]; then
+        echo "❌ not on main (on '$branch')"; exit 1
+    fi
+    git fetch --quiet --tags origin main
+    if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+        echo "❌ local main differs from origin/main: pull/push first"; exit 1
+    fi
+    # 2) nothing uncommitted (including untracked files)
+    if [ -n "$(git status --porcelain)" ]; then
+        echo "❌ uncommitted changes:"; git status --short; exit 1
+    fi
+    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+        echo "❌ tag $tag already exists"; exit 1
+    fi
+    # 3) set the version in both packages (CI builds whatever pyproject.toml says), commit, push
+    for f in "${toml_files[@]}"; do
+        sed -i.bak -E "s/^version[[:space:]]*=[[:space:]]*\"[^\"]+\"/version = \"$version\"/" "$f" && rm "$f.bak"
+        grep -q "^version = \"$version\"$" "$f" || { echo "❌ failed to set version in $f"; exit 1; }
+    done
+    if [ -n "$(git status --porcelain -- "${toml_files[@]}")" ]; then
+        git add "${toml_files[@]}"
+        git commit -m "python: release $version"
+        git push origin HEAD:main
+    fi
+    # 4) tag and push
+    git tag "$tag" origin/main
+    git push origin "$tag"
+    echo -e "{{ green }}✅ pushed $tag{{ normal }}"
 
 # The default host is *.localhost, which makes the page origin itself "local".
 # Running on a hostname that isn't is how you check behaviour keyed off
@@ -274,55 +324,6 @@ clean: _delete-certs
 
 show-metapage-lib:
     @rg "@metapages/metapage@"
-
-python-bump-version:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    pyproject_path="python/pyproject.toml"
-    # Read the version currently in pyproject.toml
-    toml_version=$(python3 - <<'PY'
-    import pathlib, re, sys
-    text = pathlib.Path("python/pyproject.toml").read_text()
-    match = re.search(r'^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"\s*$', text, re.MULTILINE)
-    if not match:
-        sys.exit("Could not find semver version in python/pyproject.toml")
-    print(".".join(match.groups()))
-    PY
-    )
-    toml_tag="python-v$toml_version"
-    # If the tag for the toml version already exists, bump patch
-    if git rev-parse "$toml_tag" >/dev/null 2>&1; then
-        IFS=. read -r major minor patch <<< "$toml_version"
-        new_version="$major.$minor.$((patch + 1))"
-        echo "Tag $toml_tag exists — bumping to $new_version"
-        python3 - <<PY "$new_version"
-    import pathlib, re, sys
-    new_version = sys.argv[1]
-    path = pathlib.Path("python/pyproject.toml")
-    text = path.read_text()
-    updated, count = re.subn(
-        r'^version\s*=\s*"\d+\.\d+\.\d+"\s*$',
-        f'version = "{new_version}"',
-        text,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    if count != 1:
-        sys.exit("Failed to update version in python/pyproject.toml")
-    path.write_text(updated)
-    PY
-        git add "$pyproject_path"
-        git commit -m "python: bump version to $new_version"
-    else
-        new_version="$toml_version"
-        echo "Tag $toml_tag does not exist — using toml version $new_version as-is"
-    fi
-    new_tag="python-v$new_version"
-    git tag "$new_tag"
-    git push origin HEAD
-    git push origin "$new_tag"
-    echo "$new_tag"
-
 
 alias docs := _docs
 @_docs +args="":

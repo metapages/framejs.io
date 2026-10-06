@@ -16,6 +16,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Only a python-v<version> tag publishes, and hatch builds whatever
+      # pyproject.toml says, so a tag that doesn't match would re-upload the
+      # previous version and fail on PyPI. Use `just python-release <version>`.
+      - name: Tag matches pyproject versions
+        run: |
+          version="${GITHUB_REF_NAME#python-v}"
+          for f in python/pyproject.toml python-compat/pyproject.toml; do
+            grep -q "^version = \"$version\"$" "$f" \
+              || { echo "::error file=$f::version is not $version (tag $GITHUB_REF_NAME)"; exit 1; }
+          done
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
