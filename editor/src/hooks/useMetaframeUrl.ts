@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
+import { useFrameSource } from "/@/hooks/useFrameSource";
 
 import {
   deleteHashParamFromUrl,
   setHashParamValueBase64EncodedInUrl,
   setHashParamValueJsonInUrl,
-  useHashParamBase64,
   useHashParamJson,
 } from "@metapages/hash-query/react-hooks";
 import { MetaframeDefinitionV1 } from "@metapages/metapage";
@@ -13,7 +13,7 @@ import { DataRef } from "../components/sections/settings/SectionInputs";
 
 export const useMetaframeUrl = () => {
   const [url, setUrl] = useState<string>();
-  const [code] = useHashParamBase64("js");
+  const [code] = useFrameSource();
   const [metaframeDef] = useHashParamJson<MetaframeDefinitionV1>("definition");
   const [modules] = useHashParamJson<string[]>("modules");
   const [inputs] = useHashParamJson<Record<string, DataRef>>("inputs");

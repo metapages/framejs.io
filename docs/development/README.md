@@ -10,6 +10,9 @@ live in the repo for contributors.
 
 - [Local Setup](./local-setup.md) — prerequisites and running the dev stack
 - [Architecture](./architecture.md) — how it works, project structure, URL state
+- [Editing & saving](./editing-and-saving.md) — where a frame's code lives
+  at each moment, the two embed modes, and the guards that stop a frame
+  being saved empty. **Read before touching the editor path.**
 - [Runtime load & state machine](./runtime-load-state-machine.md) — serving
   modes, the base/overlay hash-param layers, how `js` and `inputs` reach the
   frame, and the edit cycle

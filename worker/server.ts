@@ -865,30 +865,50 @@ async function fetchUuidOg(
   return { ...json, og: json?.og ?? null };
 }
 
+/**
+ * The hash-param string a /j/:uuid page should resolve to, fetched from
+ * framejs.app's `/j/<uuid>/params` — the params EXACTLY AS STORED.
+ *
+ * Returns null when there is no frame a renderer may have (non-200): no such
+ * uuid, or one that is private or soft-deleted. Callers turn that into a 404
+ * rather than serving a page.
+ *
+ * It deliberately does NOT use `/j/<uuid>.json`, which promises SOURCE and so
+ * dereferences a hoisted `js`. That is right for its own consumers — the agent
+ * skill, MCP, scripts — because they read-modify-write and would otherwise save
+ * the `/f/<id>` reference as the frame's code. It is wrong for us: we never
+ * write back, and dereferencing undoes the hoist. Measured on one frame, a
+ * 292-char stored url came back as 1.13 MB of params, which this worker then
+ * inlined into 1.25 MB of uncacheable HTML on every page load.
+ *
+ * It is also a passthrough now. The previous path decoded that JSON and
+ * immediately re-encoded it with `jsonToHashParams`; the stored string needs
+ * neither step.
+ *
+ * NOTE — `branding`: the free-tier "Made with framejs" overlay used to ride
+ * along as a reserved field of the JSON response, and this function split it
+ * out for the caller. A params endpoint carries params only, so that is gone.
+ * It is currently disabled on framejs.app anyway (see the `brandingForOwner`
+ * block in its routes/j/[uuid].json.ts); re-enabling it needs a channel of its
+ * own, not a smuggled field.
+ */
 async function fetchUuidHashParams(
   uuid: string,
   // When set, fetch a specific PUBLISHED version (permanent pin) instead of the
-  // current one: framejs.app serves /j/<uuid>.json?v=<sha256> for a retention>0
-  // version even if the frame is later made private or deleted.
+  // current one: framejs.app serves a retention>0 version even if the frame is
+  // later made private or deleted.
   version?: string,
-): Promise<{ hashParams: string; branding?: string } | null> {
-  const suffix = pinnedVersionSuffix(version);
-  console.log(
-    "uuid fetch url",
-    `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json${suffix}`,
-  );
-  const response = await fetch(
-    `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}.json${suffix}`,
-  );
-  console.log("response", response.status);
+): Promise<{ hashParams: string } | null> {
+  const url = `${FRAMEJS_APP_ORIGIN}/j/${normalizeUuid(uuid)}/params${
+    pinnedVersionSuffix(version)
+  }`;
+  const response = await fetch(url);
   if (response.status !== 200) {
     // Drain the body so the connection can be reused.
     await response.body?.cancel();
     return null;
   }
-  const json = await response.json() as Record<string, unknown>;
-  const branding = extractBranding(json);
-  return { hashParams: jsonToHashParams(json), branding };
+  return { hashParams: await response.text() };
 }
 
 // Shortened URL — fetches hash params and serves index.html with injected init

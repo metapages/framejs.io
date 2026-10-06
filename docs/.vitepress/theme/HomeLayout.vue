@@ -27,7 +27,7 @@ const { Layout } = DefaultTheme;
 
 <style>
 .hero-iframe-container {
-  display: none;
+  display: flex;
   width: 100%;
   height: 100%;
   flex-direction: column;
@@ -42,10 +42,19 @@ const { Layout } = DefaultTheme;
   border-radius: var(--radius-plate, 2px);
 }
 
-@media (min-width: 960px) {
-  .hero-iframe-container {
-    display: flex;
+/* Below 960px VitePress stacks the hero and gives `.image` order:1 — ABOVE
+   `.main` — while sizing that block itself (320px, or 392px from 768px up,
+   plus negative margins) no matter what the `home-hero-image` slot renders.
+   Hiding only our own wrapper therefore left VitePress's box behind as an
+   empty ~390px band above the hero name. Collapse the whole `.image` block
+   instead, which is what "no demo frame on narrow screens" actually means. */
+@media (max-width: 959px) {
+  .VPHero.VPHomeHero .image {
+    display: none;
   }
+}
+
+@media (min-width: 960px) {
   .hero-iframe {
     height: 500px;
   }

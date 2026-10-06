@@ -36,16 +36,16 @@ services:
       context: ../../
       dockerfile: examples/jupyter/Dockerfile
     working_dir: /app/examples/jupyter
-    command: ["pytest", "tests/test_widget.py", "-v"]
+    command: ["pytest", "tests/test_widget.py", "tests/test_iframe_notebook.py", "-v"]
 
-  # Execute the demo notebook via nbmake (Python kernel, no browser).
+  # Execute the example notebooks via nbmake (Python kernel, no browser).
   # Verifies all cells run without raising Python exceptions.
   test-notebook:
     build:
       context: ../../
       dockerfile: examples/jupyter/Dockerfile
     working_dir: /app/examples/jupyter
-    command: ["pytest", "--nbmake", "examples/demo.ipynb", "-v"]
+    command: ["pytest", "--nbmake", "examples/demo.ipynb", "examples/iframe_inputs.ipynb", "-v"]
 
   # Playwright + JupyterLab – verifies the widget renders in a real browser.
   # No external network required (CDN/framejs.io tests excluded).

@@ -1,6 +1,8 @@
 import {
   deleteHashParamFromUrl,
   getUrlHashParams,
+  getUrlHashParamsFromHashString,
+  setHashParamValueInHashString,
 } from "@metapages/hash-query/react-hooks";
 import { MetaframeDefinition } from "@metapages/metapage";
 
@@ -44,6 +46,29 @@ export const getAllowedHashParams = (
     }
   }
   return allowed;
+};
+
+/**
+ * Returns the HASH STRING with any param not in the allowed set removed.
+ *
+ * The url-based variant below cannot be used once `js` is in the string: it
+ * goes through `new URL()`, and Firefox's url parser throws past 1 MiB, which a
+ * frame's source comfortably exceeds. Everything here is hash-query on a hash
+ * string, so there is no url and no limit.
+ */
+export const stripDisallowedHashParamsFromHashString = (
+  hash: string,
+  allowedKeys: Set<string>,
+): string => {
+  if (!hash) return hash;
+  const [, params] = getUrlHashParamsFromHashString(hash);
+  let result = hash;
+  for (const key of Object.keys(params)) {
+    if (!allowedKeys.has(key)) {
+      result = setHashParamValueInHashString(result, key, undefined);
+    }
+  }
+  return result;
 };
 
 // Returns the URL with any hash params not in the allowed set removed.

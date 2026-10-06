@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
+import { useFrameSourceForPersist } from "/@/hooks/useFrameSource";
 import { convertMetaframeInputs } from "/@/utils/convertInputs";
 import {
   getAllowedHashParams,
-  stripDisallowedHashParams,
+  stripDisallowedHashParamsFromHashString,
 } from "/@/utils/hashParams";
 import {
   LocalInputUploadError,
@@ -19,7 +20,7 @@ import {
   useClipboard,
   useToast,
 } from "@chakra-ui/react";
-import { getHashParamValueBase64DecodedFromUrl } from "@metapages/hash-query";
+import { stringToBase64String } from "@metapages/hash-query";
 import {
   getHashParamValueJsonFromWindow,
   setHashParamValueInHashString,
@@ -41,6 +42,10 @@ export const ButtonShortenUrl: React.FC<HeaderButtonProps> = ({
   const { onCopy } = useClipboard(shortenedUrl);
   const toast = useToast();
   const metaframeBlob = useMetaframe();
+  // The source is NOT in the url any more (see useFrameSource), so it has to be
+  // injected into the hash this builds — serializing the hash alone would
+  // shorten a frame with no code.
+  const source = useFrameSourceForPersist();
   const [metaframeInputs, setMetaframeInputs] = useState<
     InputsHashParam | undefined
   >(undefined);
@@ -57,11 +62,7 @@ export const ButtonShortenUrl: React.FC<HeaderButtonProps> = ({
   const handleShorten = async () => {
     // With no code in the editor there's nothing to shorten/save. Surface a
     // gentle notice instead of the generic error toast.
-    const code = getHashParamValueBase64DecodedFromUrl(
-      window.location.href,
-      "js",
-    );
-    if (!code || !code.trim()) {
+    if (source === null) {
       toast({
         title: "Empty: nothing to save",
         status: "info",
@@ -80,6 +81,12 @@ export const ButtonShortenUrl: React.FC<HeaderButtonProps> = ({
       let hash = window.location.hash.slice(1); // Remove leading "#"
       hash = setHashParamValueInHashString(hash, "edit", undefined);
       hash = setHashParamValueInHashString(hash, "hm", undefined);
+      // Put the source back: it lives in the store, not the url.
+      hash = setHashParamValueInHashString(
+        hash,
+        "js",
+        stringToBase64String(source),
+      );
 
       // Merge metaframe inputs (received via onInputs) into hash params
       let newInputs = getHashParamValueJsonFromWindow<
@@ -109,8 +116,7 @@ export const ButtonShortenUrl: React.FC<HeaderButtonProps> = ({
       >("definition");
       const allowed = getAllowedHashParams(definition);
 
-      const tempUrl = `${window.location.origin}/#${hash}`;
-      hash = new URL(stripDisallowedHashParams(tempUrl, allowed)).hash.slice(1);
+      hash = stripDisallowedHashParamsFromHashString(hash, allowed);
 
       // Store in S3 via API (SHA256 calculated on server)
       const response = await fetch("/api/shorten", {
