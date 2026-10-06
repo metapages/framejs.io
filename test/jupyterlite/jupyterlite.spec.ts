@@ -7,8 +7,9 @@
 //      was federated into the older host, and the page rendered BLANK with only
 //      a console error ("The getter for the shared module is not a function",
 //      shareKey @jupyterlab/docregistry). → "the notebook UI loads".
-//   2. The notebook. It called MetaframeWidget.from_code(), removed from
-//      metaframe-widget in July. → the traceback check below.
+//   2. The notebook. It called a `from_code()` constructor that no longer
+//      exists — it was dropped as unergonomic, and a frame is built from its
+//      url instead. → the traceback check below.
 //
 // The second test also asserts data reaches the charts INSIDE the widgets, not
 // just that an <iframe> appeared — an iframe appearing is what the Jupyter tests

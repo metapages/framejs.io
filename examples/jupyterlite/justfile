@@ -17,7 +17,7 @@ build:
     fi
     source .venv/bin/activate
     # Patch the notebook's install line (micropip can't use local paths): the
-    # published metaframe-widget, plus the SAME anywidget the frontend was built
+    # published framejs package, plus the SAME anywidget the frontend was built
     # with — otherwise micropip grabs the newest anywidget for the kernel.
     VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('../../python/pyproject.toml','rb'))['project']['version'])")
     ANYWIDGET_VERSION=$(sed -n 's/^anywidget==//p' requirements.txt)

@@ -7,6 +7,7 @@ notebook, so these check the code people actually copy.
 import base64
 import builtins
 import json
+import re
 import urllib.parse
 from pathlib import Path
 
@@ -41,7 +42,7 @@ def helpers():
     real_import = builtins.__import__
 
     def guarded_import(name, *args, **kwargs):
-        if name.split(".")[0] in ("anywidget", "metaframe_widget", "ipywidgets"):
+        if name.split(".")[0] in ("anywidget", "framejs", "metaframe_widget", "ipywidgets"):
             raise ImportError(f"{name} must not be needed by the iframe example")
         return real_import(name, *args, **kwargs)
 
@@ -91,6 +92,15 @@ def test_frame_with_inputs_is_a_plain_iframe(helpers):
 
 
 def test_notebook_never_imports_a_widget_library():
+    # Matched as an IMPORT, not as a bare substring. `framejs` has to be on the
+    # list — it is the package these examples otherwise use, so leaving it off
+    # left the "no widget layer" claim unenforced — but it also appears in every
+    # frame URL in the notebook (framejs.io/j/<id>), which a substring check
+    # would flag.
+    banned = ("anywidget", "framejs", "metaframe_widget", "ipywidgets")
+    pattern = re.compile(
+        r"^\s*(?:import|from)\s+(" + "|".join(banned) + r")\b", re.M
+    )
     for cell in _code_cells():
-        for banned in ("anywidget", "metaframe_widget", "ipywidgets"):
-            assert banned not in cell, f"iframe example must not use {banned}"
+        hit = pattern.search(cell)
+        assert hit is None, f"iframe example must not import {hit.group(1)}"
