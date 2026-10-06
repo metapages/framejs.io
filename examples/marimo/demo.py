@@ -25,11 +25,11 @@ def __(mo):
 
 @app.cell
 def __(Frame, mo):
-    # An "echo" metaframe (built in the framejs.io editor, saved to a short URL):
+    # An "echo" metaframe (built in the framejs.app editor, saved to a short URL):
     # it displays its inputs and passes each input key through as an output.
     echo = mo.ui.anywidget(
         Frame(
-            url="https://framejs.io/j/02a32c151b660f3f1ab40685016710531d90757d658d34c19892dc9639e1eb06"
+            url="https://framejs.app/j/02a32c151b660f3f1ab40685016710531d90757d658d34c19892dc9639e1eb06"
         )
     )
     echo

@@ -226,7 +226,7 @@ pip install framejs
 from framejs import Frame
 
 # From a URL — paste any metaframe URL
-w = Frame(url="https://framejs.io/#?js=...")
+w = Frame(url="https://framejs.app/j/f14d583125634c23851453c8038ddb7c")
 w  # renders the iframe in the notebook
 ```
 
