@@ -126,3 +126,43 @@ Deno.test("buildOgMetaTags still renders title/description/image", () => {
     `<meta property="article:tag" content="x" />`,
   ]);
 });
+
+// ---------------------------------------------------------------------------
+// The og/<sha256> sidecar substitutes for a full decode
+//
+// server.ts stores a frame's og metadata beside its blob so rendering a
+// /j/<sha256> page doesn't have to read (and decode) the whole thing just for
+// its <meta> tags. That only holds while `og` is the ONLY field this builder
+// reads off the record — if it ever reaches for another one, the sidecar
+// silently starts producing different tags than the blob would.
+// ---------------------------------------------------------------------------
+
+Deno.test("buildOgMetaTags reads nothing but `og`, so {og} == the full record", () => {
+  const og = {
+    title: "A frame",
+    description: "does a thing",
+    image: "https://example.com/i.png",
+    tags: ["one", "two"],
+  };
+  // What decodeHashParamsToJson yields for a real frame: og alongside the
+  // content params, which must not influence the tags.
+  const fullRecord = {
+    js: "console.log('x')",
+    inputs: { a: 1 },
+    modules: ["https://example.com/m.js"],
+    definition: { hashParams: { n: { type: "json" } } },
+    og,
+  };
+  const sidecar = { og };
+
+  assertEquals(buildOgMetaTags(sidecar), buildOgMetaTags(fullRecord));
+});
+
+Deno.test("an og-less frame's sidecar ({og:null}) matches its full record", () => {
+  // The sidecar is written even with no og data, so its presence can stand in
+  // for "this frame exists" — so the null shape has to behave identically too.
+  assertEquals(
+    buildOgMetaTags({ og: null }),
+    buildOgMetaTags({ js: "console.log('x')" }),
+  );
+});

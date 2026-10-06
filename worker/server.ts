@@ -38,6 +38,7 @@ import {
   pinnedVersionSuffix,
   runtimeHashParams,
 } from "./src/pinned-version.ts";
+import { frameOgPath, shortUrlInitScript } from "./src/short-url-init.ts";
 
 /**
  * Reads index.html, strips its default OG block, and injects the given OG meta
@@ -352,6 +353,87 @@ async function fetchOgImageBytes(
 }
 
 /**
+ * ── The `og/<sha256>` sidecar ───────────────────────────────────────────────
+ *
+ * A frame's OG metadata, stored beside the full blob at `j/<sha256>` (same
+ * convention as `favicon/<sha256>`).
+ *
+ * It exists so rendering a `/j/<sha256>` PAGE doesn't have to read the whole
+ * blob. The page needs exactly two things from the content — the og meta tags
+ * and whether there is an og image (for the favicon link) — and it used to get
+ * them by fetching and decoding the entire thing. The browser then fetched the
+ * same blob again via `/api/j/<sha>/runtime-params`, so a megabyte-class frame
+ * was read out of S3 twice per page load to produce ~200 bytes of `<meta>`.
+ *
+ * Safe to treat as authoritative: the content is addressed by the hash of the
+ * blob, so neither the blob nor anything derived from it can ever change.
+ *
+ * Written even when the frame has NO og data (as `{"og":null}`) — presence of
+ * the sidecar then means "this frame exists and has been indexed", which is
+ * what lets the page handler skip the existence check on a hit. Absence is
+ * ambiguous (a frame shortened before this shipped, vs no frame at all), so a
+ * miss falls back to the blob.
+ */
+const ogSidecarKey = (sha256: string) => `og/${sha256}`;
+
+/**
+ * Derive + store the og sidecar. Best-effort: never throws, so it cannot break
+ * the shorten (or the page load) it is called from — a miss just costs the
+ * fallback read next time.
+ */
+async function writeOgSidecar(
+  sha256: string,
+  hashParams: string,
+): Promise<void> {
+  try {
+    const s3 = await getS3Client();
+    if (!s3) return;
+    const og = decodeHashParamsToJson(hashParams).og ?? null;
+    const { PutObjectCommand } = await s3Mod();
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: ogSidecarKey(sha256),
+        Body: JSON.stringify({ og }),
+        ContentType: "application/json; charset=utf-8",
+      }),
+    );
+  } catch (error) {
+    console.error(`og sidecar write failed for ${sha256}:`, error);
+  }
+}
+
+/**
+ * The og sidecar for a frame, or null when there isn't one (an older frame, or
+ * no such frame — the caller cannot tell the two apart and must fall back).
+ * Shaped like a decoded-params record so it drops straight into
+ * `buildOgMetaTags`.
+ */
+async function readOgSidecar(
+  sha256: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const s3 = await getS3Client();
+    if (!s3) return null;
+    const { GetObjectCommand } = await s3Mod();
+    const response = await s3.send(
+      new GetObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: ogSidecarKey(sha256),
+      }),
+    );
+    if (!response.Body) return null;
+    const parsed = JSON.parse(await response.Body.transformToString());
+    return parsed && typeof parsed === "object"
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    // NoSuchKey, or a sidecar we can't parse — either way, fall back.
+    return null;
+  }
+}
+
+/**
  * Eagerly generate + permanently store the favicon for a freshly-shortened
  * frame, if it has an og image and one isn't already stored. Best-effort: never
  * throws, so a favicon failure can't break the shorten it's called from.
@@ -595,9 +677,12 @@ app.post("/api/shorten", async (c) => {
 
     await s3.send(command);
 
-    // Eagerly derive the frame's favicon (best-effort, never throws). The content
-    // is immutable, so this computes once and stores permanently.
+    // Eagerly derive the frame's favicon and og sidecar (best-effort, neither
+    // throws). The content is immutable, so both compute once and store
+    // permanently. The sidecar is what keeps the /j/<sha256> page from having
+    // to read this whole blob just for its <meta> tags — see ogSidecarKey.
     await generateFaviconForSha256(sha256, hashParams);
+    await writeOgSidecar(sha256, hashParams);
 
     track(c, { name: "shorten", source: detectSource(c) });
 
@@ -650,9 +735,12 @@ app.post("/api/shorten/json", async (c) => {
     });
     await s3.send(command);
 
-    // Eagerly derive the frame's favicon (best-effort, never throws). The content
-    // is immutable, so this computes once and stores permanently.
+    // Eagerly derive the frame's favicon and og sidecar (best-effort, neither
+    // throws). The content is immutable, so both compute once and store
+    // permanently. The sidecar is what keeps the /j/<sha256> page from having
+    // to read this whole blob just for its <meta> tags — see ogSidecarKey.
     await generateFaviconForSha256(sha256, hashParams);
+    await writeOgSidecar(sha256, hashParams);
 
     const protocol = c.req.header("x-forwarded-proto") || "https";
     const host = c.req.header("host");
@@ -740,6 +828,43 @@ app.post("/api/frame", async (c) => {
 // LIVE version (the "Made with framejs" overlay HTML). It is NOT frame content,
 // so it's split out here and never encoded into the hash params — the caller
 // injects it separately. Pinned (?v=) versions never carry it.
+/**
+ * Just a uuid frame's og metadata, for the `<meta>` tags and favicon link on a
+ * `/j/<uuid>` page. Read off framejs.app's `frame_versions.og` column via
+ * `/j/<uuid>/og.json` — no url decode, no `js` dereference.
+ *
+ * The page used to get this out of `fetchUuidHashParams`, i.e. the full params
+ * endpoint, while the browser separately fetched the same content for the
+ * runtime. A megabyte-class frame was therefore resolved twice per page load to
+ * produce ~200 bytes of markup. Same fix as the sha256 side's `og/<sha256>`
+ * sidecar (see ogSidecarKey); on this side the column already exists.
+ *
+ * null means "no such frame, as far as a renderer is concerned" — framejs.app
+ * applies the same privacy gate as the params endpoint (a pin resolves even for
+ * a now-private frame; otherwise it must be live and public), so the caller
+ * turns this into the page's 404.
+ */
+async function fetchUuidOg(
+  uuid: string,
+  version?: string,
+): Promise<Record<string, unknown> | null> {
+  const url = `${FRAMEJS_APP_ORIGIN}${
+    frameOgPath(normalizeUuid(uuid), version)
+  }`;
+  const response = await fetch(url);
+  if (response.status !== 200) {
+    // Drain the body so the connection can be reused.
+    await response.body?.cancel();
+    return null;
+  }
+  const json = await response.json() as Record<string, unknown>;
+  // Passed through whole rather than picking out `og`: the result is shaped like
+  // a decoded-params record, so it drops into buildOgMetaTags (which reads
+  // nothing but `.og` — pinned by a test in src/og_test.ts), AND a `branding`
+  // field stays visible to extractBranding if the overlay is ever re-enabled.
+  return { ...json, og: json?.og ?? null };
+}
+
 async function fetchUuidHashParams(
   uuid: string,
   // When set, fetch a specific PUBLISHED version (permanent pin) instead of the
@@ -817,13 +942,16 @@ app.get("/j/:sha256", async (c) => {
       // even if the frame is now private or deleted). Absent a pin, render the
       // current version.
       const pinnedVersion = pinnedVersionFromQuery((k) => c.req.query(k));
-      const fetched = await fetchUuidHashParams(id, pinnedVersion);
-      if (fetched === null) {
+
+      // og ONLY — the page needs the <meta> tags and whether there is an og
+      // image, nothing else. The runtime's params are fetched by the browser
+      // from /api/j/<id>/runtime-params, so resolving the full content here too
+      // meant doing it twice per page load. See fetchUuidOg.
+      const decoded = await fetchUuidOg(id, pinnedVersion);
+      if (decoded === null) {
         return c.json({ error: "Shortened URL not found" }, 404);
       }
-      const { hashParams, branding } = fetched;
 
-      const decoded = decodeHashParamsToJson(hashParams);
       const ogMetaTags = buildOgMetaTags(decoded);
       // This is a framejs.app-owned frame; its derived favicon lives there. Point
       // the tab icon at framejs.app's endpoint (cross-origin) when it has an og
@@ -835,39 +963,31 @@ app.get("/j/:sha256", async (c) => {
         }" />\n`
         : "";
 
-      // Free-tier "Made with framejs" overlay: framejs.app returns the exact HTML
-      // as the `branding` field of the LIVE version (Pro removes it; pinned
-      // versions never carry it). Inject it as innerHTML immediately after #root,
-      // bottom-right. Self-contained markup from our own origin — safe to inject.
+      // Free-tier "Made with framejs" overlay. Currently always absent: the
+      // overlay is disabled on framejs.app (see the brandingForOwner block in
+      // its routes/j/[uuid].json.ts), and this page now reads og from
+      // /j/<uuid>/og.json rather than the full params endpoint — so if the
+      // overlay is re-enabled, og.json has to return `branding` and it gets
+      // picked up here. Self-contained markup from our own origin when it does.
+      const branding = extractBranding(
+        decoded as Record<string, unknown>,
+      );
       const brandingOverlay = branding ? brandingScript(branding) : "";
 
-      // Drop `edit` (it would exit short-URL mode on load) and mark a pinned
-      // version read-only — see runtimeHashParams.
-      const cleanedHashParams = runtimeHashParams(hashParams, pinnedVersion);
-
-      // Set the same __SHORT_URL_* globals as the sha256 handler so:
-      //  - module scripts await __SHORT_URL_READY before reading hash params
-      //  - the app reads the params from __SHORT_URL_HASH_PARAMS instead of the
-      //    URL (see currentHashString() in index.html)
-      //  - useShortUrlMode keeps the /j/:uuid path until the user edits
-      // The params are NOT written into the URL: the uuid already identifies
+      // The params themselves are fetched, not inlined — see
+      // shortUrlInitScript. `__SHORT_URL_VERSION` carries the pin so the edit
+      // button can hand off to framejs.app's page for THIS version; a pinned
+      // frame renders with no banner or chrome here, because the "published
+      // version" label belongs to the framejs.app page.
+      //
+      // They are also never written into the URL: the uuid already identifies
       // the frame, so expanding them into the address bar (and stripping them
       // again after the code ran) only flashed the base64 payload at the user.
-      //
-      // __SHORT_URL_VERSION carries the pin (when there is one) so the edit
-      // button can hand off to framejs.app's page for THIS version. A pinned
-      // frame renders with no banner or chrome here — the "published version"
-      // label belongs to the framejs.app page.
-      const injectedScript =
-        `<script id="short-url-init">window.__SHORT_URL_ID=${
-          JSON.stringify(id)
-        };window.__FRAMEJS_APP_ORIGIN=${
-          JSON.stringify(FRAMEJS_APP_ORIGIN)
-        };window.__SHORT_URL_VERSION=${
-          JSON.stringify(pinnedVersion ?? null)
-        };window.__SHORT_URL_HASH_PARAMS=${
-          JSON.stringify(cleanedHashParams)
-        };window.__SHORT_URL_READY=Promise.resolve();</script>`;
+      const injectedScript = shortUrlInitScript(
+        id,
+        FRAMEJS_APP_ORIGIN,
+        pinnedVersion,
+      );
 
       return await serveShortUrlHtml(
         ogMetaTags,
@@ -900,21 +1020,28 @@ app.get("/j/:sha256", async (c) => {
       track(c, { name: "embed", source: "browser", embedOrigin });
     }
 
-    const key = `j/${sha256}`;
+    // The page needs only the og metadata: the <meta> tags and whether there
+    // is an og image. Read the sidecar for it rather than the whole blob —
+    // the browser fetches the blob itself via /api/j/<sha>/runtime-params, so
+    // decoding it here too meant reading a megabyte-class frame out of S3
+    // twice per page load. See ogSidecarKey.
+    let decoded = await readOgSidecar(sha256);
 
-    // Fetch from S3
-    const { GetObjectCommand } = await s3Mod();
-    const command = new GetObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-    });
+    if (!decoded) {
+      // No sidecar: either a frame shortened before sidecars shipped, or no
+      // such frame. Read the blob — which also settles existence, since a
+      // missing one throws NoSuchKey and is handled as a 404 below.
+      const { GetObjectCommand } = await s3Mod();
+      const response = await s3.send(
+        new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${sha256}` }),
+      );
+      if (!response.Body) throw new Error("S3 response body is empty");
+      const hashParams = await response.Body.transformToString();
+      decoded = decodeHashParamsToJson(hashParams);
+      // Backfill so this frame costs the full read once, not forever.
+      await writeOgSidecar(sha256, hashParams);
+    }
 
-    const response = await s3.send(command);
-    if (!response.Body) throw new Error("S3 response body is empty");
-    const hashParams = await response.Body.transformToString();
-
-    // Extract OG metadata from hash params and inject meta tags
-    const decoded = decodeHashParamsToJson(hashParams);
     const ogMetaTags = buildOgMetaTags(decoded);
     // Point the tab favicon at this frame's derived favicon (same-origin) when it
     // has an og image; the serve route falls back to the default until it exists.
@@ -922,24 +1049,9 @@ app.get("/j/:sha256", async (c) => {
       ? `<link rel="icon" type="image/png" sizes="any" href="/j/${sha256}/favicon.png" />\n`
       : "";
 
-    // Inject a lightweight script that sets the short URL ID and starts an
-    // async fetch for the hash params.  The full hash-param blob is NOT
-    // embedded in the HTML — crawlers only see OG meta tags without paying
-    // for the large JS/definition payload.  The module scripts in index.html
-    // await __SHORT_URL_READY before reading hash params, and read them from
-    // __SHORT_URL_HASH_PARAMS rather than from the URL, which stays clean.
-    const injectedScript =
-      `<script id="short-url-init">window.__SHORT_URL_ID = ${
-        JSON.stringify(
-          sha256,
-        )
-      };window.__FRAMEJS_APP_ORIGIN = ${
-        JSON.stringify(FRAMEJS_APP_ORIGIN)
-      };window.__SHORT_URL_READY = fetch("/api/j/" + ${
-        JSON.stringify(
-          sha256,
-        )
-      } + "/url").then(function(r){return r.text()}).then(function(fullUrl){var idx=fullUrl.indexOf("#");window.__SHORT_URL_HASH_PARAMS=idx===-1?"":fullUrl.slice(idx+1);});</script>`;
+    // Same init script as the uuid handler — one shape for both short-URL
+    // forms. A sha256 blob is content-addressed and therefore never pinned.
+    const injectedScript = shortUrlInitScript(sha256, FRAMEJS_APP_ORIGIN);
 
     return await serveShortUrlHtml(ogMetaTags, injectedScript, favicon);
   } catch (error: any) {
@@ -1165,6 +1277,99 @@ app.get("/api/j/:sha256", async (c) => {
 
     return c.json({ error: "Failed to retrieve shortened URL" }, 500);
   }
+});
+
+/**
+ * The hash params a short-URL page's RUNTIME should be handed, as plain text
+ * ("?js=...&og=..." or ""). What `shortUrlInitScript`'s fetch consumes, for
+ * both the uuid and sha256 forms.
+ *
+ * This exists rather than reusing `/api/j/:id/url` for two reasons:
+ *
+ *  1. It returns `runtimeHashParams(...)` — `edit` and `readonly` stripped, and
+ *     `readonly=true` re-added for a pin. The page handler used to apply that
+ *     itself before inlining; now that the browser fetches the params, the
+ *     cleaning has to happen here or a stored `edit=true` would drag the page
+ *     straight back out of short-URL mode, and a pinned (immutable) version
+ *     would open writable.
+ *  2. `/api/j/:id/url` is a published contract that returns a FULL URL. Leaving
+ *     it alone keeps its consumers working.
+ *
+ * Caching is the real win over inlining, and it differs by what the id names:
+ *  - sha256: content-addressed, so the params can never change -> immutable.
+ *  - uuid + pin: a published version is permanent -> immutable.
+ *  - uuid, live: mutable, so revalidate. The ETag makes the repeat load a ~150
+ *    byte 304 instead of the whole payload, which is what the HTML (always
+ *    `no-cache`) could never do while the params were inlined in it.
+ */
+app.get("/api/j/:sha256/runtime-params", async (c) => {
+  const id = c.req.param("sha256");
+  const pinnedVersion = pinnedVersionFromQuery((k) => c.req.query(k));
+
+  let raw: string | null = null;
+  let immutable = false;
+
+  if (id && UUID_REGEX.test(id)) {
+    try {
+      const fetched = await fetchUuidHashParams(id, pinnedVersion);
+      if (fetched === null) {
+        return c.json({ error: "Shortened URL not found" }, 404);
+      }
+      raw = fetched.hashParams;
+      // A pin names one published version, which is permanent and immutable.
+      immutable = !!pinnedVersion;
+    } catch (error) {
+      console.error("Runtime params (uuid) error:", error);
+      return c.json({ error: "Failed to retrieve frame params" }, 502);
+    }
+  } else if (id && /^[a-f0-9]{64}$/.test(id)) {
+    const s3 = await getS3Client();
+    if (!s3) {
+      return c.json({ error: "URL shortening not configured" }, 503);
+    }
+    try {
+      const { GetObjectCommand } = await s3Mod();
+      const response = await s3.send(
+        new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${id}` }),
+      );
+      if (!response.Body) throw new Error("S3 response body is empty");
+      raw = await response.Body.transformToString();
+      immutable = true; // content-addressed
+    } catch (error: any) {
+      if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") {
+        return c.json({ error: "Shortened URL not found" }, 404);
+      }
+      console.error("Runtime params (sha256) error:", error);
+      return c.json({ error: "Failed to retrieve frame params" }, 500);
+    }
+  } else {
+    return c.json({ error: "Invalid shortened URL ID" }, 400);
+  }
+
+  const body = runtimeHashParams(raw, pinnedVersion);
+
+  c.header("Content-Type", "text/plain; charset=utf-8");
+  if (immutable) {
+    c.header("Cache-Control", "public, max-age=31536000, immutable");
+    return c.text(body);
+  }
+
+  // Live version: revalidate every load, but answer 304 when unchanged.
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(body),
+  );
+  const etag = `"${
+    Array.from(new Uint8Array(digest)).slice(0, 16).map((b) =>
+      b.toString(16).padStart(2, "0")
+    ).join("")
+  }"`;
+  c.header("ETag", etag);
+  c.header("Cache-Control", "no-cache");
+  if (c.req.header("if-none-match") === etag) {
+    return c.body(null, 304);
+  }
+  return c.text(body);
 });
 
 // Short URL full-URL API — returns the full URL as plain text for a given sha256
