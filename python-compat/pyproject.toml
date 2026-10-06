@@ -12,7 +12,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "metaframe-widget"
-version = "0.4.0"
+version = "0.5.1"
 description = "Renamed to `framejs` — this package forwards to it and is no longer developed"
 license = "MIT"
 requires-python = ">=3.8"
