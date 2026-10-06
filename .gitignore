@@ -23,3 +23,5 @@ worker/static/llms-claude-code.txt
 
 # Playwright local test run cache
 test/test-results/
+# jupyter lite build cache (created by --piplite-wheels indexing)
+examples/jupyterlite/.cache

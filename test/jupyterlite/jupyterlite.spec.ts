@@ -40,7 +40,16 @@ test("the notebook UI loads (federated extensions agree with the host)", async (
   await expect(page.locator(".jp-Notebook .jp-Cell").first()).toBeVisible({
     timeout: 60_000,
   });
-  expect(await page.locator(".jp-Notebook .jp-CodeCell").count())
+  // POLL, don't count once. JupyterLab 4 renders a notebook into a
+  // `jp-WindowedPanel` and fills it progressively, so the first `.jp-Cell`
+  // becomes visible well before the rest exist. A one-shot `count()` races
+  // that — measured reading 1 of 6 cells moments after the first appeared,
+  // while a 12s wait finds them all. It made this test flaky, not wrong: it
+  // passed whenever the race happened to be won.
+  await expect
+    .poll(() => page.locator(".jp-Notebook .jp-CodeCell").count(), {
+      timeout: 60_000,
+    })
     .toBeGreaterThanOrEqual(5);
   await expect(page.getByText("Python (Pyodide)").first()).toBeVisible();
 
