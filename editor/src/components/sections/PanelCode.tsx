@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+import { useFrameSource } from "/@/hooks/useFrameSource";
 import { useMetaframeUrl } from "/@/hooks/useMetaframeUrl";
 import { useOptions } from "/@/hooks/useOptions";
 import { useReadOnly } from "/@/hooks/useReadOnly";
@@ -7,28 +8,35 @@ import { getFramejsAppOrigin } from "/@/utils/origin";
 
 import {
   blobToBase64String,
-  useHashParamBase64,
   useHashParamBoolean,
 } from "@metapages/hash-query/react-hooks";
 import { MetaframeInputMap } from "@metapages/metapage";
 import { MetaframeStandaloneComponent } from "@metapages/metapage-react";
 
 export const PanelCode: React.FC = () => {
-  let [code, setCode] = useHashParamBase64("js");
+  const [code, setCode] = useFrameSource();
   const [edit] = useHashParamBoolean("edit");
   const readOnly = useReadOnly();
   const { url } = useMetaframeUrl();
-  // deal with bad double encoded data from old version of hash-query
-  if (
-    code &&
-    (code.startsWith("%") ||
-      (code.indexOf("\n") === -1 && code.indexOf("%") > -1))
-  ) {
-    code = decodeURIComponent(code);
+  // NEVER mount the editor before the source is known.
+  //
+  // `undefined` means not-yet-arrived (it comes over postMessage, see
+  // useFrameSource); the empty string means a genuinely empty frame. Mounting
+  // with `code ?? ""` in that window DESTROYED FRAMES: the inner Monaco
+  // metaframe runs with `autosend: true`, so it immediately emits its empty
+  // buffer as an output, which travels back to the runtime and is committed as
+  // an edit — saving a version with no code. Observed on a 1.6 MB frame, where
+  // the source takes long enough to arrive that the race is reliably lost.
+  //
+  // So wait. The runtime sends the input immediately after mounting this
+  // iframe, so the wait is imperceptible, and an empty editor pane for one
+  // frame is not worth a wiped frame.
+  if (code === undefined) {
+    return edit ? <></> : <HowTo />;
   }
-  // Nothing to render yet and the user isn't editing: show framejs.app's
+  // Nothing to render and the user isn't editing: show framejs.app's
   // embeddable getting-started guide (/howto) instead of an empty editor.
-  if ((!code || !code.trim()) && !edit) {
+  if (!code.trim() && !edit) {
     return <HowTo />;
   }
   return url ? (

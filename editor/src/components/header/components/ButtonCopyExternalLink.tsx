@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
 import { useMetaframeUrl } from "/@/hooks/useMetaframeUrl";
 import { convertMetaframeInputs } from "/@/utils/convertInputs";
+import { withoutReservedInputs } from "/@/utils/frameSource";
 import {
   getAllowedHashParams,
   stripDisallowedHashParams,
@@ -62,9 +63,13 @@ export const ButtonCopyExternalLink: React.FC<HeaderButtonProps> = ({
   >(undefined);
   useEffect(() => {
     if (metaframeBlob.metaframe) {
-      setMetaframeInputs(metaframeBlob.metaframe.getInputs());
+      setMetaframeInputs(
+        withoutReservedInputs(metaframeBlob.metaframe.getInputs()),
+      );
       return metaframeBlob.metaframe.onInputs((inputs: InputsHashParam) => {
-        setMetaframeInputs(metaframeBlob.metaframe.getInputs());
+        setMetaframeInputs(
+          withoutReservedInputs(metaframeBlob.metaframe.getInputs()),
+        );
       });
     }
   }, [metaframeBlob.metaframe]);

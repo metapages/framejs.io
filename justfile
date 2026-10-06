@@ -159,6 +159,7 @@ test:
     just worker/test
     just _integration-test
     just examples/test-jupyter
+    just examples/test-jupyterlite
     just examples/test-marimo
 
 # Run canonical metaframe-widget unit tests

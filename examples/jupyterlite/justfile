@@ -5,18 +5,30 @@
 build:
     #!/usr/bin/env bash
     set -euo pipefail
-    python3 -m venv .venv
+    # Recreate the venv whenever requirements.txt changes. Reusing one only ever
+    # ADDS packages, so a version installed by an older requirements.txt lingers
+    # and gets federated into the build (see the comment in requirements.txt).
+    REQ_HASH=$(shasum requirements.txt | cut -d' ' -f1)
+    if [[ "$(cat .venv/.requirements.sha 2>/dev/null)" != "$REQ_HASH" ]]; then
+      rm -rf .venv
+      python3 -m venv .venv
+      .venv/bin/pip install -q -r requirements.txt
+      echo "$REQ_HASH" > .venv/.requirements.sha
+    fi
     source .venv/bin/activate
-    pip install -q -r requirements.txt
-    # Get version from pyproject.toml and patch notebook for JupyterLite (micropip can't use local paths)
+    # Patch the notebook's install line (micropip can't use local paths): the
+    # published metaframe-widget, plus the SAME anywidget the frontend was built
+    # with — otherwise micropip grabs the newest anywidget for the kernel.
     VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('../../python/pyproject.toml','rb'))['project']['version'])")
+    ANYWIDGET_VERSION=$(sed -n 's/^anywidget==//p' requirements.txt)
+    INSTALL="%pip install anywidget==${ANYWIDGET_VERSION} metaframe-widget==${VERSION}"
     rm -rf _output .jupyterlite.doit.db
     mkdir -p _build_content
     cp -r content/* _build_content/
     if [[ "$OSTYPE" == "darwin"* ]]; then
-      sed -i '' "s|%pip install ../../python|%pip install metaframe-widget==${VERSION}|g" _build_content/metaframe_demo.ipynb
+      sed -i '' "s|%pip install ../../python|${INSTALL}|g" _build_content/metaframe_demo.ipynb
     else
-      sed -i "s|%pip install ../../python|%pip install metaframe-widget==${VERSION}|g" _build_content/metaframe_demo.ipynb
+      sed -i "s|%pip install ../../python|${INSTALL}|g" _build_content/metaframe_demo.ipynb
     fi
     jupyter lite build --contents _build_content --output-dir _output
     rm -rf _build_content

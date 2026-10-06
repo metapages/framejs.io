@@ -22,11 +22,14 @@ from playwright.sync_api import Page, expect
 NOTEBOOK_LAB_PATH = "examples/demo.ipynb"
 
 
-def _open_notebook(page: Page, lab_url: str) -> None:
-    """Navigate to the demo notebook in JupyterLab."""
+def _open_notebook(page: Page, lab_url: str, path: str = NOTEBOOK_LAB_PATH) -> None:
+    """Navigate to a notebook (the demo by default) in JupyterLab."""
     # Build the direct notebook URL
     base, query = lab_url.split("?", 1)
-    notebook_url = f"{base}/tree/{NOTEBOOK_LAB_PATH}?{query}"
+    # `reset`: start from an empty workspace. JupyterLab otherwise restores the
+    # previous test's tabs, so two notebooks are open, `.jp-NotebookPanel` is
+    # ambiguous, and "Run All" can hit the wrong one.
+    notebook_url = f"{base}/tree/{path}?{query}&reset"
     page.goto(notebook_url)
     # Wait for the notebook panel to be ready
     expect(page.locator(".jp-NotebookPanel")).to_be_visible(timeout=20_000)
@@ -104,3 +107,112 @@ def test_widget_iframe_renders(page: Page, lab_url: str):
     # The ESM creates a container div with an iframe inside the output area
     iframe = page.locator(".jp-OutputArea-output iframe")
     expect(iframe.first).to_be_visible(timeout=60_000)
+
+
+# Frames from examples/demo.ipynb.
+ECHO_ID = "019f61392e0778f8aba8dd7ffe35a83c"  # framejs.app/j/<uuid>: echoes inputs
+DOUBLER_ID = "7099ba440f37b858bf33c5fd09ae04077a92318c7abc7f7669117db540d776c9"
+
+
+def _frame_text(page: Page, frame_id: str) -> str:
+    """Body text of every frame whose URL carries this id (the framejs.app
+    wrapper AND the framejs.io runtime nested in it), concatenated."""
+    texts = []
+    for frame in page.frames:
+        if frame_id in frame.url:
+            try:
+                texts.append(frame.evaluate("() => document.body?.innerText ?? ''"))
+            except Exception:
+                pass
+    return "\n".join(texts)
+
+
+def _wait_for_frame_text(page: Page, frame_id: str, needle: str, timeout_s: int = 60) -> str:
+    deadline = page.evaluate("() => Date.now()") + timeout_s * 1000
+    text = ""
+    while page.evaluate("() => Date.now()") < deadline:
+        text = _frame_text(page, frame_id)
+        if needle in text:
+            return text
+        page.wait_for_timeout(1_000)
+    raise AssertionError(
+        f"frame {frame_id} never showed {needle!r}; it showed: {text[:300]!r}"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.network
+def test_widget_data_round_trips(page: Page, lab_url: str):
+    """Data actually flows through the widgets — not merely an iframe appearing.
+
+    `test_widget_iframe_renders` stayed green for weeks while every widget built
+    on a framejs.app URL was deaf: the frame rendered, but no input reached it
+    and no output left it (the framejs.app embed wrapper did not relay the
+    metapage protocol). This asserts both directions:
+
+      Python -> echo:           echo's frame displays the inputs Python set.
+      echo -> Python -> doubler: echo's OUTPUT reaches Python, whose pipe_to()
+                                 pushes it to the doubler, which doubles it.
+    """
+    _open_notebook(page, lab_url)
+    _run_all_cells(page)
+
+    _wait_for_frame_text(page, ECHO_ID, "hello from Python")
+    # [10, 20, 30] piped through echo and doubled.
+    _wait_for_frame_text(page, DOUBLER_ID, "[20,40,60]")
+
+
+# --- examples/iframe_inputs.ipynb: plain iframe, no anywidget -----------------
+
+IFRAME_NOTEBOOK = "examples/iframe_inputs.ipynb"
+CHART_ID = "f500b0bdbe8d4a1690803014bc9ac918"
+
+
+@pytest.mark.integration
+@pytest.mark.network
+def test_iframe_notebook_frames_receive_inputs(page: Page, lab_url: str):
+    """Inputs encoded into the URL by Python reach the frames — no widget layer."""
+    _open_notebook(page, lab_url, IFRAME_NOTEBOOK)
+    _run_all_cells(page)
+
+    _wait_for_frame_text(page, ECHO_ID, "hello from Python")
+    _wait_for_frame_text(page, ECHO_ID, "change me, then re-run this cell")
+
+    # The Plotly frame drew the series computed in Python.
+    deadline_ms = 60_000
+    traces = 0
+    for _ in range(deadline_ms // 1_000):
+        traces = max(
+            [0]
+            + [
+                f.evaluate("() => document.querySelectorAll('.scatterlayer .trace').length")
+                for f in page.frames
+                if CHART_ID in f.url
+            ]
+        )
+        if traces >= 2:
+            break
+        page.wait_for_timeout(1_000)
+    assert traces >= 2, f"chart drew {traces} traces, expected the 2 series"
+
+    # Plain iframes all the way: no Jupyter widget views were created.
+    assert page.locator(".jp-OutputArea-output .jupyter-widgets").count() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.network
+def test_iframe_notebook_rerun_recreates_the_frame(page: Page, lab_url: str):
+    """Changing inputs means re-running the cell, which REPLACES the iframe."""
+    _open_notebook(page, lab_url, IFRAME_NOTEBOOK)
+    _run_all_cells(page)
+
+    cell = page.locator(".jp-CodeCell", has_text="change me, then re-run this cell")
+    old = cell.locator(".jp-OutputArea-output iframe")
+    expect(old).to_have_count(1, timeout=60_000)
+    old_handle = old.element_handle()
+
+    cell.locator(".jp-InputArea-editor").click()
+    page.keyboard.press("Control+Enter")
+
+    page.wait_for_function("(el) => !el.isConnected", arg=old_handle, timeout=30_000)
+    expect(cell.locator(".jp-OutputArea-output iframe")).to_have_count(1, timeout=30_000)

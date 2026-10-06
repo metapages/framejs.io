@@ -8,6 +8,7 @@ import {
   injectUploadCommentIntoCode,
 } from "/@/utils/codeComments";
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
+import { useFrameSource } from "/@/hooks/useFrameSource";
 
 export async function uploadString(
   name: string,
@@ -104,7 +105,7 @@ async function uploadFile(file: File): Promise<UploadedFileInfo> {
 }
 
 export function useHandleFilesUploaded() {
-  const [code, setCode] = useHashParamBase64("js");
+  const [code, setCode] = useFrameSource();
   const [hashInputs, setHashInputs] = useHashParamJson<
     InputsHashParam | undefined
   >("inputs");

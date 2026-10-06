@@ -1003,14 +1003,14 @@
       blobFromBase64String,
       blobToBase64String,
       getHashParamValue,
-      getHashParamValueBase64DecodedFromUrl,
+      getHashParamValueBase64DecodedFromHashString,
       getHashParamValueJsonFromHashString,
       getUrlHashParamsFromHashString,
       setHashParamInWindow,
       setHashParamValueInHashString,
       setHashParamValueJsonInHashString,
       stringToBase64String,
-    } from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.10.0";
+    } from "https://cdn.jsdelivr.net/npm/@metapages/hash-query@0.11.0";
     import {
       isIframe,
       Metaframe,
@@ -1120,8 +1120,8 @@
     // stripping them again just flashed the whole base64 payload at the user.
     //
     // So nothing below reads window.location.hash directly; it goes through
-    // currentHashString() (or currentHashUrl(), for the hash-query helpers that
-    // take a URL).
+    // currentHashString(), and every hash-query read uses a *FromHashString
+    // getter so no url is ever built out of the params (see below).
     //
     // Params that ARE on the URL win over the stored ones. That covers both a
     // frame writing its own state at runtime (see docs/guide/url-state.md) and
@@ -1135,6 +1135,27 @@
     // put the page into edit mode by itself.
     // ---------------------------------------------------------------------
     const NON_OVERRIDABLE_PARAMS = new Set(["edit"]);
+
+    // `edit` is non-overridable for a SHARED LINK only.
+    //
+    // A link carrying `#?edit=true` must not drop a short-url page into edit
+    // mode by itself — there, the editor is reached through the menu button.
+    // But an EMBEDDER asking for it is a different thing: framejs.app owns the
+    // edit affordance on its own frame page (it passes `hm=disabled` to remove
+    // ours) and opens and closes the pane by rebuilding this iframe with and
+    // without `edit`. Ignoring it there means the editor simply never opens.
+    //
+    // Which is exactly what happened to a LARGE frame, and only after a save:
+    // the edit puts inline source in the page url, framejs.app's
+    // `embedUrlWithinBrowserLimit` sees it exceed 900k and falls back to
+    // embedding `/j/<slug>` — short-url mode — and from then on every Edit
+    // click was discarded here. A small frame never crosses that threshold, and
+    // a later reload works because the hoist has shrunk the stored url back to
+    // a reference. So: a top-level page keeps the old behaviour, a framed one
+    // obeys its host.
+    const EMPTY_PARAM_SET = new Set();
+    const nonOverridableParams = () =>
+      isIframe() ? EMPTY_PARAM_SET : NON_OVERRIDABLE_PARAMS;
 
     const parseHashPairs = (hashString) => {
       let s = hashString || "";
@@ -1164,18 +1185,26 @@
       const { pairs, order } = parseHashPairs(window.__SHORT_URL_HASH_PARAMS);
       const live = parseHashPairs(window.location.hash);
       for (const key of live.order) {
-        if (NON_OVERRIDABLE_PARAMS.has(key)) continue;
+        if (nonOverridableParams().has(key)) continue;
         if (!(key in pairs)) order.push(key);
         pairs[key] = live.pairs[key];
       }
       return order.length ? "#?" + order.map((key) => pairs[key]).join("&") : "";
     };
 
-    // The same params shaped as a full URL, for the hash-query *FromUrl helpers
-    // (there is no *FromHashString variant for base64 values).
-    const currentHashUrl = () =>
-      window.location.origin + window.location.pathname +
-      window.location.search + currentHashString();
+    // There is deliberately no currentHashUrl() here.
+    //
+    // It existed for the hash-query *FromUrl helpers, which had no
+    // *FromHashString variant for base64 values — so reading ONE param meant
+    // building a url out of ALL of them and handing it to `new URL()`.
+    // Firefox's url parser hard-caps at 1 MiB and THROWS past it, where Chrome
+    // and Safari parse on, so reading one param crashed on an oversize
+    // NEIGHBOUR in one browser only. These params have no size bound: a frame
+    // whose `js` is a megabyte, or any frame once the editor has written source
+    // into the hash, is past it. hash-query >= 0.11.0 has the *FromHashString
+    // getters, so every read goes straight at currentHashString().
+    //
+    // Do not reintroduce a helper that concatenates these params into a url.
 
     // ---------------------------------------------------------------------
     // `readonly=true` — the code is VIEWABLE but not editable.
@@ -1497,7 +1526,7 @@
         lines.push(
           "The module graph could not be loaded. The browser does not say which import failed. Usual causes:",
           "  • an import URL that 404s, is offline, or is blocked (CSP, an ad blocker, a wrong CDN version)",
-          "  • a bare specifier like \"react\" — imports must be full https:// URLs",
+          '  • a bare specifier like "react" — imports must be full https:// URLs',
           "  • the frame was removed or reloaded while it was still loading (Firefox reports that as `undefined`)",
         );
       }
@@ -2119,7 +2148,10 @@
     window.__metaframejs.awaiting = [modulesLoadingPromise];
 
     const getJsFromUrl = () => {
-      let jsFromUrl = getHashParamValueBase64DecodedFromUrl(currentHashUrl(), "js");
+      let jsFromUrl = getHashParamValueBase64DecodedFromHashString(
+        currentHashString(),
+        "js",
+      );
       // deal with bad double encoded data from old version of hash-query
       if (
         jsFromUrl &&
@@ -2197,22 +2229,6 @@
       }
     };
 
-    // The current hash params with any `js` reference replaced by the source it
-    // points at — what the editor is handed, so it shows and edits code rather
-    // than a URL. Everything else keeps reading currentHashString().
-    const currentHashStringWithJsSource = async () => {
-      const hashString = currentHashString();
-      const value = getJsFromUrl();
-      if (!value || !isJsSourceUrl(value)) return hashString;
-      const source = await resolveJsSource(value);
-      if (!source) return hashString;
-      return setHashParamValueInHashString(
-        hashString,
-        "js",
-        stringToBase64String(source),
-      );
-    };
-
     // TODO: do same as above (modules in hash params) for config
 
     // The id used to tag the injected <style>/<link> so we can find/replace/
@@ -2239,7 +2255,10 @@
       // clearing the param fully replaces the prior stylesheet.
       document.getElementById(CSS_HASH_PARAM_ELEMENT_ID)?.remove();
 
-      const css = getHashParamValueBase64DecodedFromUrl(currentHashUrl(), "css");
+      const css = getHashParamValueBase64DecodedFromHashString(
+        currentHashString(),
+        "css",
+      );
       if (!css) return;
 
       let element;
@@ -3016,11 +3035,16 @@
       version: "0.3",
     };
 
+    // The source last handed to the editor over postMessage, or null when no
+    // editor is mounted. See the DEFINITION listener in onMenuClick.
+    let seededEditorSource = null;
+
     const removeEditor = () => {
       if (globalThis.metapageEditor) {
         globalThis.metapageEditor.dispose();
         globalThis.metapageEditor = null;
       }
+      seededEditorSource = null;
       const previousContainer = document.getElementById(
         "iframe-container",
       );
@@ -3041,6 +3065,188 @@
       if (resizeHandle) resizeHandle.style.display = "none";
     };
 
+    // Mount the editor pane in place. Split out of onMenuClick because the two
+    // entry points want different things: a user clicking the menu button on a
+    // short url is handed off to framejs.app (below), but an EMBEDDER that
+    // asked for `edit` wants the pane right here — handing off would navigate
+    // the host's iframe somewhere else instead of opening the editor.
+    const mountEditor = async () => {
+      if (document.getElementById("iframe-container")) return;
+      setHashParamInWindow("edit", true);
+
+      document.getElementById("menu-button").style.display = "none";
+
+      // no previous editor detected, add the editor metapage
+      // listen to the editor metapage for changes to the editor url hash
+      // and make that our own url hash
+      document.getElementById("root").className =
+        "root-with-editor borderFatSolidGreen";
+
+      document.getElementById("editor-root").className =
+        "editor-container-shown borderDashedBlue";
+
+      // `js` is REMOVED from the editor's url. Every other param rides along;
+      // the source travels over postMessage instead (below).
+      //
+      // Unconditionally, because `js` has no size bound and no reliable small
+      // form. It used to be expanded into this url, which is what stopped the
+      // editor opening on a large frame: the source is
+      // base64(encodeURIComponent(...)), ~2.4x, so 1.65 MB of code became a
+      // 3.9 MB iframe `src`. Chrome silently drops a navigation past 2 MiB
+      // (the pane lands on `about:blank#blocked` — empty, no console error)
+      // and Firefox's url parser throws past 1 MiB.
+      //
+      // Passing it through "as stored" is NOT enough, and that is worth
+      // spelling out because it looks like it would be: a hoisted frame's
+      // stored `js` is a short reference, but the moment the user edits, the
+      // editor writes real source into the hash and the runtime adopts it
+      // (updateCode below). From then on — same page, no reload — the live
+      // hash holds the full source, so reopening the editor built the oversize
+      // url all over again. Exactly the reported symptom: the editor opens,
+      // an edit saves, and then it never opens again until the page reloads.
+      const editorUrl = new URL(metapageDef.metaframes.editor.url);
+      editorUrl.hash = setHashParamValueInHashString(
+        currentHashString(),
+        "js",
+        undefined,
+      );
+      metapageDef.metaframes.editor.url = editorUrl.href;
+
+      const mp = await globalThis.metapage.Metapage.from(metapageDef);
+      globalThis.metapageEditor = mp;
+      const editorMetaframe = mp.getMetaframe("editor");
+      const iframe = await editorMetaframe.iframe;
+
+      // The frame's source, handed to the editor as a reserved INPUT — i.e.
+      // through postMessage, which has no length limit. The editor seeds its
+      // buffer from this (see useSeedFrameSource in the editor) and writes it
+      // into its own hash, so every other editor feature keeps reading `js`
+      // from the hash exactly as before.
+      //
+      // Keep this name in step with RESERVED_SOURCE_INPUT in
+      // editor/src/utils/frameSource.ts. It is prefixed so it cannot collide
+      // with one of the frame's own input names, and the editor strips it back
+      // out before inputs reach the UI or a shared url.
+      const sourceForEditor = await resolveJsSource(getJsFromUrl());
+      // Remembered so the editor echoing it back is not mistaken for an edit
+      // (see the DEFINITION listener below).
+      seededEditorSource = sourceForEditor ?? "";
+
+      try {
+        const inputsUnpacked = await getInputsSmartUnpacked();
+        globalThis.metapageEditor.setInputs({
+          editor: {
+            ...inputsUnpacked,
+            "__framejs_source": sourceForEditor ?? "",
+          },
+        });
+      } catch (err) {
+        console.error(
+          "Error setting metapage editor inputs on creation",
+          err,
+        );
+      }
+
+      var iframeDivContainer = document.createElement("div");
+      iframeDivContainer.id = "iframe-container";
+      iframeDivContainer.className = "iframe-container";
+      iframeDivContainer.appendChild(iframe);
+
+      document.getElementById("editor-root").append(
+        iframeDivContainer,
+      );
+      runJsFromUrl();
+
+      let pending;
+      // Commit a new hash to the page url. The page url is what an embedder
+      // (framejs.app) watches to decide when to save a version, so this is the
+      // one write that persists an edit.
+      const commitHash = (hash) => {
+        if (pending) {
+          clearTimeout(pending);
+        }
+        pending = setTimeout(() => {
+          pending = null;
+          window.location.hash = hash;
+        }, 400);
+      };
+
+      // An edit, arriving as a metaframe OUTPUT rather than in a url. Write it
+      // into `js` on the page url, leaving every other param alone.
+      const commitSource = (source) => {
+        seededEditorSource = source;
+        commitHash(
+          setHashParamValueInHashString(
+            currentHashString(),
+            "js",
+            stringToBase64String(source),
+          ),
+        );
+      };
+      mp.addListener(
+        globalThis.metapage.Metapage.DEFINITION,
+        (event) => {
+          // Read-only: the editor is already locked (readOnly Monaco), so this
+          // is belt and braces — nothing the pane emits may reach the hash, and
+          // therefore nothing can reach an embedder (framejs.app saves what it
+          // sees here as a new version).
+          if (isReadOnly()) return;
+          const url = event?.definition?.metaframes?.editor?.url;
+          if (!url) return;
+          // The editor's hash carries its OTHER params (definition, modules,
+          // inputs) — never `js`, which travels as an output instead. Take the
+          // hash off the string rather than via `new URL()`, and put our own
+          // `js` back, or adopting this hash would drop the frame's code.
+          const hashIndex = url.indexOf("#");
+          const editorHash = hashIndex === -1 ? "" : url.slice(hashIndex);
+          const [, ours] = getUrlHashParamsFromHashString(currentHashString());
+          commitHash(
+            ours["js"] === undefined
+              ? editorHash
+              : setHashParamValueInHashString(editorHash, "js", ours["js"]),
+          );
+        },
+      );
+
+      // The return leg of the postMessage transport: the editor emits the
+      // frame's source as an output, so an edit never has to fit in a url.
+      // Keep "__framejs_source" in step with RESERVED_SOURCE_OUTPUT in
+      // editor/src/utils/frameSource.ts.
+      editorMetaframe.onOutput("__framejs_source", (source) => {
+        if (isReadOnly()) return;
+        if (typeof source !== "string") return;
+        // The editor echoes back the source we seeded it with; that is not an
+        // edit, and persisting it would save a version whose `js` is inline
+        // source in place of the stored reference — a spurious version on
+        // every editor open, which the hoist would then have to undo.
+        if (source === seededEditorSource) return;
+        // REFUSE TO WIPE. An empty buffer arriving when we handed the editor
+        // real source is the editor not yet seeded — never a user deleting
+        // every character — and committing it saves a version with no code,
+        // i.e. destroys the frame. This has happened: the editor pane used to
+        // mount with an empty buffer while the source was still in flight, and
+        // the inner Monaco metaframe (autosend) echoed that emptiness straight
+        // back. PanelCode now waits for the source, so this should be
+        // unreachable; it stays because the cost of being wrong is a destroyed
+        // frame and the cost of this guard is that "save a completely empty
+        // frame" is not expressible from the pane. framejs.app's own save
+        // button already refuses an empty frame, so that is no loss.
+        if (
+          !source.trim() && seededEditorSource && seededEditorSource.trim()
+        ) {
+          console.warn(
+            "framejs: ignoring an empty editor output over non-empty source",
+          );
+          return;
+        }
+        commitSource(source);
+      });
+    };
+
+    // The menu button. On a short url the editor is NOT mounted here — it is
+    // handed off (see each branch). `mountEditor` is the in-place path, and the
+    // boot auto-open below calls it directly for an embedder that asked for
+    // `edit`.
     const onMenuClick = async () => {
       var shortUrlId = window.__SHORT_URL_ID;
       // A uuid short URL (32 hex chars, dashes optional) is backed by
@@ -3090,83 +3296,13 @@
         return;
       }
 
-      // if there is an existing editor, remove it, then exit
+      // Toggle: an open pane closes.
       if (document.getElementById("iframe-container")) {
         removeEditor();
         runJsFromUrl();
         return;
       }
-      setHashParamInWindow("edit", true);
-
-      document.getElementById("menu-button").style.display = "none";
-
-      // no previous editor detected, add the editor metapage
-      // listen to the editor metapage for changes to the editor url hash
-      // and make that our own url hash
-      document.getElementById("root").className =
-        "root-with-editor borderFatSolidGreen";
-
-      document.getElementById("editor-root").className =
-        "editor-container-shown borderDashedBlue";
-
-      // Modify the metapage editor url hash to our own. A `js` reference is
-      // expanded into the source here so the editor shows code, not a URL.
-      const editorUrl = new URL(metapageDef.metaframes.editor.url);
-      editorUrl.hash = await currentHashStringWithJsSource();
-      metapageDef.metaframes.editor.url = editorUrl.href;
-
-      const mp = await globalThis.metapage.Metapage.from(metapageDef);
-      globalThis.metapageEditor = mp;
-      const editorMetaframe = mp.getMetaframe("editor");
-      const iframe = await editorMetaframe.iframe;
-
-      try {
-        const inputsUnpacked = await getInputsSmartUnpacked();
-        globalThis.metapageEditor.setInputs({
-          editor: inputsUnpacked,
-        });
-      } catch (err) {
-        console.error(
-          "Error setting metapage editor inputs on creation",
-          err,
-        );
-      }
-
-      var iframeDivContainer = document.createElement("div");
-      iframeDivContainer.id = "iframe-container";
-      iframeDivContainer.className = "iframe-container";
-      iframeDivContainer.appendChild(iframe);
-
-      document.getElementById("editor-root").append(
-        iframeDivContainer,
-      );
-      runJsFromUrl();
-
-      let pending;
-      const updateCode = (hash) => {
-        if (pending) {
-          clearTimeout(pending);
-        }
-        pending = setTimeout(() => {
-          pending = null;
-          window.location.hash = hash;
-        }, 400);
-      };
-      mp.addListener(
-        globalThis.metapage.Metapage.DEFINITION,
-        (event) => {
-          // Read-only: the editor is already locked (readOnly Monaco), so this
-          // is belt and braces — nothing the pane emits may reach the hash, and
-          // therefore nothing can reach an embedder (framejs.app saves what it
-          // sees here as a new version).
-          if (isReadOnly()) return;
-          const url = event?.definition?.metaframes?.editor?.url;
-          if (url) {
-            const urlBlob = new URL(url);
-            updateCode(urlBlob.hash);
-          }
-        },
-      );
+      await mountEditor();
     };
 
     document
@@ -3183,9 +3319,12 @@
     // To re-enable, restore the commented-out condition below.
     // if (inEditMode || (!getJsFromUrl() && !isIframe())) {
     if (inEditMode) {
-      // if editing, force showing the menu
+      // mountEditor, NOT onMenuClick: on a short url onMenuClick hands off to
+      // framejs.app, which would navigate the host's iframe away instead of
+      // opening the pane the host just asked for. `edit` only reaches here from
+      // a top-level url or from an embedder (see nonOverridableParams).
       window.addEventListener("load", () => {
-        onMenuClick();
+        mountEditor();
       });
     }
     </script>

@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
 
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
+import { useFrameSourceForPersist } from "/@/hooks/useFrameSource";
 import { convertMetaframeInputs } from "/@/utils/convertInputs";
 import {
   getAllowedHashParams,
-  stripDisallowedHashParams,
+  stripDisallowedHashParamsFromHashString,
 } from "/@/utils/hashParams";
 import { getFramejsAppOrigin } from "/@/utils/origin";
 
 import { Box, Icon, Tooltip, useToast } from "@chakra-ui/react";
-import { getHashParamValueBase64DecodedFromUrl } from "@metapages/hash-query";
+import { stringToBase64String } from "@metapages/hash-query";
 import {
   getHashParamValueJsonFromWindow,
   setHashParamValueInHashString,
@@ -58,6 +59,10 @@ export const ButtonSaveFrame: React.FC<HeaderButtonProps> = ({
   variant = "icon",
 }) => {
   const [loading, setLoading] = useState(false);
+  // The source is NOT in the url any more (see useFrameSource). `null` means
+  // empty or not-yet-known; handleSave refuses on it rather than persisting a
+  // frame with no code.
+  const source = useFrameSourceForPersist();
   const toast = useToast();
   const metaframeBlob = useMetaframe();
   const [metaframeInputs, setMetaframeInputs] = useState<
@@ -80,6 +85,15 @@ export const ButtonSaveFrame: React.FC<HeaderButtonProps> = ({
     let hash = window.location.hash.slice(1); // Remove leading "#"
     hash = setHashParamValueInHashString(hash, "edit", undefined);
     hash = setHashParamValueInHashString(hash, "hm", undefined);
+    // Put the source back. It lives in the store rather than the url (see
+    // useFrameSource), so serializing the hash alone would POST a frame with
+    // NO CODE — which for an existing frame means destroying it. `source` is
+    // non-null here: handleSave refuses before calling this.
+    hash = setHashParamValueInHashString(
+      hash,
+      "js",
+      stringToBase64String(source as string),
+    );
 
     let newInputs = getHashParamValueJsonFromWindow<
       InputsHashParam | undefined
@@ -99,8 +113,7 @@ export const ButtonSaveFrame: React.FC<HeaderButtonProps> = ({
     >("definition");
     const allowed = getAllowedHashParams(definition);
 
-    const tempUrl = `${window.location.origin}/#${hash}`;
-    return new URL(stripDisallowedHashParams(tempUrl, allowed)).hash.slice(1);
+    return stripDisallowedHashParamsFromHashString(hash, allowed);
   };
 
   const handleSave = async () => {
@@ -109,11 +122,10 @@ export const ButtonSaveFrame: React.FC<HeaderButtonProps> = ({
     // rejects an empty frame (which used to surface a "Failed to save" toast).
     // Send the user to framejs.app (the account/home app) instead. Uses the
     // dev origin when one is provided via __FRAMEJS_APP_ORIGIN.
-    const code = getHashParamValueBase64DecodedFromUrl(
-      window.location.href,
-      "js",
-    );
-    if (!code || !code.trim()) {
+    // `null` means the source is empty OR has not arrived yet. Either way
+    // there is nothing safe to persist: writing an existing frame with no code
+    // destroys it. Send the user to framejs.app instead, as before.
+    if (source === null) {
       navigateTop(getFramejsAppOrigin());
       return;
     }

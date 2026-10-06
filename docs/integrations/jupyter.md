@@ -308,6 +308,38 @@ w = MetaframeWidget(url="...", width="100%", height="400px")
 w = MetaframeWidget(url="https://framejs.io/j/...", height="150px", width="50%")
 ```
 
+## Without anywidget: a plain iframe
+
+If you only need to send data **into** a frame, you don't need any package.
+Encode the inputs into the frame's URL and show it with `IPython.display.IFrame`.
+This works anywhere HTML output renders, including exported HTML and nbviewer.
+
+```python
+import base64, json, urllib.parse
+from IPython.display import IFrame
+
+def encode_json_hash_param(value) -> str:
+    # Same as framejs's JSON hash params: btoa(encodeURIComponent(JSON.stringify(value)))
+    text = json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+    return base64.b64encode(
+        urllib.parse.quote(text, safe="-_.!~*'()").encode("ascii")
+    ).decode("ascii")
+
+url = "https://framejs.io/j/019f61392e0778f8aba8dd7ffe35a83c"
+IFrame(f"{url}#?inputs={encode_json_hash_param({'message': 'hello'})}",
+       width="100%", height=200)
+```
+
+The tradeoff: the inputs live in the URL, so **to change them you re-run the
+cell**, which rebuilds the iframe and restarts the frame from scratch. Nothing
+updates in place, and nothing comes back: no outputs, no
+`on_outputs_change`, no `pipe_to`. For those, use `metaframe-widget`. Keep the
+data to kilobytes. For anything larger, pass
+`{"type": "url", "value": "https://…"}` and the frame fetches it itself.
+
+The full example, with a helper that keeps a URL's other hash params, is
+[`examples/jupyter/examples/iframe_inputs.ipynb`](https://github.com/metapages/framejs.io/blob/main/examples/jupyter/examples/iframe_inputs.ipynb).
+
 ## Supported environments
 
 `metaframe-widget` works in:

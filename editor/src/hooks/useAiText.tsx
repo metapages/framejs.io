@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useFrameSource } from "/@/hooks/useFrameSource";
 
 import { useToast } from "@chakra-ui/react";
 import {
@@ -55,7 +56,7 @@ export const useAiText = (): {
   copyToClipboard: () => Promise<void>;
 } => {
   const [aiBaseContent, setAiBaseContent] = useState<string>("");
-  const [code] = useHashParamBase64("js");
+  const [code] = useFrameSource();
   const [fullAiText, setFullAiText] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
