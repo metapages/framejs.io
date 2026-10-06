@@ -32,6 +32,12 @@ pip install framejs jupyterlab
 
 This installs both JupyterLab (the notebook interface) and `framejs` (the metaframe integration). The widget is built on [anywidget](https://anywidget.dev/), so all widget dependencies are handled automatically.
 
+::: info Formerly `metaframe-widget`
+The `framejs` Python package was previously published as `metaframe-widget`
+(and the class as `MetaframeWidget`). Both old names still work, but new code
+should use `framejs` / `Frame`.
+:::
+
 ::: tip Already have Jupyter installed?
 If you already have a Jupyter environment, you only need:
 ```bash
@@ -377,7 +383,7 @@ IFrame(f"{url}#?inputs={encode_json_hash_param({'message': 'hello'})}",
 The tradeoff: the inputs live in the URL, so **to change them you re-run the
 cell**, which rebuilds the iframe and restarts the frame from scratch. Nothing
 updates in place, and nothing comes back: no outputs, no
-`on_outputs_change`, no `pipe_to`. For those, use `metaframe-widget`. Keep the
+`on_outputs_change`, no `pipe_to`. For those, use the `framejs` widget. Keep the
 data to kilobytes. For anything larger, pass
 `{"type": "url", "value": "https://…"}` and the frame fetches it itself.
 

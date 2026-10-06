@@ -43,7 +43,7 @@ export default {
         root.appendChild(style);
 
         const container = document.createElement("div");
-        container.className = "framejs-frame-container metaframe-widget-container";
+        container.className = "framejs-frame-container";
         root.appendChild(container);
 
         // Footer showing the latest short URL produced by editing + saving.
@@ -157,7 +157,7 @@ export default {
         }
         const onMessage = (event) => {
             const data = event.data;
-            if (!data || data.type !== "metaframe-widget:shorturl" || !data.url) {
+            if (!data || data.type !== "framejs:shorturl" || !data.url) {
                 return;
             }
             // Route to the correct widget (one notebook may hold several) and

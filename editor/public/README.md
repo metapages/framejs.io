@@ -220,6 +220,10 @@ Use any metaframe as an interactive Jupyter notebook widget. Install the `framej
 pip install framejs
 ```
 
+> The `framejs` Python package was previously published as `metaframe-widget`
+> (and the class as `MetaframeWidget`). Both old names still work, but new code
+> should use `framejs` / `Frame`.
+
 ### Basic usage
 
 ```python

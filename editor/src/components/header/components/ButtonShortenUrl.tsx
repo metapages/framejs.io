@@ -146,7 +146,7 @@ export const ButtonShortenUrl: React.FC<HeaderButtonProps> = ({
       // editor (same-origin to the worker) can. Harmless if no host is listening.
       if (window.parent !== window) {
         window.parent.postMessage(
-          { type: "metaframe-widget:shorturl", url: shortUrl },
+          { type: "framejs:shorturl", url: shortUrl },
           "*",
         );
       }

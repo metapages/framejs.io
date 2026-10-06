@@ -8,6 +8,12 @@ Use framejs frames as widgets in [marimo](https://marimo.io) notebooks with reac
 pip install framejs
 ```
 
+::: info Formerly `metaframe-widget`
+The `framejs` Python package was previously published as `metaframe-widget`
+(and the class as `MetaframeWidget`). Both old names still work, but new code
+should use `framejs` / `Frame`.
+:::
+
 ## Basic usage
 
 Wrap the widget with `mo.ui.anywidget()` to get reactive bindings:
