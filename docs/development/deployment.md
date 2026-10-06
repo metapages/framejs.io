@@ -177,8 +177,8 @@ an existing `pip install metaframe-widget` keeps working; it ships no code and
 its version tracks `framejs`.
 
 ```bash
-just build-python    # builds python/dist/ AND python-compat/dist/
-just publish-python  # publishes both — framejs FIRST, since the shim requires it
+just python-build          # builds python/dist/ AND python-compat/dist/
+just python-publish-local  # publishes both — framejs FIRST, since the shim requires it
 ```
 
 Requires `HATCH_INDEX_USER` and `HATCH_INDEX_AUTH` env vars, or interactive login.

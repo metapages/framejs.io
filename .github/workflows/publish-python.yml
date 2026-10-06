@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       # Only a python-v<version> tag publishes, and hatch builds whatever
       # pyproject.toml says, so a tag that doesn't match would re-upload the
-      # previous version and fail on PyPI. Use `just python-release <version>`.
+      # previous version and fail on PyPI. Use `just python-publish-ci <version>`.
       - name: Tag matches pyproject versions
         run: |
           version="${GITHUB_REF_NAME#python-v}"

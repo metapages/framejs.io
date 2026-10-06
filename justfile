@@ -163,25 +163,26 @@ test:
     just examples/test-marimo
 
 # Run canonical framejs unit tests
-test-python:
+python-test:
     cd python && pytest tests/ -v
 
 # Build the framejs package AND the metaframe-widget compatibility shim
-build-python:
+python-build:
     cd python && hatch build
     cd python-compat && hatch build
 
-# Build and publish BOTH to PyPI (requires HATCH_INDEX_USER and HATCH_INDEX_AUTH env vars, or interactive login).
-# Prefer the tagged CI release (`just python-release <version>`),
+# Requires HATCH_INDEX_USER and HATCH_INDEX_AUTH env vars, or interactive login.
+# Prefer the tagged CI release (`just python-publish-ci <version>`),
 # which publishes the same two packages via trusted publishing.
 # framejs goes FIRST: the shim declares framejs>=<version> and is uninstallable
 # until that version is on the index.
-publish-python: build-python
+# Build and publish BOTH to PyPI from this machine (prefer python-publish-ci)
+python-publish-local: python-build
     cd python && hatch publish
     cd python-compat && hatch publish
 
 # Bump python/ + python-compat/ versions, commit, tag + push a release (CI publishes it). No version: print the current version
-python-release version="":
+python-publish-ci version="":
     #!/usr/bin/env bash
     set -euo pipefail
     toml_files=(python/pyproject.toml python-compat/pyproject.toml)
@@ -190,7 +191,7 @@ python-release version="":
     if [ -z "{{ version }}" ]; then
         echo -e "python/pyproject.toml version: {{ bold }}$toml_version{{ normal }}"
         echo -e "latest release tag:            {{ bold }}${latest_tag:-<none>}{{ normal }}"
-        echo -e "{{ grey }}release with: just python-release <version>{{ normal }}"
+        echo -e "{{ grey }}release with: just python-publish-ci <version>{{ normal }}"
         exit 0
     fi
     version="{{ version }}"

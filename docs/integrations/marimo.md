@@ -82,8 +82,8 @@ marimo edit examples/marimo/demo.py
 The widget is published from the canonical `python/` directory:
 
 ```bash
-just build-python    # builds python/dist/
-just publish-python  # publishes to PyPI
+just python-build          # builds python/dist/
+just python-publish-local  # publishes to PyPI
 ```
 
 Or via git tag for CI: `git tag python-v0.1.0 && git push origin python-v0.1.0`

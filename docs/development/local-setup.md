@@ -36,8 +36,8 @@ just clean        # delete all cached/generated files and docker volumes
 ## Python widget development
 
 ```bash
-just test-python       # run unit tests
-just build-python      # build package
+just python-test       # run unit tests
+just python-build      # build package
 just jupyter-docker    # run JupyterLab with editable widget
 just marimo-docker     # run marimo with editable widget
 ```
