@@ -29,7 +29,7 @@ pip install "framejs[marimo]"    # includes marimo
 ```python
 from framejs import Frame
 
-w = Frame(url="https://framejs.io/#?js=...", height="300px")
+w = Frame(url="https://framejs.app/j/f14d583125634c23851453c8038ddb7c", height="300px")
 w
 ```
 
@@ -39,23 +39,17 @@ w
 import marimo as mo
 from framejs import Frame
 
-w = Frame(url="https://framejs.io/#?js=...", height="300px")
+w = Frame(url="https://framejs.app/j/f14d583125634c23851453c8038ddb7c", height="300px")
 mo.ui.anywidget(w)
 ```
 
-A widget is always created from a URL. To embed your own code, build and save it
-at [framejs.io](https://framejs.io/) — the editor mints a short URL you can paste
-into `url=`. The URL is the portable, saveable form of a frame; the code itself
-lives behind it rather than being inlined in your notebook.
+A widget is always created from a URL, editable at the URL.
 
 ### URL forms
 
 Any of these work as `url=`:
 
 ```python
-# Raw / full URL — the code is inlined in the hash (can get very long)
-Frame(url="https://framejs.io/#?js=...")
-
 # Expiring snapshot — content-addressed, kept ~30 days, then garbage-collected
 # (editor: "Create expiring snapshot")
 Frame(url="https://framejs.io/j/<sha256>")

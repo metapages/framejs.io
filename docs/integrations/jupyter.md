@@ -69,10 +69,9 @@ saved frame — a little JavaScript app living at that URL — running live in a
 iframe, and it is waiting for you to send it something from Python.
 
 ::: tip Always point a widget at a *saved* frame
-`Frame(url="https://framejs.io/")` loads the framejs editor itself rather than an
+`Frame(url="https://framejs.io/")` or `Frame(url="https://framejs.app/")` loads the framejs editor itself rather than an
 app, so you get the editor's own tutorial inside your notebook, which is rarely
-what you want. Build what you need at [framejs.io](https://framejs.io/), press
-**Save**, and paste the `/j/<uuid>` URL it gives you.
+what you want. Build what you need at [framejs.app](https://framejs.app/), then copy the URL.
 :::
 
 ## Creating widgets
@@ -283,13 +282,13 @@ from framejs import Frame
 
 # Source widget: echoes inputs as outputs
 source = Frame(
-    url="https://framejs.io/j/470bc366690396d1d976dc8e259f146a49475f44fdb6bb770ebaad70ca24a22b",
+    url="https://framejs.app/j/470bc366690396d1d976dc8e259f146a49475f44fdb6bb770ebaad70ca24a22b",
     height="80px",
 )
 
 # Sink widget: receives piped data
 sink = Frame(
-    url="https://framejs.io/j/572a76ea8bb83cb7258af857078fbc0b3821e5a3c23f282652147bbc3868e260",
+    url="https://framejs.app/j/572a76ea8bb83cb7258af857078fbc0b3821e5a3c23f282652147bbc3868e260",
     height="80px",
 )
 
@@ -330,7 +329,7 @@ print(f"Loaded {len(rows)} rows")
 # 2. Create a table widget (a small "render rows as an HTML table" metaframe,
 #    built in the framejs.io editor and saved to this short URL)
 table = Frame(
-    url="https://framejs.io/j/9047247167a49aa06f205e26f4afc2db7955af55cecf4204336f7e94e67f0a36",
+    url="https://framejs.app/j/9047247167a49aa06f205e26f4afc2db7955af55cecf4204336f7e94e67f0a36",
     height="300px",
 )
 table
