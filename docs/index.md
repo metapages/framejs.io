@@ -5,10 +5,9 @@ hero:
   name: framejs.io
   text: Open web artifacts, yours to embed anywhere
   tagline: >-
-    Same idea as a Claude or ChatGPT artifact — one file of browser code that
-    just runs. Except this one is a URL of its own: embed it live in a notebook,
+    Same idea as a Claude or ChatGPT artifact: a standalone HTML page with your code. Except this one is a URL of its own: embed it live in a notebook,
     paper, or slide, wire it to data, cite an exact version, fork it, self-host
-    it. Open source, and nobody needs an account to open what you made.
+    it. Open source, no account needed for public artifacts. Versionable, editable, durable.
   actions:
     - theme: brand
       text: Intro

@@ -209,6 +209,71 @@
       overflow: auto;
     }
 
+    /* Landing (no code in the URL). The inline `display: none` hides it until
+       showLandingContent() clears it; then this flex column applies. */
+    #landing-content {
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    /* Header bar pointing at framejs.app — the guide iframe below is a
+       cross-origin page, so this is the one link to the account app that
+       framejs.io itself owns. Palette mirrors framejs.app (Offprint). */
+    .landing-app-bar {
+      flex: none;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e6e3db;
+      background: #f4f3ef;
+      color: #111110;
+    }
+    .landing-app-bar .lab-text {
+      flex: 1 1 260px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    .landing-app-bar .lab-text strong {
+      font-weight: 600;
+    }
+    .landing-app-bar .lab-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .landing-app-bar a {
+      display: inline-block;
+      padding: 7px 14px;
+      border-radius: 2px;
+      border: 1px solid #465775;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .landing-app-bar a.lab-primary {
+      background: #465775;
+      color: #fff;
+    }
+    .landing-app-bar a.lab-primary:hover {
+      background: #354462;
+      border-color: #354462;
+    }
+    .landing-app-bar a.lab-secondary {
+      background: transparent;
+      color: #465775;
+    }
+    .landing-app-bar a.lab-secondary:hover {
+      background: #e9ecf2;
+    }
+    .landing-app-bar a:focus-visible {
+      outline: 2px solid #465775;
+      outline-offset: 2px;
+    }
+
     .root-with-editor {
       position: absolute;
       top: 0;
@@ -414,8 +479,25 @@
              "Error importing module undefined" into the console of unrelated
              frames. showLandingContent() promotes it when the landing is
              shown. -->
+        <!-- `https://framejs.app` is rewritten to FRAMEJS_APP_ORIGIN by
+             buildIndexHtml in server.ts, so these point at the local app in
+             dev. target="_top": framejs.io may itself be embedded. -->
+        <div class="landing-app-bar">
+          <div class="lab-text">
+            <strong>Create, save and share frames on framejs.app</strong>
+          </div>
+          <div class="lab-actions">
+            <a class="lab-primary" href="https://framejs.app/"
+              target="_top">Open framejs.app &rarr;</a>
+            <a class="lab-secondary" href="https://framejs.app/signup"
+              target="_top">Sign up</a>
+            <a class="lab-secondary" href="https://framejs.app/login"
+              target="_top">Log in</a>
+          </div>
+        </div>
         <iframe data-src="https://framejs.app/howto"
-          style="border: none; width: 100%; height: 100%;" frameborder="0"
+          style="border: none; width: 100%; flex: 1 1 auto; min-height: 0;"
+          frameborder="0"
           allow="clipboard-read; clipboard-write"></iframe>
         <!-- <h1
           style="font-size: 2.8rem; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 8px; color: #2563eb"
