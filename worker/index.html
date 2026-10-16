@@ -3147,6 +3147,65 @@
       if (resizeHandle) resizeHandle.style.display = "none";
     };
 
+    // Bring the editor's service worker up to date before loading the editor.
+    //
+    // This page always comes from the network (worker/sw.js is network-first
+    // for navigations), but /editor/ is served by its own precaching service
+    // worker (editor/src/sw.ts). A browser only notices a new editor deploy
+    // WHILE serving the old one, so the first editor opened after a deploy is
+    // the PREVIOUS build, running against THIS runtime. When the two disagree
+    // on how the source is handed over — an editor from before the source
+    // moved to the `__framejs_source` input reads `js` from its url, which
+    // mountEditor no longer puts there — the pane opens with no code, and only
+    // the next open (served by the now-updated worker) shows it.
+    // metapages/framejs.io#115, test/tests/editor-stale-service-worker.spec.ts
+    //
+    // Bounded, because offline or a slow network must never stop the editor
+    // opening: on timeout or error we mount whatever the worker serves.
+    const EDITOR_SW_UPDATE_TIMEOUT_MS = 10000;
+    const refreshEditorServiceWorker = async () => {
+      if (!("serviceWorker" in navigator)) return;
+      try {
+        const editorScope = new URL("/editor/", window.location.origin).href;
+        const registration = await navigator.serviceWorker.getRegistration(
+          editorScope,
+        );
+        // getRegistration returns the longest MATCHING scope, so with no editor
+        // worker it is this page's own (/) worker — not ours to touch. No editor
+        // worker means the editor comes from the network anyway.
+        if (!registration || registration.scope !== editorScope) return;
+        const updated = (async () => {
+          await registration.update();
+          const next = registration.installing || registration.waiting;
+          if (!next) return;
+          // The editor worker calls skipWaiting(), so a new one activates on
+          // its own once installed.
+          await new Promise((resolve) => {
+            const check = () => {
+              if (next.state === "activated" || next.state === "redundant") {
+                next.removeEventListener("statechange", check);
+                resolve();
+              }
+            };
+            next.addEventListener("statechange", check);
+            check();
+          });
+        })();
+        let timer;
+        await Promise.race([
+          updated,
+          new Promise((resolve) => {
+            timer = setTimeout(resolve, EDITOR_SW_UPDATE_TIMEOUT_MS);
+          }),
+        ]).finally(() => clearTimeout(timer));
+      } catch (err) {
+        console.warn(
+          "framejs: could not refresh the editor service worker",
+          err,
+        );
+      }
+    };
+
     // Mount the editor pane in place. Split out of onMenuClick because the two
     // entry points want different things: a user clicking the menu button on a
     // short url is handed off to framejs.app (below), but an EMBEDDER that
@@ -3193,6 +3252,10 @@
         undefined,
       );
       metapageDef.metaframes.editor.url = editorUrl.href;
+
+      // Before the editor iframe exists: whichever worker is active when it
+      // navigates is the build that answers.
+      await refreshEditorServiceWorker();
 
       const mp = await globalThis.metapage.Metapage.from(metapageDef);
       globalThis.metapageEditor = mp;

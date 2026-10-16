@@ -24,6 +24,8 @@ worker/static/llms-claude-code.txt
 **/node_modules
 
 # Playwright local test run cache
+# written and removed by test/tests/editor-stale-service-worker.spec.ts
+editor/public/__test-*
 test/test-results/
 # jupyter lite build cache (created by --piplite-wheels indexing)
 examples/jupyterlite/.cache
