@@ -87,7 +87,7 @@ build: build-skill
 build-skill:
     node scripts/build-skill-artifacts.mjs
     # Format generated markdown so it matches `just fmt` output — keeps the two idempotent and prevents fmt from ever rewriting (or re-breaking) generated files
-    deno fmt worker/static/llms-prompt.md > /dev/null
+    deno fmt worker/static/llms-prompt.md worker/static/skill/version.json > /dev/null
 
 # Validate the framejs Agent Skill (spec compliance + regenerates artifacts) and
 # exercise the helper's create/update/state/env flow against a local stub.
@@ -358,3 +358,69 @@ _hostcheck:
         echo "" >&2
         exit 1
     fi
+###################################################
+# pr-daemon (http://localhost:7377/setup)
+###################################################
+# pr-daemon drives each branch's preview stack through three commands: `up`
+# (start it, print its URL as the LAST stdout line, return once it answers,
+# idempotent, no TTY), `down` (stop it, delete its data) and `check` (must be
+# green before a PR opens). Each runs from the root of the branch's worktree.
+#
+# Per-branch isolation: the compose project name and the published https port
+# are derived from the branch, so two previews coexist. Every other host port
+# is ephemeral (0), as `_integration-test` already does.
+
+# Print `export ...` lines for this branch's compose project and port
+_pr-daemon-env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    branch=$(git -C "{{ justfile_directory() }}" rev-parse --abbrev-ref HEAD)
+    slug=$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | sed -E 's/-+/-/g; s/^-|-$//g' | cut -c1-40)
+    sum=$(printf '%s' "$branch" | cksum | cut -d' ' -f1)
+    echo "export COMPOSE_PROJECT_NAME=framejs-io-${slug:-default}"
+    echo "export APP_PORT=$((30000 + sum % 5000))"
+    echo "export MINIO_PORT=0 MINIO_CONSOLE_PORT=0 TRAEFIK_WEB_UI_PORT=0"
+    echo "export TRAEFIK_STATIC_CONFIG=./.traefik/traefik.pr-daemon.yml"
+
+# Start this branch's preview stack and print its local URL (pr-daemon `up`)
+pr-daemon-up:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # stdout is reserved for the one line pr-daemon reads (the URL).
+    exec 3>&1 1>&2
+    eval "$(just _pr-daemon-env)"
+    local_url="https://{{ APP_FQDN }}:${APP_PORT}"
+    just build-skill _mkcert
+    # traefik.yml scopes traefik to the `metaframe-js` project; this stack is
+    # COMPOSE_PROJECT_NAME, so route on a copy constrained to that instead.
+    sed "s/\`metaframe-js\`/\`${COMPOSE_PROJECT_NAME}\`/" .traefik/traefik.yml > "$TRAEFIK_STATIC_CONFIG"
+    # `up -d` is idempotent: running containers are left alone.
+    docker compose up --build -d
+    # The runtime AND the editor (separate containers, see _integration-test).
+    for target in "" "/editor/"; do
+      echo "[pr-daemon-up] waiting for ${local_url}${target} ..."
+      if ! timeout 900 bash -c "until curl -skf -o /dev/null '${local_url}${target}'; do sleep 2; done"; then
+        echo "[pr-daemon-up] ${local_url}${target} did not answer within 15m"
+        docker compose logs --tail 80 || true
+        exit 1
+      fi
+    done
+    echo "$local_url" >&3
+
+# Stop this branch's preview stack and delete its data (pr-daemon `down`)
+pr-daemon-down:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    eval "$(just _pr-daemon-env)"
+    docker compose down -v --remove-orphans
+    rm -f "$TRAEFIK_STATIC_CONFIG"
+
+# The gate before a PR opens (pr-daemon `check`): type checks, skill validation
+# and unit tests. Not `just test`: its integration step tears the stack down
+# under its own project, and the notebook examples need their own stacks; CI
+# runs those on a clean checkout.
+pr-daemon-check:
+    just check
+    just check-skill
+    npm --prefix test install --no-audit --no-fund
+    npm --prefix test run test:unit

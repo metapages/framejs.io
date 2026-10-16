@@ -188,7 +188,10 @@ services:
       # The Traefik Web UI port (enabled by api:insecure: true in traefik.yml)
       - "${TRAEFIK_WEB_UI_PORT:-8080}:8080"
     volumes:
-      - ./.traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      # Overridable because its docker-provider constraint names the compose
+      # project: `just pr-daemon-up` runs a per-branch project and generates a
+      # copy constrained to that one (see _pr-daemon-env).
+      - ${TRAEFIK_STATIC_CONFIG:-./.traefik/traefik.yml}:/etc/traefik/traefik.yml:ro
       - ./.traefik/config.yml:/etc/traefik/config.yml:ro
       - ./.traefik/certs:/etc/certs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
