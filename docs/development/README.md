@@ -12,8 +12,7 @@ live in the repo for contributors.
 - [Architecture](./architecture.md) — how it works, project structure, URL state
 - [Editing & saving](./editing-and-saving.md) — where a frame's code lives
   at each moment, the two embed modes, and the guards that stop a frame
-  being saved empty, and how the editor's service worker is kept in step
-  with the runtime (state diagrams). **Read before touching the editor path.**
+  being saved empty. **Read before touching the editor path.**
 - [Runtime load & state machine](./runtime-load-state-machine.md) — serving
   modes, the base/overlay hash-param layers, how `js` and `inputs` reach the
   frame, and the edit cycle
