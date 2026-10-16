@@ -71,7 +71,9 @@ export default defineConfig(({ command, mode }) => ({
     port: parseInt(PORT),
     hmr: INSIDE_CONTAINER
       ? {
-          clientPort: APP_PORT,
+          // HMR_CLIENT_PORT: the port the BROWSER sees, when a proxy in front
+          // (a pr-daemon preview) serves the app on a different one.
+          clientPort: parseInt(process.env.HMR_CLIENT_PORT || String(APP_PORT)),
         }
       : undefined,
     proxy: {

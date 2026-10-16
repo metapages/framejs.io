@@ -113,6 +113,11 @@ export default withMermaid(
 
     vite: {
       plugins: [servePresentationIndex],
+      // A pr-daemon preview serves the dev server at a public host, which
+      // vite's DNS-rebinding guard rejects unless it is listed here.
+      ...(process.env.APP_PUBLIC_FQDN
+        ? { server: { allowedHosts: [process.env.APP_PUBLIC_FQDN] } }
+        : {}),
     },
 
     // Developer docs (docs/development/**) are intentionally NOT published to the
