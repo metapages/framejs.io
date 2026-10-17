@@ -164,6 +164,7 @@ export default withMermaid(
               link: "/integrations/claude-mcp",
             },
             { text: "Console: agent skill", link: "/guide/ai" },
+            { text: "Export from your app", link: "/guide/export-from-your-app" },
           ],
         },
 

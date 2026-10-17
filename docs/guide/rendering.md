@@ -83,3 +83,8 @@ setInputs(networkGraphml)
 ```
 
 See the [@metapages/metapage npm package](https://www.npmjs.com/package/@metapages/metapage) for full documentation.
+
+## The other direction
+
+To let your app turn what it is showing into a framejs link (an **Open in
+framejs** button), see [Export from Your App](./export-from-your-app).
