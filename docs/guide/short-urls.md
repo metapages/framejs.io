@@ -128,6 +128,32 @@ Response:
 }
 ```
 
+### `POST /api/frame` — Create or update an editable frame
+
+Creates a durable, editable `framejs.app/j/<uuid>` frame (anonymous until
+claimed) and returns its URL. CORS is open, so a page on any origin can call it
+and read the result — this is what an app's
+[Open in framejs export](./export-from-your-app) uses.
+
+```bash
+curl -X POST https://framejs.io/api/frame \
+  -H "Content-Type: application/json" \
+  -d '{"frame": {"js": "root.innerHTML = \"hello\"", "og": {"title": "Hello"}}}'
+```
+
+`frame` takes the same keys as `/api/shorten/json`. Pass `"id": "<uuid>"` next
+to it to append a version to that frame instead of creating a new one (allowed
+while the frame is unclaimed).
+
+Response:
+
+```json
+{
+  "id": "019f2916dcb17ace8876580ebd1fdcd5",
+  "url": "https://framejs.app/j/019f2916dcb17ace8876580ebd1fdcd5"
+}
+```
+
 ### `GET /api/j/:sha256` — Retrieve decoded hash params
 
 Returns the short URL ID and decoded hash parameters as a JSON object.

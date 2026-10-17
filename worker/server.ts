@@ -19,6 +19,7 @@ import {
 import type { HashParamType } from "@metapages/metapage";
 
 import { detectEmbed, detectSource, track } from "./src/analytics.ts";
+import { parseSaveFrameBody } from "./src/frame-save.ts";
 import {
   normalizeUuid,
   resolveSaveUuid,
@@ -760,28 +761,25 @@ app.post("/api/shorten/json", async (c) => {
   }
 });
 
-// Save the current editor state as a mutable framejs.app frame. The body is the
-// editor's current hash-param string plus an optional existing frame `id`:
+// Save a mutable framejs.app frame. The body is either the editor's current
+// hash-param string (`hashParams`) or the frame as plain JSON (`frame`: the
+// {js, modules, inputs, og, ...} shape framejs.app's `POST /j/<uuid>.json`
+// expects — what an external app's "Open in framejs" export sends, see
+// docs/guide/export-from-your-app.md), plus an optional existing frame `id`:
 //   - with a uuid `id` (page loaded from /j/<uuid>): update that frame in place
 //   - without one (raw hash params or legacy /j/<sha256>): mint a new frame
-// The hash params are decoded to the {js, modules, inputs, og, ...} JSON shape
-// framejs.app's `POST /j/<uuid>.json` expects and forwarded server-side (no CORS
-// from the browser). Returns the stable framejs.app page URL to navigate to.
+// It is forwarded server-side because framejs.app serves no CORS; this route is
+// CORS-open, so any page can read back the stable framejs.app URL it returns.
 app.post("/api/frame", async (c) => {
   try {
-    const { hashParams, id } = (await c.req.json()) as {
-      hashParams?: string;
-      id?: string;
-    };
-
-    if (!hashParams) {
-      return c.json({ error: "Missing required field: hashParams" }, 400);
+    const parsed = parseSaveFrameBody(
+      await c.req.json().catch(() => null),
+      decodeHashParamsToJson,
+    );
+    if ("error" in parsed) {
+      return c.json({ error: parsed.error }, 400);
     }
-
-    const frameJson = decodeHashParamsToJson(hashParams);
-    if (!frameJson.js) {
-      return c.json({ error: "Nothing to save: missing js" }, 400);
-    }
+    const { frameJson, id } = parsed;
 
     // The uuid slug is canonically dashless (matches framejs.app's /j/:uuid
     // route spec) — resolveSaveUuid normalizes once so every use below,
