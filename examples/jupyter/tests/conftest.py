@@ -95,3 +95,24 @@ def lab_url():
     finally:
         log.close()
         Path(log.name).unlink(missing_ok=True)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_kernel(request):
+    """Start every browser test with no running kernels.
+
+    `&reset` (see _open_notebook) resets only the JupyterLab *workspace*; the
+    notebook's kernel session lives on the server and is otherwise reused by
+    every later test. That kernel can still be busy with the previous test's
+    cells, and it keeps that test's variables — so a test whose cells did not
+    run could still pass on leftovers. Deleting the sessions gives each test a
+    cold kernel of its own.
+    """
+    if "lab_url" not in request.fixturenames:
+        yield
+        return
+    lab_url = request.getfixturevalue("lab_url")
+    base, query = lab_url.split("/lab?", 1)
+    for session in requests.get(f"{base}/api/sessions?{query}", timeout=10).json():
+        requests.delete(f"{base}/api/sessions/{session['id']}?{query}", timeout=30)
+    yield
