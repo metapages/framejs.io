@@ -314,6 +314,111 @@ _integration-test +args="": _mkcert
     # Run playwright integration tests
     (cd test && npx playwright test {{ args }})
 
+###################################################
+# pr-daemon (http://localhost:7377/setup)
+###################################################
+# pr-daemon turns a labelled GitHub issue into a pull request on this machine,
+# and drives each branch's preview stack through three commands, each run as
+# `bash -lc "<command>"` from the branch's worktree (no TTY, CI not set):
+#   up    — print the local URL as the LAST line of stdout, return only once the
+#           app answers, be idempotent, isolate per branch, never open a browser.
+#   down  — stop this branch's services and delete its volumes/data/networks;
+#           safe when nothing is up.
+#   check — must be green before a PR opens.
+#
+# Per-branch isolation: `just dev` is one fixed compose project (`metaframe-js`)
+# on one fixed port, so a preview gets its own project name and HTTPS port, both
+# derived from the branch (see `_pr-daemon-env`). Every other host port is 0
+# (ephemeral), exactly as `_integration-test` does it. The traefik docker
+# provider is constrained to ONE compose project by name, so `up` writes a copy
+# of .traefik/traefik.yml scoped to this branch's project.
+#
+# Public previews (`https://<branch>.<domain>`): traefik also routes the public
+# host (APP_PUBLIC_FQDN), the editor's HMR websocket is told the public port, and
+# the docs dev server allows the public host. The browser also talks to minio
+# directly (presigned uploads, file downloads), so it is declared as the `s3`
+# route and the worker hands out `https://<branch>--s3.<domain>` URLs. See the
+# minio labels in docker-compose.yml for why that route goes to `localhost`.
+
+# Prints this branch's preview identity as KEY=VALUE lines for eval
+@_pr-daemon-env:
+    branch="$(git rev-parse --abbrev-ref HEAD)"; \
+    slug="$(printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c1-40)"; \
+    crc="$(printf '%s' "$branch" | cksum | cut -d' ' -f1)"; \
+    echo "COMPOSE_PROJECT_NAME=metaframe-js-${slug:-detached}"; \
+    echo "APP_PORT=$(( 21000 + crc % 900 ))"
+
+# Start this branch's preview stack and print its local URL (pr-daemon `up`)
+pr-daemon-up:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # stdout is reserved for the lines pr-daemon reads; everything else -> stderr
+    exec 3>&1 1>&2
+    eval "$(just _pr-daemon-env)"
+    export COMPOSE_PROJECT_NAME APP_PORT
+    export MINIO_PORT=0 MINIO_CONSOLE_PORT=0 TRAEFIK_WEB_UI_PORT=0
+    local_url="https://{{ APP_FQDN }}:${APP_PORT}"
+
+    # Public mode: all three PR_DAEMON_* are empty when no preview domain is set.
+    if [ -n "${PR_DAEMON_PUBLIC_URL:-}" ]; then
+        s3_url="${PR_DAEMON_SERVICE_URL_TEMPLATE/\{service\}/s3}"
+        public_port="$(printf '%s' "$PR_DAEMON_PUBLIC_URL" | sed -nE 's#^https?://[^/:]+:([0-9]+).*#\1#p')"
+        export APP_PUBLIC_FQDN="$PR_DAEMON_PUBLIC_HOST"
+        export HMR_CLIENT_PORT="${public_port:-443}"
+        export S3_PRESIGN_ENDPOINT="$s3_url"
+        export S3_PUBLIC_URL="$s3_url/uploads/f"
+        export S3_PUBLIC_FQDN="$(printf '%s' "$s3_url" | sed -E 's#^https?://([^/]+).*#\1#')"
+        export S3_PREVIEW_UPSTREAM_HOST="localhost"
+        echo "[pr-daemon-up] public origin: $PR_DAEMON_PUBLIC_URL (s3: $s3_url)"
+    fi
+
+    # Branch-scoped traefik static config (gitignored)
+    mkdir -p .traefik/pr-daemon
+    sed "s/\`com.docker.compose.project\`, \`metaframe-js\`/\`com.docker.compose.project\`, \`${COMPOSE_PROJECT_NAME}\`/" \
+        .traefik/traefik.yml > .traefik/pr-daemon/traefik.yml
+    grep -q "\`${COMPOSE_PROJECT_NAME}\`" .traefik/pr-daemon/traefik.yml \
+        || { echo "[pr-daemon-up] could not scope .traefik/traefik.yml to ${COMPOSE_PROJECT_NAME}"; exit 1; }
+    export TRAEFIK_STATIC_CONFIG=./.traefik/pr-daemon/traefik.yml
+
+    # What `just dev` does first, minus `open` (no browser). Certs are reused if
+    # present: regenerating them under a running traefik is pointless churn.
+    just build-skill
+    if [ ! -f .traefik/certs/local-cert.pem ]; then just _mkcert; fi
+
+    echo "[pr-daemon-up] starting ${COMPOSE_PROJECT_NAME} on port ${APP_PORT}..."
+    docker compose up --build -d
+
+    # Return only when the app answers: the runtime, the editor (cold npm install
+    # + vite) and the docs (cold npm install + vitepress), as _integration-test.
+    for target in "/" "/editor/" "/docs/"; do
+        echo "[pr-daemon-up] waiting for ${local_url}${target} ..."
+        if ! timeout 900 bash -c "until curl -skf -o /dev/null '${local_url}${target}'; do sleep 2; done"; then
+            echo "[pr-daemon-up] ${local_url}${target} did not answer within 900s"
+            docker compose logs --tail 60 worker editor docs traefik || true
+            exit 1
+        fi
+    done
+    echo "[pr-daemon-up] ready."
+
+    echo "PR_DAEMON_ROUTE s3 https://localhost:${APP_PORT}" >&3
+    echo "$local_url" >&3
+
+# Stop this branch's preview stack and delete its data (pr-daemon `down`)
+pr-daemon-down:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    eval "$(just _pr-daemon-env)"
+    export COMPOSE_PROJECT_NAME
+    # Safe when nothing runs; -v and --remove-orphans take volumes and networks.
+    docker compose down -v --remove-orphans
+    rm -rf .traefik/pr-daemon
+
+# Run the gate that must pass before a PR opens (pr-daemon `check`)
+pr-daemon-check:
+    just check
+    just worker/test
+    just check-skill
+
 # Delete all cached and generated files, and docker volumes
 clean: _delete-certs
     just editor/clean

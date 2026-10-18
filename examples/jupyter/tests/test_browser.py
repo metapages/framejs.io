@@ -16,6 +16,8 @@ Run (all, including network):
     pytest tests/test_browser.py -m integration
 """
 
+import re
+
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -31,8 +33,22 @@ def _open_notebook(page: Page, lab_url: str, path: str = NOTEBOOK_LAB_PATH) -> N
     # ambiguous, and "Run All" can hit the wrong one.
     notebook_url = f"{base}/tree/{path}?{query}&reset"
     page.goto(notebook_url)
-    # Wait for the notebook panel to be ready
-    expect(page.locator(".jp-NotebookPanel")).to_be_visible(timeout=20_000)
+    panel = page.locator(".jp-NotebookPanel")
+    expect(panel).to_be_visible(timeout=20_000)
+    # The panel is visible long before its kernel is. Wait for a CONNECTED,
+    # idle kernel: JupyterLab's CodeCell.execute silently skips a cell whose
+    # session has no kernel object yet (`if (!sessionContext.session?.kernel)
+    # { clearExecution(); return; }`) — no error, no dialog, the prompt stays
+    # `[ ]:`. "Run All" clicked during initializing/connecting therefore runs
+    # nothing, and whichever test runs next times out waiting for an iframe the
+    # code never created. The indicator reads "idle" once BEFORE that too, while
+    # the toolbar still says "No Kernel", so both must hold.
+    expect(panel.locator(".jp-KernelName")).not_to_have_text(
+        re.compile(r"^\s*(No Kernel)?\s*$"), timeout=60_000
+    )
+    expect(panel.locator(".jp-Notebook-ExecutionIndicator")).to_have_attribute(
+        "data-status", "idle", timeout=60_000
+    )
 
 
 def _run_all_cells(page: Page) -> None:
@@ -43,6 +59,13 @@ def _run_all_cells(page: Page) -> None:
     """
     page.locator(".lm-MenuBar-item", has_text="Run").click()
     page.locator(".lm-Menu-item[data-command='runmenu:run-all']").click()
+    # Fail HERE if Run All was a no-op (see _open_notebook), rather than as an
+    # unexplained iframe timeout a minute later. Each test starts on a fresh
+    # kernel (conftest.py), so any execution count is from this click.
+    ran = page.locator(".jp-NotebookPanel .jp-InputPrompt").filter(
+        has_text=re.compile(r"\[(\*|\d+)\]")
+    )
+    expect(ran.first, "Run All executed no cells").to_be_visible(timeout=30_000)
 
 
 @pytest.mark.integration
