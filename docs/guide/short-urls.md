@@ -141,9 +141,11 @@ curl -X POST https://framejs.io/api/frame \
   -d '{"frame": {"js": "root.innerHTML = \"hello\"", "og": {"title": "Hello"}}}'
 ```
 
-`frame` takes the same keys as `/api/shorten/json`. Pass `"id": "<uuid>"` next
-to it to append a version to that frame instead of creating a new one (allowed
-while the frame is unclaimed).
+`frame` is the same `{js, inputs, modules, og, definition}` object
+`/api/shorten/json` takes. It is stored as sent, minus params left at their
+default value. Pass `"id": "<uuid>"` next to it to append a version to that
+frame instead of creating a new one (allowed while the frame is unclaimed); an
+`id` that is not a uuid is a `400`, never a new frame.
 
 Response:
 

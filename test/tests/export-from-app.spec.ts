@@ -42,6 +42,14 @@ test("POST /api/frame rejects a body with neither frame nor hashParams", async (
   expect((await res.json()).error).toContain("frame or hashParams");
 });
 
+test("POST /api/frame rejects an id that is not a uuid instead of minting a new frame", async ({ request }) => {
+  const res = await request.post("/api/frame", {
+    data: { frame: { js: "root.innerHTML = 'x'" }, id: "not-a-uuid" },
+  });
+  expect(res.status()).toBe(400);
+  expect((await res.json()).error).toContain("`id` must be the uuid");
+});
+
 test("an exported frame (inlined bundle + payload input) renders in the runtime", async ({ page, baseURL }) => {
   // What the recipe's "inlined" variant produces: the app's bundle verbatim,
   // then mounting code that draws the payload delivered through onInputs.

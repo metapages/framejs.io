@@ -19,12 +19,8 @@ import {
 import type { HashParamType } from "@metapages/metapage";
 
 import { detectEmbed, detectSource, track } from "./src/analytics.ts";
-import { parseSaveFrameBody } from "./src/frame-save.ts";
-import {
-  normalizeUuid,
-  resolveSaveUuid,
-  UUID_REGEX,
-} from "./src/frame-uuid.ts";
+import { saveFrame } from "./src/frame-save.ts";
+import { normalizeUuid, UUID_REGEX } from "./src/frame-uuid.ts";
 import {
   computeMetaframeDefinition,
   DEFAULT_METAFRAME_DEFINITION,
@@ -768,49 +764,22 @@ app.post("/api/shorten/json", async (c) => {
 // docs/guide/export-from-your-app.md), plus an optional existing frame `id`:
 //   - with a uuid `id` (page loaded from /j/<uuid>): update that frame in place
 //   - without one (raw hash params or legacy /j/<sha256>): mint a new frame
+//   - with anything else as `id`: 400, rather than silently minting a new frame
 // It is forwarded server-side because framejs.app serves no CORS; this route is
 // CORS-open, so any page can read back the stable framejs.app URL it returns.
 app.post("/api/frame", async (c) => {
   try {
-    const parsed = parseSaveFrameBody(
+    const { status, body } = await saveFrame(
       await c.req.json().catch(() => null),
-      decodeHashParamsToJson,
-    );
-    if ("error" in parsed) {
-      return c.json({ error: parsed.error }, 400);
-    }
-    const { frameJson, id } = parsed;
-
-    // The uuid slug is canonically dashless (matches framejs.app's /j/:uuid
-    // route spec) — resolveSaveUuid normalizes once so every use below,
-    // including the URL handed back to the browser, stays in that form.
-    const uuid = resolveSaveUuid(id);
-
-    const response = await fetch(
-      `${FRAMEJS_APP_ORIGIN}/j/${uuid}.json`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(frameJson),
+        appOrigin: FRAMEJS_APP_ORIGIN,
+        decodeHashParams: decodeHashParamsToJson,
       },
     );
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      console.error("Save frame failed:", response.status, detail);
-      return c.json(
-        { error: "Failed to save frame", status: response.status },
-        response.status === 403 ? 403 : 502,
-      );
+    if (status === 200) {
+      track(c, { name: "save-frame", source: detectSource(c) });
     }
-    await response.body?.cancel();
-
-    track(c, { name: "save-frame", source: detectSource(c) });
-
-    return c.json({
-      id: uuid,
-      url: `${FRAMEJS_APP_ORIGIN}/j/${uuid}`,
-    });
+    return c.json(body, status);
   } catch (error) {
     console.error("Save frame error:", error);
     return c.json({ error: "Failed to save frame" }, 500);

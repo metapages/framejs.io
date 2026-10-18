@@ -99,8 +99,9 @@ Response (`200`): `{ "id": "<32 hex>", "url": "https://framejs.app/j/<id>" }`.
 Errors are `4xx/5xx` with `{ "error": "…" }`.
 
 To **update the same frame** later (re-export after the user changes the view),
-send the same body with the `id` you got back: `{ "id": "<id>", "frame": … }`.
-This works while the frame is anonymous; once its owner claims it, use the API
+send the same body with the `id` you got back, unchanged:
+`{ "id": "<id>", "frame": … }`. An `id` that is not a uuid is rejected with a
+`400`. This works while the frame is anonymous; once its owner claims it, use the API
 token flow in [short-url-api.md](short-url-api.md).
 
 Browser (a button in a web app or a standalone HTML page):
