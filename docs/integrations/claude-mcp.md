@@ -133,5 +133,5 @@ account — save them to your account first.
 
 - [Agent Skill](../guide/ai) — for coding agents with a shell, and local files.
 - [AI Usage](../guide/ai) — copy/paste prompts, the LLM API, and `llms-prompt.md`.
-- [Export from Your App](./export-from-your-app) — a prompt for your
+- [Export from Your App](../guide/export-from-your-app) — a prompt for your
   coding agent to add an "Open in framejs" button to your own app, CLI or page.

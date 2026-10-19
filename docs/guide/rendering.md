@@ -87,4 +87,4 @@ See the [@metapages/metapage npm package](https://www.npmjs.com/package/@metapag
 ## The other direction
 
 To let your app turn what it is showing into a framejs link (an **Open in
-framejs** button), see [Export from Your App](../integrations/export-from-your-app).
+framejs** button), see [Export from Your App](./export-from-your-app).
