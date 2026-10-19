@@ -761,7 +761,7 @@ app.post("/api/shorten/json", async (c) => {
 // hash-param string (`hashParams`) or the frame as plain JSON (`frame`: the
 // {js, modules, inputs, og, ...} shape framejs.app's `POST /j/<uuid>.json`
 // expects — what an external app's "Open in framejs" export sends, see
-// docs/guide/export-from-your-app.md), plus an optional existing frame `id`:
+// docs/integrations/export-from-your-app.md), plus an optional existing frame `id`:
 //   - with a uuid `id` (page loaded from /j/<uuid>): update that frame in place
 //   - without one (raw hash params or legacy /j/<sha256>): mint a new frame
 //   - with anything else as `id`: 400, rather than silently minting a new frame

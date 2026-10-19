@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// The "Open in framejs" export an external app adds (docs/guide/export-from-your-app.md,
+// The "Open in framejs" export an external app adds (docs/integrations/export-from-your-app.md,
 // worker/static/skill/framejs/references/export-from-your-app.md): a page on
 // SOME OTHER origin builds a frame and POSTs it to framejs.io. These run that
 // page on a fake origin so the CORS behaviour the recipe relies on is real.

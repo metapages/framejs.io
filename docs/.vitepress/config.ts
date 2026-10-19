@@ -164,7 +164,6 @@ export default withMermaid(
               link: "/integrations/claude-mcp",
             },
             { text: "Console: agent skill", link: "/guide/ai" },
-            { text: "Export from your app", link: "/guide/export-from-your-app" },
           ],
         },
 
@@ -207,6 +206,10 @@ export default withMermaid(
             { text: "Jupyter", link: "/integrations/jupyter" },
             { text: "JupyterLite (Live)", link: "/integrations/jupyterlite" },
             { text: "marimo", link: "/integrations/marimo" },
+            {
+              text: "Export from your app",
+              link: "/integrations/export-from-your-app",
+            },
           ],
         },
         {
