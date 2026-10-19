@@ -19,11 +19,8 @@ import {
 import type { HashParamType } from "@metapages/metapage";
 
 import { detectEmbed, detectSource, track } from "./src/analytics.ts";
-import {
-  normalizeUuid,
-  resolveSaveUuid,
-  UUID_REGEX,
-} from "./src/frame-uuid.ts";
+import { saveFrame } from "./src/frame-save.ts";
+import { normalizeUuid, UUID_REGEX } from "./src/frame-uuid.ts";
 import {
   computeMetaframeDefinition,
   DEFAULT_METAFRAME_DEFINITION,
@@ -760,59 +757,29 @@ app.post("/api/shorten/json", async (c) => {
   }
 });
 
-// Save the current editor state as a mutable framejs.app frame. The body is the
-// editor's current hash-param string plus an optional existing frame `id`:
+// Save a mutable framejs.app frame. The body is either the editor's current
+// hash-param string (`hashParams`) or the frame as plain JSON (`frame`: the
+// {js, modules, inputs, og, ...} shape framejs.app's `POST /j/<uuid>.json`
+// expects — what an external app's "Open in framejs" export sends, see
+// docs/ai/export-from-your-app.md), plus an optional existing frame `id`:
 //   - with a uuid `id` (page loaded from /j/<uuid>): update that frame in place
 //   - without one (raw hash params or legacy /j/<sha256>): mint a new frame
-// The hash params are decoded to the {js, modules, inputs, og, ...} JSON shape
-// framejs.app's `POST /j/<uuid>.json` expects and forwarded server-side (no CORS
-// from the browser). Returns the stable framejs.app page URL to navigate to.
+//   - with anything else as `id`: 400, rather than silently minting a new frame
+// It is forwarded server-side because framejs.app serves no CORS; this route is
+// CORS-open, so any page can read back the stable framejs.app URL it returns.
 app.post("/api/frame", async (c) => {
   try {
-    const { hashParams, id } = (await c.req.json()) as {
-      hashParams?: string;
-      id?: string;
-    };
-
-    if (!hashParams) {
-      return c.json({ error: "Missing required field: hashParams" }, 400);
-    }
-
-    const frameJson = decodeHashParamsToJson(hashParams);
-    if (!frameJson.js) {
-      return c.json({ error: "Nothing to save: missing js" }, 400);
-    }
-
-    // The uuid slug is canonically dashless (matches framejs.app's /j/:uuid
-    // route spec) — resolveSaveUuid normalizes once so every use below,
-    // including the URL handed back to the browser, stays in that form.
-    const uuid = resolveSaveUuid(id);
-
-    const response = await fetch(
-      `${FRAMEJS_APP_ORIGIN}/j/${uuid}.json`,
+    const { status, body } = await saveFrame(
+      await c.req.json().catch(() => null),
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(frameJson),
+        appOrigin: FRAMEJS_APP_ORIGIN,
+        decodeHashParams: decodeHashParamsToJson,
       },
     );
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      console.error("Save frame failed:", response.status, detail);
-      return c.json(
-        { error: "Failed to save frame", status: response.status },
-        response.status === 403 ? 403 : 502,
-      );
+    if (status === 200) {
+      track(c, { name: "save-frame", source: detectSource(c) });
     }
-    await response.body?.cancel();
-
-    track(c, { name: "save-frame", source: detectSource(c) });
-
-    return c.json({
-      id: uuid,
-      url: `${FRAMEJS_APP_ORIGIN}/j/${uuid}`,
-    });
+    return c.json(body, status);
   } catch (error) {
     console.error("Save frame error:", error);
     return c.json({ error: "Failed to save frame" }, 500);

@@ -8,7 +8,7 @@ In Claude Desktop, [claude.ai](https://claude.ai), or mobile, go to
 **Settings → Connectors → Add custom connector** and paste
 `https://framejs.app/mcp`. That's the whole setup — Claude then creates and
 edits the frames on your framejs account in the conversation.
-[Full connector guide →](../integrations/claude-mcp)
+[Full connector guide →](./claude-mcp)
 :::
 
 ## Create and edit in AI chat

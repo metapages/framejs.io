@@ -41,6 +41,7 @@ for (const rel of [
   "references/coding-guide.md",
   "references/short-url-api.md",
   "references/file-inputs.md",
+  "references/export-from-your-app.md",
   "scripts/framejs.mjs",
 ]) {
   if (!existsSync(join(SKILL, rel))) err(`missing bundled file: ${rel}`);
@@ -53,6 +54,7 @@ const mdFiles = [
   "references/coding-guide.md",
   "references/short-url-api.md",
   "references/file-inputs.md",
+  "references/export-from-your-app.md",
 ];
 for (const rel of mdFiles) {
   const lines = readFileSync(join(SKILL, rel), "utf8").split("\n");

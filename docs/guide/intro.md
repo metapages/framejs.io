@@ -41,7 +41,7 @@ show a range of ways of visualization using framejs.io platform with a slider
 />
 
 
-<p class="feature-link"><a href="/docs/integrations/claude-mcp">Use it in Claude (no install) &rarr;</a> &nbsp;·&nbsp; <a href="/docs/guide/ai">Install the agent skill &rarr;</a></p>
+<p class="feature-link"><a href="/docs/ai/claude-mcp">Use it in Claude (no install) &rarr;</a> &nbsp;·&nbsp; <a href="/docs/ai/agent-skill">Install the agent skill &rarr;</a></p>
 
 ---
 
