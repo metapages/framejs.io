@@ -3,7 +3,7 @@
 Give your own web app, CLI, notebook or generated HTML page an **Open in
 framejs** button: one click turns what it is showing into a shareable
 `framejs.app/j/<id>` link that runs in any browser and
-[embeds anywhere](./embedding).
+[embeds anywhere](../guide/embedding).
 
 ## Hand this to your coding agent
 
@@ -30,7 +30,7 @@ link it produced, and confirm the view renders with the
 same data.
 ```
 
-Agents with the [framejs skill](./ai) installed already know this recipe; the
+Agents with the [framejs skill](./agent-skill) installed already know this recipe; the
 prompt still tells them what you want and where.
 
 ## How it works
@@ -52,7 +52,7 @@ The same request works from every kind of tool:
 
 The link is anonymous until someone claims it: unclaimed frames expire, so the
 export should say so and point the user at claiming it with a free account (see
-[Persistence & Retention](./persistence)).
+[Persistence & Retention](../guide/persistence)).
 
 ## A real example
 
@@ -70,5 +70,5 @@ the framejs link — the "inlined" row of the table above.
   response, updating a frame, snapshots, and what to test.
 - [Frame API](https://framejs.io/skill/framejs/references/short-url-api.md) —
   every field a frame can carry, and API tokens for updating a claimed frame.
-- [Rendering in a Website](./rendering) — the other direction: show a framejs
+- [Rendering in a Website](../guide/rendering) — the other direction: show a framejs
   frame inside your page and pass data in and out.

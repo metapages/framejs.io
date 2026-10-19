@@ -41,12 +41,12 @@ claude mcp add --transport http framejs https://framejs.app/mcp
 
 Then run `/mcp` in Claude Code and pick **framejs** to sign in. (If you want
 local-file access and anonymous frames instead, use the
-[Agent Skill](../guide/ai) — the two can coexist.)
+[Agent Skill](./agent-skill) — the two can coexist.)
 
 ::: tip Requires a free framejs account
 The connector reads and edits the frames saved to *your* account, so it signs you
 in. Anonymous/one-off frames don't need an account — use the
-[Agent Skill](../guide/ai) or the [editor](https://framejs.io) for those.
+[Agent Skill](./agent-skill) or the [editor](https://framejs.io) for those.
 :::
 
 ## Use it
@@ -74,11 +74,11 @@ menu (the `+` / attachment menu):
 
 ## Connector or skill?
 
-The connector is the complement to the [Agent Skill](../guide/ai): the skill runs
+The connector is the complement to the [Agent Skill](./agent-skill): the skill runs
 in shell-capable coding agents and can work with local files; the connector runs
 in the Claude apps and works with the frames saved to your account.
 
-| | Claude Connector (MCP) | [Agent Skill](../guide/ai) |
+| | Claude Connector (MCP) | [Agent Skill](./agent-skill) |
 |---|---|---|
 | Where | Claude web / desktop / mobile / Code | Coding agents with a shell |
 | Install | Add a connector URL, once | One-line skill install |
@@ -131,7 +131,7 @@ account — save them to your account first.
 
 ## Other AI options
 
-- [Agent Skill](../guide/ai) — for coding agents with a shell, and local files.
-- [AI Usage](../guide/ai) — copy/paste prompts, the LLM API, and `llms-prompt.md`.
-- [Export from Your App](../guide/export-from-your-app) — a prompt for your
+- [Agent Skill](./agent-skill) — for coding agents with a shell, and local files.
+- [AI Usage](./agent-skill) — copy/paste prompts, the LLM API, and `llms-prompt.md`.
+- [Export from Your App](./export-from-your-app) — a prompt for your
   coding agent to add an "Open in framejs" button to your own app, CLI or page.

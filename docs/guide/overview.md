@@ -16,7 +16,7 @@ See [examples](../examples/)
 ## [Quickstart](../quickstart.md)
 
 1. Go to [framejs.io](https://framejs.io)
-2. Write JavaScript in the editor or [edit with AI](../guide/ai)
+2. Write JavaScript in the editor or [edit with AI](../ai/agent-skill)
 3. The code runs immediately — the URL updates to contain your code
 4. Share the URL with anyone
 

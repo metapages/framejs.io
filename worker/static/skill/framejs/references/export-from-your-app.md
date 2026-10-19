@@ -159,7 +159,7 @@ export async function exportToFramejs(frame) {
   `Content-Type: text/plain` and you cannot read the result. Prefer `/api/frame`
   in browsers.
 - **No network at all** — a hash URL `https://framejs.io/#?js=<base64>` (see
-  [URL encoding format](https://framejs.io/docs/guide/ai#url-encoding-format)).
+  [URL encoding format](https://framejs.io/docs/ai/agent-skill#url-encoding-format)).
   Only for small code: a bundle or sizeable data makes the URL too long for
   browsers and chat apps.
 

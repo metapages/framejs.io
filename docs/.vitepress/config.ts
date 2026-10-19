@@ -1,3 +1,6 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
 import { defineConfig } from 'vitepress';
 import { withMermaid } from 'vitepress-plugin-mermaid';
 
@@ -62,6 +65,60 @@ const servePresentationIndex = {
   },
 };
 
+// Docs URLs follow the sidebar section a page sits in (/docs/ai/* is "Use with
+// AI", /docs/guide/* is "Guide", ...). Pages that moved keep their published
+// URL working: the build writes a redirect stub at the old path (both copies of
+// the docs, see above), and the dev server answers it with a 302. The stub's
+// target is relative so it stays on whichever origin served it, and it carries
+// the #anchor across.
+const MOVED_PAGES: Record<string, string> = {
+  "guide/ai": "ai/agent-skill",
+  "integrations/claude-mcp": "ai/claude-mcp",
+};
+
+const redirectStub = (from: string, to: string): string => {
+  const href = "../".repeat(from.split("/").length - 1) + to;
+  return `<!doctype html>
+<meta charset="utf-8">
+<title>Moved</title>
+<link rel="canonical" href="${CANONICAL_ORIGIN}/docs/${to}">
+<meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=${href}">
+<script>location.replace(${JSON.stringify(href)} + location.hash);</script>
+<p>This page moved to <a href="${href}">${href}</a>.</p>
+`;
+};
+
+const redirectMovedPages = {
+  name: "redirect-moved-pages",
+  configureServer(
+    server: {
+      middlewares: {
+        use: (
+          fn: (
+            req: { url?: string },
+            res: {
+              statusCode: number;
+              setHeader: (k: string, v: string) => void;
+              end: () => void;
+            },
+            next: () => void,
+          ) => void,
+        ) => void;
+      };
+    },
+  ) {
+    server.middlewares.use((req, res, next) => {
+      const m = req.url?.match(/^\/docs\/([^?#]+?)(?:\.html)?(\?[^#]*)?$/);
+      const to = m && MOVED_PAGES[m[1]];
+      if (!to) return next();
+      res.statusCode = 302;
+      res.setHeader("Location", `/docs/${to}${m[2] ?? ""}`);
+      res.end();
+    });
+  },
+};
+
 export default withMermaid(
   defineConfig({
     title: `${BRAND} — ${TAGLINE}`,
@@ -77,6 +134,14 @@ export default withMermaid(
 
     // framejs.app builds its own copy straight into its static dir.
     outDir: process.env.FRAMEJS_DOCS_OUT || undefined,
+
+    buildEnd({ outDir }) {
+      for (const [from, to] of Object.entries(MOVED_PAGES)) {
+        const file = join(outDir, `${from}.html`);
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, redirectStub(from, to));
+      }
+    },
 
     // Both copies name the framejs.app one as canonical, so the duplicate does
     // not split search ranking between the two origins.
@@ -112,7 +177,7 @@ export default withMermaid(
     },
 
     vite: {
-      plugins: [servePresentationIndex],
+      plugins: [servePresentationIndex, redirectMovedPages],
       // A pr-daemon preview serves the dev server at a public host, which
       // vite's DNS-rebinding guard rejects unless it is listed here.
       ...(process.env.APP_PUBLIC_FQDN
@@ -136,7 +201,7 @@ export default withMermaid(
       siteTitle: BRAND,
 
       nav: [
-        { text: "AI", link: "/integrations/claude-mcp" },
+        { text: "AI", link: "/ai/claude-mcp" },
         { text: "Docs", link: "/quickstart" },
         // { text: "Examples", link: "/examples/" },
         // { text: "Integrations", link: "/integrations/jupyter" },
@@ -161,10 +226,10 @@ export default withMermaid(
           items: [
             {
               text: "MCP: Claude Connector",
-              link: "/integrations/claude-mcp",
+              link: "/ai/claude-mcp",
             },
-            { text: "Console: agent skill", link: "/guide/ai" },
-            { text: "Export from your app", link: "/guide/export-from-your-app" },
+            { text: "Console: agent skill", link: "/ai/agent-skill" },
+            { text: "Export from your app", link: "/ai/export-from-your-app" },
           ],
         },
 
@@ -203,7 +268,6 @@ export default withMermaid(
           text: "Integrations",
           collapsed: true,
           items: [
-            { text: "Claude Connector (MCP)", link: "/integrations/claude-mcp" },
             { text: "Jupyter", link: "/integrations/jupyter" },
             { text: "JupyterLite (Live)", link: "/integrations/jupyterlite" },
             { text: "marimo", link: "/integrations/marimo" },
