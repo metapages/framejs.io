@@ -1,6 +1,6 @@
 # NGL Protein Viewer
 
-## [Prompt](../guide/ai#install-js-command)
+## [Prompt](../ai/agent-skill#install-js-command)
 
 <div class="wrap-code">
 

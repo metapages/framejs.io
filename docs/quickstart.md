@@ -41,7 +41,7 @@ Claude writes the JavaScript, saves it, and replies with a
 `https://framejs.app/j/<id>` link. Editing it later appends a version — the link
 never changes.
 
-<p class="feature-link"><a href="/docs/integrations/claude-mcp">Full connector guide &rarr;</a></p>
+<p class="feature-link"><a href="/docs/ai/claude-mcp">Full connector guide &rarr;</a></p>
 
 ::: tip Also works in Claude Code
 Same connector, one command: `claude mcp add --transport http framejs
@@ -50,7 +50,7 @@ https://framejs.app/mcp`, then `/mcp` to sign in.
 
 ## B. Coding agents with a shell
 
-**Install the [Agent Skill](./guide/ai)** — works across ~40 harnesses (Claude
+**Install the [Agent Skill](./ai/agent-skill)** — works across ~40 harnesses (Claude
 Code, Cursor, Gemini CLI, opencode, Codex, …). The agent can read your local
 files, so you can point it at data on disk.
 

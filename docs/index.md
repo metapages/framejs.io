@@ -17,7 +17,7 @@ hero:
       link: /quickstart
     - theme: brand
       text: Use it in Claude
-      link: /integrations/claude-mcp
+      link: /ai/claude-mcp
     - theme: alt
       text: Create new
       link: https://framejs.io#?edit=true
@@ -30,12 +30,12 @@ features:
   - title: Use it in Claude — no install
     details: |
       Paste one connector URL into Claude Desktop, web, or mobile. Claude builds and edits your artifacts in the conversation — and each one leaves the chat as a link that runs on its own. No terminal, nothing to download.
-    link: /integrations/claude-mcp
+    link: /ai/claude-mcp
     linkText: Add the connector
   - title: Edit with AI in your coding agent
     details: |
       One-line skill install for Claude Code, Cursor, Gemini CLI and ~40 others — describe what you want, and reference local files.
-    link: /guide/ai
+    link: /ai/agent-skill
   - title: The URL is the artifact
     details: Code and state both live in the URL — no server copy, nothing to deploy. Copy the link and anyone can run it, exactly as you left it.
     link: /guide/url-state

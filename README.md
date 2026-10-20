@@ -46,7 +46,7 @@ create an interactive 3D globe that highlights countries on hover with populatio
 
 **3.** The agent generates the JavaScript, creates a shareable short URL, and opens it in your browser. Paste an existing `framejs.io/j/<hash>` short URL to modify it.
 
-→ Full setup and per-harness install: **https://framejs.io/docs/guide/ai**
+→ Full setup and per-harness install: **https://framejs.io/docs/ai/agent-skill**
 
 ## Fastest start (browser)
 
@@ -71,7 +71,7 @@ The complete, published documentation lives at **[framejs.io/docs](https://frame
 
 - [Quickstart](https://framejs.io/docs/quickstart)
 - [Guide](https://framejs.io/docs/guide/intro) — JavaScript API, URL state, short URLs, embedding
-- [AI setup](https://framejs.io/docs/guide/ai)
+- [AI setup](https://framejs.io/docs/ai/agent-skill)
 - [Examples](https://framejs.io/docs/examples/)
 - [Integrations](https://framejs.io/docs/integrations/jupyter) — Jupyter, JupyterLite, marimo
 

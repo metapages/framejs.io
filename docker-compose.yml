@@ -36,6 +36,18 @@ services:
       - traefik.http.middlewares.minio-cors.headers.accesscontrolallowheaders=Content-Type,Content-Length,Accept,Authorization,X-Amz-Date,X-Amz-Security-Token,X-Amz-Content-Sha256,X-Amz-User-Agent,x-amz-acl
       - traefik.http.middlewares.minio-cors.headers.accesscontrolmaxage=86400
       - traefik.http.middlewares.minio-cors.headers.accesscontrolexposeheaders=ETag,x-amz-request-id
+      # pr-daemon previews (see `pr-daemon-up` in the justfile). The browser
+      # reaches minio at a PUBLIC host (https://<branch>--s3.<domain>), and
+      # pr-daemon forwards those requests here with the LOCAL Host header it was
+      # given (localhost). A presigned URL signs the host it was minted for, so
+      # minio must see the public host again or every upload fails with
+      # SignatureDoesNotMatch: this router puts it back. Inert unless
+      # S3_PREVIEW_UPSTREAM_HOST is set (`.invalid` never resolves).
+      - traefik.http.routers.minio-s3-preview.tls=true
+      - traefik.http.routers.minio-s3-preview.rule=Host(`${S3_PREVIEW_UPSTREAM_HOST:-s3-preview.invalid}`)
+      - traefik.http.routers.minio-s3-preview.service=minio-s3
+      - traefik.http.routers.minio-s3-preview.middlewares=minio-cors,minio-preview-host
+      - traefik.http.middlewares.minio-preview-host.headers.customrequestheaders.Host=${S3_PUBLIC_FQDN:-s3.localhost}
 
   minio-init:
     image: minio/mc
@@ -105,7 +117,8 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.app-server.tls=true
-      - traefik.http.routers.app-server.rule=Host("${APP_FQDN:-framejs-io.localhost}")
+      # APP_PUBLIC_FQDN: a pr-daemon preview's public host (see `pr-daemon-up`).
+      - traefik.http.routers.app-server.rule=Host("${APP_FQDN:-framejs-io.localhost}") || Host("${APP_PUBLIC_FQDN:-framejs-io.localhost}")
 
   editor:
     build:
@@ -123,6 +136,9 @@ services:
       - "APP_PORT_BROWSER=4440"
       - "APP_PORT=${APP_PORT:-443}"
       - "APP_FQDN=${APP_FQDN:-framejs-io.localhost}"
+      # The port the browser opens the HMR websocket on. Differs from APP_PORT
+      # only behind a proxy (a pr-daemon preview is served on 443).
+      - "HMR_CLIENT_PORT=${HMR_CLIENT_PORT:-${APP_PORT:-443}}"
       - BASE=editor
     expose:
       - 4440
@@ -144,12 +160,15 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.app-editor.tls=true
-      - traefik.http.routers.app-editor.rule=Host("${APP_FQDN:-framejs-io.localhost}") && PathPrefix(`/editor`)
+      - traefik.http.routers.app-editor.rule=(Host("${APP_FQDN:-framejs-io.localhost}") || Host("${APP_PUBLIC_FQDN:-framejs-io.localhost}")) && PathPrefix(`/editor`)
 
   docs:
     image: node:25-alpine
     command: sh -c "npm install && npx vitepress dev --host 0.0.0.0 --port 4173"
     working_dir: /app/docs
+    environment:
+      # Allowed as a dev-server host (see vite.server.allowedHosts in config.ts)
+      - "APP_PUBLIC_FQDN=${APP_PUBLIC_FQDN:-}"
     expose:
       - 4173
     volumes:
@@ -160,7 +179,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.app-docs.tls=true
-      - traefik.http.routers.app-docs.rule=Host("${APP_FQDN:-framejs-io.localhost}") && PathPrefix(`/docs`)
+      - traefik.http.routers.app-docs.rule=(Host("${APP_FQDN:-framejs-io.localhost}") || Host("${APP_PUBLIC_FQDN:-framejs-io.localhost}")) && PathPrefix(`/docs`)
       - traefik.http.services.app-docs.loadbalancer.server.port=4173
       # VitePress base is /docs/ (with trailing slash), so bare /docs is outside
       # the base and shows "did you mean /docs/?". Redirect /docs → /docs/ to
@@ -188,9 +207,8 @@ services:
       # The Traefik Web UI port (enabled by api:insecure: true in traefik.yml)
       - "${TRAEFIK_WEB_UI_PORT:-8080}:8080"
     volumes:
-      # Overridable because its docker-provider constraint names the compose
-      # project: `just pr-daemon-up` runs a per-branch project and generates a
-      # copy constrained to that one (see _pr-daemon-env).
+      # Overridable so a pr-daemon preview can scope the docker provider to its
+      # own compose project (see `pr-daemon-up`).
       - ${TRAEFIK_STATIC_CONFIG:-./.traefik/traefik.yml}:/etc/traefik/traefik.yml:ro
       - ./.traefik/config.yml:/etc/traefik/config.yml:ro
       - ./.traefik/certs:/etc/certs:ro

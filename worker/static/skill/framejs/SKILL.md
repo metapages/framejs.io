@@ -1,11 +1,11 @@
 ---
 name: framejs
-description: "Create, modify, and share interactive browser apps and visualizations from JavaScript via framejs.io. The app is encoded into a shareable URL that runs instantly — no build, server, or account. Use when the user wants a chart, graph, plot, dashboard, animation, simulation, creative coding sketch, data visualization, or small interactive web tool; when they reference a framejs.io short URL (/j/<sha256>) to modify; or when they want to visualize a local data file (CSV, JSON, image, etc.)."
+description: "Create, modify, and share interactive browser apps and visualizations from JavaScript via framejs.io. The app is encoded into a shareable URL that runs instantly — no build, server, or account. Use when the user wants a chart, graph, plot, dashboard, animation, simulation, creative coding sketch, data visualization, or small interactive web tool; when they reference a framejs.io short URL (/j/<sha256>) to modify; when they want to visualize a local data file (CSV, JSON, image, etc.); or when they want their own app, site, CLI or notebook to export or share its view as a framejs link (an Open in framejs button)."
 license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.11"
+  version: "1.12"
 ---
 
 # framejs
@@ -57,6 +57,11 @@ In both modes the JavaScript you write follows the same rules — read
 3. **Visualize local files** — the request references file paths (`./data.csv`,
    `/tmp/results.json`). Upload them and pass as inputs — see
    [references/file-inputs.md](references/file-inputs.md).
+4. **Add a framejs export to the user's own app** — "add an Open in framejs
+   button", "let my CLI share its output as a link", "export this page to
+   framejs". You edit the user's codebase so IT builds and POSTs frames; the
+   delivery-mode rules below are for your own frames and do not apply. Follow
+   [references/export-from-your-app.md](references/export-from-your-app.md).
 
 ## Automation mode — how to deliver
 
@@ -199,6 +204,9 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
   is claimed), inline fallbacks.
 - [references/file-inputs.md](references/file-inputs.md) — upload local files
   and wire them in as inputs.
+- [references/export-from-your-app.md](references/export-from-your-app.md) — add
+  an "Open in framejs" export to an existing web app, CLI, notebook or generated
+  HTML page (`POST https://framejs.io/api/frame`).
 - `scripts/framejs.mjs` — Node helper: `create` (stdin JS → framejs.app frame),
   `fetch <id>`, `upload <path>`. Origins: `FRAMEJS_APP_ORIGIN` /
   `FRAMEJS_IO_ORIGIN` (auto-loaded from a nearby `.env` in local dev), or
