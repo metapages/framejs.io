@@ -130,6 +130,10 @@ services:
       test: curl --fail http://localhost:4440 || exit 1
       interval: 5s
       timeout: 1s
+      # A cold start runs `npm install` before vite listens. Without a start
+      # period the default 3 retries mark the editor unhealthy after ~15s, and
+      # the worker (which waits on service_healthy) then refuses to start.
+      start_period: 900s
     environment:
       - "DENO_DIR=/deno"
       - "DENO_INSTALL_ROOT=/deno"
