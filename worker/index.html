@@ -2684,6 +2684,113 @@
       requestAnimationFrame(waitTicks);
     };
 
+    // -------------------------------------------------------------------
+    // Inputs
+    //
+    // The metaframe connects to its metapage as soon as this page loads, but
+    // the frame's code runs later: after its `modules` load, its imports
+    // resolve and any top-level await finishes. Inputs that land in between
+    // used to be collapsed into one snapshot (so all but the last value of a
+    // key were lost), and deliveries ran concurrently, so a slow dataref fetch
+    // let a later update overtake it and the frame was left showing the stale
+    // value (issue #120).
+    //
+    // So: subscribe once, at startup (see `metaframe.onInputs(queueInputs)`
+    // below), queue every update, and drain the queue into the running code's
+    // `onInputs` one update at a time, in arrival order. While no code is
+    // ready to take inputs — still loading, or between re-runs — they wait.
+    // -------------------------------------------------------------------
+    const pendingInputs = [];
+    // The running code and its input options, or null while there is none.
+    let inputsConsumer = null;
+    // Whether any code has taken inputs yet (see runJsFromUrl).
+    let inputsConsumerHasRun = false;
+    let drainingInputs = false;
+
+    const queueInputs = (inputs) => {
+      if (!inputs) return;
+      // A shallow copy: resolving datarefs replaces values in place, and that
+      // must never write into the metaframe's own input state.
+      pendingInputs.push({ ...inputs });
+      drainInputs();
+    };
+
+    const drainInputs = async () => {
+      if (drainingInputs) return;
+      drainingInputs = true;
+      try {
+        while (inputsConsumer && pendingInputs.length > 0) {
+          await deliverInputs(inputsConsumer, pendingInputs.shift());
+        }
+      } finally {
+        drainingInputs = false;
+      }
+    };
+
+    const deliverInputs = async (
+      { module, disableDatarefs, disableSmartInputUnpacking },
+      inputs,
+    ) => {
+      if (module.onInputs) {
+        try {
+          // Check if dataref conversion is disabled
+          if (!disableDatarefs) {
+            // Unwrap v2 url datarefs (data:text/x-uri,<encoded url>) so
+            // they resolve like any other url ref below.
+            if (inputs) {
+              for (const key of Object.keys(inputs)) {
+                const urlRef = normalizeUrlDataRef(inputs[key]);
+                if (urlRef) {
+                  inputs[key] = urlRef;
+                }
+              }
+            }
+            const datarefKeys = inputs
+              ? Object.keys(inputs).filter((key) => isDataRef(inputs[key]))
+              : null;
+            if (datarefKeys && datarefKeys.length > 0) {
+              const resolved = await Promise.all(
+                datarefKeys.map((key) => resolveDataRef(inputs[key])),
+              );
+              for (let i = 0; i < datarefKeys.length; i++) {
+                inputs[datarefKeys[i]] = resolved[i];
+              }
+            }
+          }
+
+          // Smart input unpacking: convert JSON blobs to objects
+          // This inspects leaves of the input JSON, and if there are blobs
+          // with type json or input name ending with .json, converts them to objects
+          if (!disableSmartInputUnpacking) {
+            inputs = await smartUnpackInputs(inputs);
+          }
+
+          module.onInputs(inputs);
+        } catch (err) {
+          console.error("Error running onInputs", err);
+        }
+      }
+      try {
+        if (
+          globalThis.metapageEditor &&
+          !globalThis.metapageEditor.isDisposed()
+        ) {
+          // If user disabled smart unpacking, unpack just for the editor
+          const editorInputs = disableSmartInputUnpacking
+            ? await smartUnpackInputs(inputs)
+            : inputs;
+          globalThis.metapageEditor.setInputs({
+            editor: editorInputs,
+          });
+        }
+      } catch (err) {
+        console.error(
+          "Error setting metapage editor inputs",
+          err,
+        );
+      }
+    };
+
     const runJsFromUrl = async () => {
       // if there is a scriptUnload function, run it
       // The previous script has the option to put a cleanup function on the window
@@ -2805,85 +2912,29 @@
             "options",
           );
 
-          const disableDatarefs = options?.disableDatarefs;
-          const disableSmartInputUnpacking = options
-            ?.disableSmartInputUnpacking;
-
-          const handleInputs = async (inputs) => {
-            if (module.onInputs) {
-              try {
-                // Check if dataref conversion is disabled
-                if (!disableDatarefs) {
-                  // Unwrap v2 url datarefs (data:text/x-uri,<encoded url>) so
-                  // they resolve like any other url ref below.
-                  if (inputs) {
-                    for (const key of Object.keys(inputs)) {
-                      const urlRef = normalizeUrlDataRef(inputs[key]);
-                      if (urlRef) {
-                        inputs[key] = urlRef;
-                      }
-                    }
-                  }
-                  const datarefKeys = inputs
-                    ? Object.keys(inputs).filter((key) => isDataRef(inputs[key]))
-                    : null;
-                  if (datarefKeys && datarefKeys.length > 0) {
-                    const resolved = await Promise.all(
-                      datarefKeys.map((key) => resolveDataRef(inputs[key])),
-                    );
-                    for (let i = 0; i < datarefKeys.length; i++) {
-                      inputs[datarefKeys[i]] = resolved[i];
-                    }
-                  }
-                }
-
-                // Smart input unpacking: convert JSON blobs to objects
-                // This inspects leaves of the input JSON, and if there are blobs
-                // with type json or input name ending with .json, converts them to objects
-                if (!disableSmartInputUnpacking) {
-                  inputs = await smartUnpackInputs(inputs);
-                }
-
-                module.onInputs(inputs);
-              } catch (err) {
-                console.error("Error running onInputs", err);
-              }
-            }
-            try {
-              if (
-                globalThis.metapageEditor &&
-                !globalThis.metapageEditor.isDisposed()
-              ) {
-                // If user disabled smart unpacking, unpack just for the editor
-                const editorInputs = disableSmartInputUnpacking
-                  ? await smartUnpackInputs(inputs)
-                  : inputs;
-                globalThis.metapageEditor.setInputs({
-                  editor: editorInputs,
-                });
-              }
-            } catch (err) {
-              console.error(
-                "Error setting metapage editor inputs",
-                err,
-              );
-            }
-          };
-
-          const disposeInputsListener = metaframe.onInputs(
-            handleInputs,
-          );
-
-          handleInputs(metaframe.getInputs());
-
-          // Handle inputs from hash parameter
+          // Hand this code the inputs. The first code to run gets everything
+          // queued since startup, in order; code that replaces earlier code
+          // (a hash change, an edit) starts from the current inputs instead,
+          // since the previous code already had the history.
+          if (inputsConsumerHasRun) {
+            pendingInputs.length = 0;
+            pendingInputs.push({ ...metaframe.getInputs() });
+          }
+          // Inputs from the hash parameter come after the metapage's.
           const hashInputs = getHashParamValueJsonFromHashString(
             currentHashString(),
             "inputs",
           );
-          if (hashInputs && module.onInputs) {
-            await handleInputs(hashInputs);
+          if (hashInputs) {
+            pendingInputs.push({ ...hashInputs });
           }
+          inputsConsumerHasRun = true;
+          inputsConsumer = {
+            module,
+            disableDatarefs: options?.disableDatarefs,
+            disableSmartInputUnpacking: options?.disableSmartInputUnpacking,
+          };
+          drainInputs();
 
           const cleanupHandler = () => {
             try {
@@ -2894,7 +2945,10 @@
               console.error("Error running user cleanup", err);
             }
             resizeObserver.disconnect();
-            disposeInputsListener();
+            // Inputs that land until the next code is ready wait in the queue.
+            if (inputsConsumer?.module === module) {
+              inputsConsumer = null;
+            }
             globalThis.removeEventListener("resize", ourHandleResize);
             if (typeof module.cleanup === "function") {
               try {
@@ -2944,6 +2998,9 @@
     var metaframe = globalThis.metaframe;
 
     metaframe.connected().then(() => metaframe.log("connected"));
+
+    // From startup, before the frame's code exists, so no input is missed.
+    metaframe.onInputs(queueInputs);
 
     // Apply the transient `css` hash param stylesheet on initial load.
     applyCssFromUrl();
