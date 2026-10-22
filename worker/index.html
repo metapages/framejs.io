@@ -2809,7 +2809,7 @@
           const disableSmartInputUnpacking = options
             ?.disableSmartInputUnpacking;
 
-          const handleInputs = async (inputs) => {
+          const applyInputs = async (inputs) => {
             if (module.onInputs) {
               try {
                 // Check if dataref conversion is disabled
@@ -2868,6 +2868,23 @@
                 err,
               );
             }
+          };
+
+          /**
+           * Applying an input update is asynchronous: url datarefs are
+           * fetched, and smart unpacking parses blobs. Inputs arrive as
+           * independent events, so two in quick succession used to race — a
+           * slow update (a url dataref that has to be fetched) called
+           * module.onInputs *after* a later fast one, leaving the frame
+           * showing a stale value. Every update goes through one queue, so
+           * onInputs is called in the order the inputs arrived.
+           */
+          let inputsApplyQueue = Promise.resolve();
+          const handleInputs = (inputs) => {
+            const applied = inputsApplyQueue.then(() => applyInputs(inputs));
+            // One failed update must not stall every update after it
+            inputsApplyQueue = applied.catch(() => {});
+            return applied;
           };
 
           const disposeInputsListener = metaframe.onInputs(
