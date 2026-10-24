@@ -7,7 +7,7 @@
     "npm:@aws-sdk/client-s3@*": "3.1044.0",
     "npm:@aws-sdk/s3-request-presigner@*": "3.1044.0",
     "npm:@aws-sdk/s3-request-presigner@^3.997.0": "3.1044.0",
-    "npm:@metapages/metapage@^1.10.14": "1.10.14_react@19.2.8",
+    "npm:@metapages/metapage@^1.10.15": "1.10.15_react@19.3.1",
     "npm:@resvg/resvg-wasm@^2.6.2": "2.6.2",
     "npm:qrcode@1.5.4": "1.5.4",
     "npm:uuidv7@^1.0.2": "1.2.1"
@@ -566,15 +566,15 @@
         "mutative"
       ]
     },
-    "@metapages/hash-query@0.9.12_react@19.2.8": {
+    "@metapages/hash-query@0.9.12_react@19.3.1": {
       "integrity": "sha512-bCQNfh95CBZ2L91ACJfGkSQCA5mFpm2SQxew+6wFQ7BqPPtSDszkwdPmVEcIJQ6dSjmmT92xWW2ighmTS9yiZA==",
       "dependencies": [
         "fast-json-stable-stringify",
         "react"
       ]
     },
-    "@metapages/metapage@1.10.14_react@19.2.8": {
-      "integrity": "sha512-U4gErr/WDWh4RU8jKMH3CVVX3H43G6IklXWvzXwkjUQ5/QBlHySPFHgMN6jNAUQ/sbiQU+y7Azl+u9BPBdehdA==",
+    "@metapages/metapage@1.10.15_react@19.3.1": {
+      "integrity": "sha512-mwsqkA4CXwhUYfz6jG/wVIXp49HfWx1CHbWUb/ODfmKL6nrVyutMCW1vrMPOjFHrclAr19nGPFbcQyx7rBXiNw==",
       "dependencies": [
         "@metapages/dataref",
         "@metapages/hash-query",
@@ -1151,8 +1151,8 @@
     "path-expression-matcher@1.5.0": {
       "integrity": "sha512-cbrerZV+6rvdQrrD+iGMcZFEiiSrbv9Tfdkvnusy6y0x0GKBXREFg/Y65GhIfm0tnLntThhzCnfKwp1WRjeCyQ=="
     },
-    "picomatch@4.0.5": {
-      "integrity": "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A=="
+    "picomatch@4.0.7": {
+      "integrity": "sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA=="
     },
     "pngjs@5.0.0": {
       "integrity": "sha512-40QW5YalBNfQo5yRYmiw7Yz6TKKVr3h6970B2YE+3fQpsWcrbj1PzJgxeJ19DRQjhMbKPIuMY8rFaXc8moolVw=="
@@ -1166,8 +1166,8 @@
       ],
       "bin": true
     },
-    "react@19.2.8": {
-      "integrity": "sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw=="
+    "react@19.3.1": {
+      "integrity": "sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw=="
     },
     "require-directory@2.1.1": {
       "integrity": "sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q=="
@@ -1253,7 +1253,7 @@
       "jsr:@hono/hono@4",
       "jsr:@std/assert@1",
       "npm:@aws-sdk/s3-request-presigner@^3.997.0",
-      "npm:@metapages/metapage@^1.10.14",
+      "npm:@metapages/metapage@^1.10.15",
       "npm:@resvg/resvg-wasm@^2.6.2",
       "npm:qrcode@1.5.4",
       "npm:uuidv7@^1.0.2"
