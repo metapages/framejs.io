@@ -11,6 +11,7 @@ import { expect, test } from "@playwright/test";
 // serve the docs' template, verbatim, from a fake blog origin.
 // Chrome's Local Network Access check blocks a page on a route-fulfilled origin
 // from fetching the local stack under test, so the permission is granted up front.
+// Nothing here writes to the stack (see MISSING_FRAME below).
 
 const BLOG = "https://blog.localhost";
 const PLACEHOLDER = '"https://framejs.io/j/<uuid>.json"';
@@ -92,24 +93,46 @@ export function onResize(width) {
   expect(await page.evaluate(() => (window as any).__outputs)).toEqual([{ drew: "tyk2" }]);
 });
 
-test("the docs' template runs a live frame fetched cross-origin from /j/<uuid>.json", async ({ page, baseURL, request }) => {
-  // Creating and reading back a frame goes through the stack to framejs.app
-  test.setTimeout(60_000);
-  const res = await request.post("/api/frame", {
-    data: {
-      frame: {
-        js: `root.innerHTML = '<p id="live"></p>';
-export function onInputs(inputs) { document.getElementById("live").textContent = "live " + inputs.word; }`,
-        inputs: { word: "hello" },
-      },
-    },
-  });
-  expect(res.ok()).toBe(true);
-  const { id } = await res.json();
+// Read-only on purpose: /api/frame would write a frame to the stack's
+// FRAMEJS_APP_ORIGIN, which defaults to production framejs.app. A frame id that
+// does not exist exercises the same cross-origin /j/<uuid>.json proxy (its
+// error responses carry the CORS header too) and the template's error path.
+const MISSING_FRAME = "00000000000000000000000000000000";
 
-  await servePost(page, `${baseURL}/j/${id}.json`);
+test("/j/<uuid>.json is readable cross-origin, and the template explains a frame that fails to load", async ({ page, baseURL, request }) => {
+  const res = await request.get(`/j/${MISSING_FRAME}.json`, {
+    headers: { Origin: BLOG },
+  });
+  expect(res.status()).toBe(404);
+  expect(res.headers()["access-control-allow-origin"]).toBe("*");
+
+  const errors: string[] = [];
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  const source = `${baseURL}/j/${MISSING_FRAME}.json`;
+  await servePost(page, source);
   await page.goto(`${BLOG}/post`);
 
-  await expect(page.locator("#root #live")).toHaveText("live hello", { timeout: 30_000 });
-  await expect(page.locator("iframe")).toHaveCount(0);
+  // An HTTP status, not a TypeError: the page could read the cross-origin response
+  await expect(page.locator("#root")).toHaveText(`framejs: could not load ${source} (HTTP 404)`, {
+    timeout: 15_000,
+  });
+  expect(errors.join("\n")).toContain("HTTP 404");
+});
+
+test("the template explains a frame with no js", async ({ page }) => {
+  await page.route(`${BLOG}/frame.json`, (route) => route.fulfill({ json: { inputs: {} } }));
+  await servePost(page, "./frame.json");
+  await page.goto(`${BLOG}/post`);
+  await expect(page.locator("#root")).toHaveText("framejs: frame has no js");
+});
+
+test("onInputs is not called for a frame without inputs, as in the runtime", async ({ page }) => {
+  const js = `root.innerHTML = '<p id="ran">ran</p>';
+export function onInputs() { document.getElementById("ran").textContent = "onInputs called"; }`;
+  await page.route(`${BLOG}/frame.json`, (route) => route.fulfill({ json: { js } }));
+  await servePost(page, "./frame.json");
+  await page.goto(`${BLOG}/post`);
+  await expect(page.locator("#root #ran")).toHaveText("ran");
+  await page.waitForTimeout(300);
+  await expect(page.locator("#root #ran")).toHaveText("ran");
 });
