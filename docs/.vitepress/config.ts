@@ -271,6 +271,7 @@ export default withMermaid(
             { text: "Jupyter", link: "/integrations/jupyter" },
             { text: "JupyterLite (Live)", link: "/integrations/jupyterlite" },
             { text: "marimo", link: "/integrations/marimo" },
+            { text: "Website Integration", link: "/integrations/website" },
           ],
         },
         {
