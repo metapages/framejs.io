@@ -62,6 +62,11 @@ In both modes the JavaScript you write follows the same rules — read
    framejs". You edit the user's codebase so IT builds and POSTs frames; the
    delivery-mode rules below are for your own frames and do not apply. Follow
    [references/export-from-your-app.md](references/export-from-your-app.md).
+5. **Put a frame directly into the user's website** — "add this frame to my
+   blog post", "render this framejs on my page without an iframe". You edit the
+   user's site so a page runs the frame's code itself; the delivery-mode rules
+   below do not apply. Follow
+   [references/website-integration.md](references/website-integration.md).
 
 ## Automation mode — how to deliver
 
@@ -207,6 +212,9 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
 - [references/export-from-your-app.md](references/export-from-your-app.md) — add
   an "Open in framejs" export to an existing web app, CLI, notebook or generated
   HTML page (`POST https://framejs.io/api/frame`).
+- [references/website-integration.md](references/website-integration.md) —
+  render a frame's code directly in an existing web page (blog post, docs page)
+  with no iframe or editor: the minimal HTML runner and its rules.
 - `scripts/framejs.mjs` — Node helper: `create` (stdin JS → framejs.app frame),
   `fetch <id>`, `upload <path>`. Origins: `FRAMEJS_APP_ORIGIN` /
   `FRAMEJS_IO_ORIGIN` (auto-loaded from a nearby `.env` in local dev), or
