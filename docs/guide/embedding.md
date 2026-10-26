@@ -32,3 +32,41 @@ For **short URLs** (`/j/...` from [short URLs](./short-urls)), the server inject
 ::: tip
 Use [short URLs](./short-urls) if the full URL is too long for your platform's embed input.
 :::
+
+## Running a frame in-page (without an iframe)
+
+An iframe can't tell the page around it how tall its content is, so a long,
+document-shaped frame either gets clipped or scrolls inside its own little
+window. Some embedders work around that by running the frame's module **in their
+own page**: they fetch the frame from `/api/j/<id>`, run the ES module against a
+`root` div they own, and provide the runtime globals (`root`, `setOutput(s)`,
+`log*`, `getJson`/`setJson`, `onInputs`, `onResize`, …). The frame's DOM is then
+the page's DOM, so it just flows.
+
+If the frame links [`frame.css`](https://framejs.app/frame.css), that stylesheet
+was written for a document the frame owns (`html, body { height: 100% }`,
+`body { background-color: var(--paper) }`). Re-anchored onto your host element,
+those rules would style the box *your page* gave the frame. The contract for an
+in-page embedder (also spelled out in the `EMBEDDING` section of `frame.css`'s
+header comment):
+
+- **Keep** the `:root` custom-property blocks, re-anchored to your host (for
+  example with `@scope (#host)` and `:root`/`html`/`body` → `:scope`). They are
+  the design system.
+- **Drop** `background*` and the box properties (`height`, `width`, `overflow`,
+  `position`, inset) from the `html`/`body` rules. `.frame` carries the frame's
+  own ground; your page owns the box.
+- **Set `data-theme="light"` or `"dark"` on your host** to match your page. The
+  dark palette keys off `:root:not([data-theme="light"])`, which also matches a
+  host with no `data-theme`, so without it the frame follows the *viewer's OS*
+  while your page follows *you*.
+
+A frame that wants a ground of its own in both worlds should put its content in
+a `<div class="frame">` (the shell `frame.css` documents); a full-bleed frame
+(a canvas filling `root`) sits on whatever is behind it.
+
+The test suite pins this contract from both sides —
+`test/tests/frame-css-embedding.spec.ts` checks that frames still render the same
+on framejs.io (hash URL, short URL, inside an iframe, with the `css` param) and
+that an embedder following the rules above gets the page's box, the page's
+ground and the host's theme.
