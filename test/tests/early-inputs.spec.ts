@@ -22,7 +22,7 @@ import { expect, type Frame, type Page, test } from "@playwright/test";
 // serves a deliberately slow `modules` script to hold the frame's code back.
 // ---------------------------------------------------------------------------
 
-const METAPAGE_LIB = "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.14";
+const METAPAGE_LIB = "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.15";
 const SLOW_MODULE_DELAY_MS = 3000;
 
 let server: Server;

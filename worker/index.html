@@ -1097,7 +1097,7 @@
       isIframe,
       Metaframe,
       Metapage,
-    } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.14";
+    } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.15";
 
     // In short URL mode, wait for the async hash-params fetch to complete
     // so window.__SHORT_URL_HASH_PARAMS is populated before any code reads it.
@@ -2720,7 +2720,12 @@
       drainingInputs = true;
       try {
         while (inputsConsumer && pendingInputs.length > 0) {
-          await deliverInputs(inputsConsumer, pendingInputs.shift());
+          try {
+            await deliverInputs(inputsConsumer, pendingInputs.shift());
+          } catch (err) {
+            // One failed update must not stall every update after it
+            console.error("Error delivering inputs", err);
+          }
         }
       } finally {
         drainingInputs = false;
