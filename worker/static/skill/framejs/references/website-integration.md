@@ -46,7 +46,9 @@ Copy it verbatim; change only the last line (where the frame comes from) and the
 async function runFrame(frame, root) {
   if (typeof frame === "string") {
     const res = await fetch(frame);
-    if (!res.ok) throw new Error(`framejs: could not load ${frame} (HTTP ${res.status})`);
+    if (!res.ok) {
+      throw new Error(`framejs: could not load ${frame} (HTTP ${res.status})`);
+    }
     frame = await res.json();
   }
   if (typeof frame.js !== "string") throw new Error("framejs: frame has no js");

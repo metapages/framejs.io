@@ -1,7 +1,6 @@
 # Website Integration
 
-Put a framejs frame **straight into your own page** — a blog post, a docs page,
-a landing page — as native content: no iframe, no editor, no framejs.io page
+Put a framejs frame **straight into your own page** (blogs, docs, landing page) as native content: no iframe, no editor, no framejs.io page
 loaded. The frame's code runs in your page, inside a `<div>` you place and
 style, with the frame's inputs.
 
@@ -10,8 +9,8 @@ simulation or tool at [framejs.app](https://framejs.app) (by hand or with AI),
 then drop it into a post with one copy-paste snippet of HTML.
 
 ::: tip Just want it on the page?
-An `<iframe>` of the `/j/<uuid>` URL is the simplest embed and works anywhere —
-see [Embedding](../guide/embedding). Use this page when the frame should read as
+An `<iframe>` of the `/j/<uuid>` URL is the simplest embed and works anywhere (
+see [Embedding](../guide/embedding)). Use this page when the frame should read as
 part of the page: your fonts and styles, your page's scrolling, no iframe border
 or fixed-height box.
 :::

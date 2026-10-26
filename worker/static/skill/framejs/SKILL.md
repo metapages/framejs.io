@@ -62,8 +62,8 @@ In both modes the JavaScript you write follows the same rules — read
    framejs". You edit the user's codebase so IT builds and POSTs frames; the
    delivery-mode rules below are for your own frames and do not apply. Follow
    [references/export-from-your-app.md](references/export-from-your-app.md).
-5. **Put a frame directly into the user's website** — "add this frame to my
-   blog post", "render this framejs on my page without an iframe". You edit the
+5. **Put a frame directly into the user's website** — "add this frame to my blog
+   post", "render this framejs on my page without an iframe". You edit the
    user's site so a page runs the frame's code itself; the delivery-mode rules
    below do not apply. Follow
    [references/website-integration.md](references/website-integration.md).
