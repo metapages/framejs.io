@@ -44,13 +44,21 @@ Copy it verbatim; change only the last line (where the frame comes from) and the
 // Run a framejs frame ({ js, inputs, modules, ... }) in `root`: no iframe,
 // no editor. `frame` is the frame object, or a URL to its JSON.
 async function runFrame(frame, root) {
-  if (typeof frame === "string") frame = await (await fetch(frame)).json();
+  if (typeof frame === "string") {
+    const res = await fetch(frame);
+    if (!res.ok) throw new Error(`framejs: could not load ${frame} (HTTP ${res.status})`);
+    frame = await res.json();
+  }
+  if (typeof frame.js !== "string") throw new Error("framejs: frame has no js");
 
   // Stylesheets and scripts the code expects to be loaded before it runs
   for (const entry of frame.modules ?? []) {
     const url = entry.trim();
     if (!/^https?:\/\//.test(url)) {
-      console.warn("framejs: copy this into the page <head> yourself:", url);
+      console.warn(
+        "framejs: skipped, add it to the page <head> yourself:",
+        url,
+      );
       continue;
     }
     await new Promise((resolve, reject) => {
@@ -112,7 +120,7 @@ async function runFrame(frame, root) {
     );
     code.onInputs?.(Object.fromEntries(resolved));
   };
-  await setInputs(frame.inputs);
+  if (frame.inputs) await setInputs(frame.inputs);
 
   if (code.onResize) {
     new ResizeObserver(([entry]) =>
@@ -122,7 +130,11 @@ async function runFrame(frame, root) {
   return { setInputs };
 }
 
-runFrame("https://framejs.io/j/<uuid>.json", document.getElementById("root"));
+const root = document.getElementById("root");
+runFrame("https://framejs.io/j/<uuid>.json", root).catch((error) => {
+  console.error(error);
+  root.textContent = error.message;
+});
 </script>
 ```
 
@@ -164,6 +176,15 @@ the returned `setInputs(...)`.
 - **Import maps** (a `modules` entry starting with `{`) cannot be added after
   the page has started loading modules: copy the JSON into a
   `<script type="importmap">` in the page head, before any module script.
+  `modules` entries written as tag strings (`<link …>`, `<script …>`) are
+  skipped too: add those tags to the page head as they are.
+- **Not supported:** the legacy `handleResize` export (use `onResize`), and
+  input refs other than `{ "type": "url" }` (e.g. `base64`, `key`, or
+  `data:text/x-uri,…` data URLs), which reach `onInputs` unchanged.
+- **Errors:** a failed frame fetch (wrong uuid, private or deleted frame)
+  rejects with the URL and HTTP status; the template's last line logs it and
+  writes it into the `<div>`. Keep that `.catch` so a broken embed explains
+  itself.
 - **Content-Security-Policy:** the code is imported from a `blob:` URL, and the
   frame's own CDN imports need their hosts allowed. If the site sets a CSP, add
   `blob:` and those hosts to `script-src`.

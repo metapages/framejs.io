@@ -1,11 +1,11 @@
 ---
 name: framejs
-description: "Create, modify, and share interactive browser apps and visualizations from JavaScript via framejs.io. The app is encoded into a shareable URL that runs instantly — no build, server, or account. Use when the user wants a chart, graph, plot, dashboard, animation, simulation, creative coding sketch, data visualization, or small interactive web tool; when they reference a framejs.io short URL (/j/<sha256>) to modify; when they want to visualize a local data file (CSV, JSON, image, etc.); or when they want their own app, site, CLI or notebook to export or share its view as a framejs link (an Open in framejs button)."
+description: "Create, modify, and share interactive browser apps and visualizations from JavaScript via framejs.io. The app is encoded into a shareable URL that runs instantly — no build, server, or account. Use when the user wants a chart, graph, plot, dashboard, animation, simulation, creative coding sketch, data visualization, or small interactive web tool; when they reference a framejs.io short URL (/j/<sha256>) to modify; when they want to visualize a local data file (CSV, JSON, image, etc.); or when they want their own app, site, CLI or notebook to export or share its view as a framejs link (an Open in framejs button); or when they want to render a framejs frame directly in their own website or blog page without an iframe."
 license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.12"
+  version: "1.13"
 ---
 
 # framejs

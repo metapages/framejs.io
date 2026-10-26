@@ -58,13 +58,21 @@ Paste it where the frame should appear and put your frame's id in the last line:
 // Run a framejs frame ({ js, inputs, modules, ... }) in `root`: no iframe,
 // no editor. `frame` is the frame object, or a URL to its JSON.
 async function runFrame(frame, root) {
-  if (typeof frame === "string") frame = await (await fetch(frame)).json();
+  if (typeof frame === "string") {
+    const res = await fetch(frame);
+    if (!res.ok) throw new Error(`framejs: could not load ${frame} (HTTP ${res.status})`);
+    frame = await res.json();
+  }
+  if (typeof frame.js !== "string") throw new Error("framejs: frame has no js");
 
   // Stylesheets and scripts the code expects to be loaded before it runs
   for (const entry of frame.modules ?? []) {
     const url = entry.trim();
     if (!/^https?:\/\//.test(url)) {
-      console.warn("framejs: copy this into the page <head> yourself:", url);
+      console.warn(
+        "framejs: skipped, add it to the page <head> yourself:",
+        url,
+      );
       continue;
     }
     await new Promise((resolve, reject) => {
@@ -126,7 +134,7 @@ async function runFrame(frame, root) {
     );
     code.onInputs?.(Object.fromEntries(resolved));
   };
-  await setInputs(frame.inputs);
+  if (frame.inputs) await setInputs(frame.inputs);
 
   if (code.onResize) {
     new ResizeObserver(([entry]) =>
@@ -136,7 +144,11 @@ async function runFrame(frame, root) {
   return { setInputs };
 }
 
-runFrame("https://framejs.io/j/<uuid>.json", document.getElementById("root"));
+const root = document.getElementById("root");
+runFrame("https://framejs.io/j/<uuid>.json", root).catch((error) => {
+  console.error(error);
+  root.textContent = error.message;
+});
 </script>
 ```
 
@@ -194,8 +206,13 @@ root.addEventListener("framejs-outputs", (e) => console.log(e.detail));
 - **CSP.** If your site sets a Content-Security-Policy, allow `blob:` and the
   frame's CDN hosts in `script-src`.
 - **Import maps** in a frame's `modules` have to be copied into a
-  `<script type="importmap">` in your page's `<head>`; the snippet warns about
-  them in the console.
+  `<script type="importmap">` in your page's `<head>`, and so do modules written
+  as `<link …>` / `<script …>` tags; the snippet skips them with a console
+  warning.
+- **If the frame can't load** (wrong id, private or deleted frame), the error —
+  with the URL and HTTP status — is written into the `<div>` and the console.
+- **Not covered:** the legacy `handleResize` export (use `onResize`), and input
+  references other than `{ "type": "url" }`, which reach `onInputs` as-is.
 
 ## Reference
 
