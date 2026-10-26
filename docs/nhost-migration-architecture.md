@@ -23,7 +23,7 @@
   per-user data, no sessions, no login, no database tables.
 - The **worker** (Deno/Hono, deployed to Deno Deploy) is a thin layer: it serves
   one `index.html`, serves the React `editor` and `docs` as static files, proxies
-  uploads/short-URLs to **S3** (Cloudflare R2 in prod, MinIO locally), and fires
+  uploads/short-URLs to **S3** (Cloudflare R2 in prod, SeaweedFS locally), and fires
   fire-and-forget analytics to Umami. **No auth middleware exists anywhere.**
 - The only server-side persistence is **S3 objects keyed by content hash**:
   - `j/<sha256>` → a saved "short URL" (the hash-param blob of one app).
@@ -50,8 +50,8 @@
 | **docs** | VitePress | `docs/` | Static documentation site, served at `/docs` | Built into `worker`'s static dir |
 
 Supporting infra (local dev via `docker-compose.yml`): **traefik** (TLS/routing),
-**minio** + **minio-init** (local S3, bucket `uploads`, 7-day expiry). Production
-swaps MinIO for **Cloudflare R2** and routes through Deno Deploy.
+**seaweedfs** + **seaweedfs-init** (local S3, bucket `uploads`, 7-day expiry). Production
+swaps SeaweedFS for **Cloudflare R2** and routes through Deno Deploy.
 
 There is **no database container, no auth service, no user store** anywhere in the
 stack today.
@@ -216,7 +216,7 @@ no-op if env unset. **No PII, no user identity** — purely aggregate.
             └───────┬───────────────────────────┬─────────────────────┬──────┘
                     │ PutObject/GetObject        │ presigned PUT/GET   │ /api/send
                     ▼                            ▼                     ▼
-            S3 (R2 / MinIO):  j/<sha256> = app blob ,  f/<id> = file        Umami
+            S3 (R2/SeaweedFS): j/<sha256> = app blob ,  f/<id> = file       Umami
             (content-addressed, OWNERLESS, public-read)
 ```
 
@@ -438,5 +438,5 @@ runtime via forwarded token) requests an upload, gets a file id, stores a
 - `editor/src/App.tsx`, `editor/src/index.tsx` — the React editor (iframe app).
 - `editor/src/hooks/useMetaframeUrl.ts`, `useShortUrlMode.ts` — hash<->editor sync.
 - `editor/src/store.ts` — Zustand (ephemeral UI state only).
-- `docker-compose.yml` — local stack (worker, editor, docs, traefik, minio).
+- `docker-compose.yml` — local stack (worker, editor, docs, traefik, seaweedfs).
 - `justfile` — `just dev`, `just check`, `just deploy` (Deno Deploy).
