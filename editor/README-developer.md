@@ -67,11 +67,11 @@ That's it. Commands are self-documenting: just type `just`
 
 ## File Upload (Cloudflare R2 / S3-compatible storage)
 
-Users can drag-drop files onto the code editor to upload them to cloud storage and reference them in their code. Files are ephemeral with a 7-day TTL. Local development uses MinIO (started automatically via docker-compose). Production uses Cloudflare R2.
+Users can drag-drop files onto the code editor to upload them to cloud storage and reference them in their code. Files are ephemeral with a 7-day TTL. Local development uses [SeaweedFS](https://github.com/seaweedfs/seaweedfs) (started automatically via docker-compose). Production uses Cloudflare R2.
 
 ### Local development
 
-MinIO starts automatically with `just dev`. The MinIO console is available at `http://localhost:9001` (login: minioadmin/minioadmin). Uploaded files are accessible via `https://<APP_FQDN>/s3/uploads/...` (proxied through traefik).
+SeaweedFS starts automatically with `just dev`. The S3 API is at `http://localhost:8333` (access key / secret: `seaweedadmin`/`seaweedadmin`, see `.seaweedfs/s3.json`) and the filer UI, for browsing the `uploads` bucket under `/buckets/uploads`, at `http://localhost:8888`. Uploaded files are publicly readable via `https://s3.localhost:<APP_PORT>/uploads/f/...` (proxied through traefik).
 
 ### Production setup (Cloudflare R2)
 
