@@ -500,7 +500,14 @@ async function computeEtag(body: string): Promise<string> {
 
 // Inject the configured framejs.app origin so the client can link/navigate to the
 // right host in dev vs prod (the client reads window.__FRAMEJS_APP_ORIGIN, falling
-// back to the prod default). The editor iframe reads it from window.parent.
+// back to the prod default). The editor iframe reads it from window.parent, and
+// so does the landing page module (worker/static/landing.js), which is served
+// as a plain static file and so is never rewritten.
+//
+// This is the ONLY rewriting of the shell. It used to also replaceAll
+// "https://framejs.app" in the body, for the landing markup that was inline
+// here; that markup is its own module now, and a blanket string replacement
+// over the whole runtime is not something to keep around on spec.
 const buildIndexHtml = async (): Promise<string> => {
   const indexHtml = await Deno.readTextFile("./index.html");
   return indexHtml.replace(
@@ -508,7 +515,7 @@ const buildIndexHtml = async (): Promise<string> => {
     `<script id="framejs-app-origin-init">window.__FRAMEJS_APP_ORIGIN=${
       JSON.stringify(FRAMEJS_APP_ORIGIN)
     }</script>\n</head>`,
-  ).replaceAll("https://framejs.app", FRAMEJS_APP_ORIGIN);
+  );
 };
 
 const serveIndex = async (c?: Context): Promise<Response> => {
