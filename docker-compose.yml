@@ -130,6 +130,11 @@ services:
       test: curl --fail http://localhost:4440 || exit 1
       interval: 5s
       timeout: 1s
+      # A cold start (fresh node_modules volume, empty deno cache) runs npm
+      # install and downloads before Vite listens. Without a grace period the
+      # default 3 retries mark it unhealthy within ~15s and `up` aborts, since
+      # the worker depends on it being healthy.
+      start_period: 600s
     environment:
       - "DENO_DIR=/deno"
       - "DENO_INSTALL_ROOT=/deno"
