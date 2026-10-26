@@ -20,7 +20,7 @@
 // service-worker update check — and that fetch is made where neither
 // page/context.route nor CDP Fetch interception can reach it. So this spec
 // needs the local dev stack, as `just _integration-test` runs it.
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -56,6 +56,18 @@ const SW_AFTER_DEPLOY = `// editor build: after deploy
 ${ACTIVATE_NOW}
 `;
 
+// A newer build that takes longer to install than the runtime's 10 s bound
+// (a big precache on a bad network). Before, the runtime gave up waiting at
+// 10 s and loaded the previous build; now it must keep the editor back until
+// this one is active. Then it is the current build: no fetch handler.
+const SW_SLOW_INSTALL = `// editor build: slow install
+self.addEventListener("install", (e) => {
+  self.skipWaiting();
+  e.waitUntil(new Promise((resolve) => setTimeout(resolve, 15000)));
+});
+self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+`;
+
 test.afterEach(async ({ page }) => {
   await page
     .evaluate(async () => {
@@ -67,10 +79,9 @@ test.afterEach(async ({ page }) => {
   fs.rmSync(SW_FILE, { force: true });
 });
 
-test("the first editor open after an editor deploy shows the code", async ({
-  page,
-}) => {
-  test.setTimeout(90_000);
+// An earlier visit installed the previous editor build's worker, and it is
+// active for /editor/ on this page's origin.
+async function installPreviousEditorBuild(page: Page) {
   fs.writeFileSync(SW_FILE, SW_BEFORE_DEPLOY);
 
   await page.goto(`/#?js=${JS_PARAM}`);
@@ -79,7 +90,6 @@ test("the first editor open after an editor deploy shows the code", async ({
     timeout: 20_000,
   });
 
-  // An earlier visit installed the editor's worker...
   await page.evaluate(async (swName) => {
     const reg = await navigator.serviceWorker.register(`/editor/${swName}`, {
       scope: "/editor/",
@@ -93,20 +103,66 @@ test("the first editor open after an editor deploy shows the code", async ({
       );
     }
   }, SW_NAME);
+}
 
-  // ...and since then a new editor has been deployed.
-  fs.writeFileSync(SW_FILE, SW_AFTER_DEPLOY);
-
-  await page.locator("#menu-button").click();
+// Open the editor once, and require the CURRENT editor with the frame's code:
+// never the previous build's page.
+async function expectFirstOpenShowsCode(
+  page: Page,
+  { alreadyClicked = false } = {},
+) {
+  if (!alreadyClicked) await page.locator("#menu-button").click();
 
   const editor = page.frameLocator("#iframe-container iframe");
-  // The real editor, not the cached previous build...
   await expect(editor.locator('[aria-label="save frame"]')).toBeVisible({
     timeout: 30_000,
   });
   await expect(editor.locator("#stale-editor")).toHaveCount(0);
-  // ...with the frame's code in its buffer.
   await expect(
     editor.frameLocator("iframe").locator(".view-lines").first(),
   ).toContainText("stale-sw-115", { timeout: 30_000 });
+}
+
+test("the first editor open after an editor deploy shows the code", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await installPreviousEditorBuild(page);
+
+  // Since then a new editor has been deployed.
+  fs.writeFileSync(SW_FILE, SW_AFTER_DEPLOY);
+
+  await expectFirstOpenShowsCode(page);
+});
+
+test("a new editor worker slower than the 10 s bound delays the editor, never falls back to the old build", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await installPreviousEditorBuild(page);
+
+  fs.writeFileSync(SW_FILE, SW_SLOW_INSTALL);
+
+  await page.locator("#menu-button").click();
+  // While it waits, the pane says so — and the old build never loads.
+  await expect(page.locator("#editor-loading")).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.locator("#iframe-container")).toHaveCount(0);
+  await page.waitForTimeout(11_000);
+  await expect(page.locator("#iframe-container")).toHaveCount(0);
+
+  await expectFirstOpenShowsCode(page, { alreadyClicked: true });
+});
+
+test("when the editor worker cannot be checked, the cached build is bypassed", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await installPreviousEditorBuild(page);
+
+  // update() rejects: the worker script 404s.
+  fs.rmSync(SW_FILE, { force: true });
+
+  await expectFirstOpenShowsCode(page);
 });

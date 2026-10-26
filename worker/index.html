@@ -3152,6 +3152,7 @@
           previousContainer,
         );
       }
+      document.getElementById("editor-loading")?.remove();
       refreshUpdateSvgButton();
 
       if (!window.__SHORT_URL_ID) {
@@ -3164,7 +3165,7 @@
       if (resizeHandle) resizeHandle.style.display = "none";
     };
 
-    // Bring the editor's service worker up to date before loading the editor.
+    // Make sure the editor that loads is the build this runtime expects.
     //
     // This page always comes from the network (worker/sw.js is network-first
     // for navigations), but /editor/ is served by its own precaching service
@@ -3177,49 +3178,100 @@
     // the next open (served by the now-updated worker) shows it.
     // metapages/framejs.io#115, test/tests/editor-stale-service-worker.spec.ts
     //
-    // Bounded, because offline or a slow network must never stop the editor
-    // opening: on timeout or error we mount whatever the worker serves.
+    // The editor iframe navigates only once the cached build is PROVEN current;
+    // there is no "load whatever is cached" fallback. Proven current means one
+    // of:
+    //   - there is no editor worker: the editor comes from the network;
+    //   - update() found no new worker: the deployed sw.js is byte-identical to
+    //     the active one, and sw.js embeds the precache manifest (a revision
+    //     per file), so any editor change is a new sw.js;
+    //   - the new worker activated (it calls skipWaiting/clientsClaim);
+    //   - the editor worker was unregistered: an unregistered scope no longer
+    //     matches navigations, so the network answers. The editor page
+    //     registers its worker again itself (registerSW.js).
+    // update() failing or the new worker going redundant unregisters at once.
+    // A new worker still installing after EDITOR_SW_UPDATE_TIMEOUT_MS also
+    // gets an unregister — but service-worker jobs run one at a time per
+    // scope, so that unregister cannot complete before the install does
+    // either way. A slow install therefore means a slower editor, never an
+    // older one; the pane says so while it waits, and the browser itself
+    // bounds how long an install may run.
+    //
+    // Offline this ends in the network too, i.e. no editor. Nothing is lost:
+    // the code buffer is a cross-origin iframe (editor.mtfm.io) that no
+    // framejs.io worker caches, so the cached editor could not edit offline.
     const EDITOR_SW_UPDATE_TIMEOUT_MS = 10000;
-    const refreshEditorServiceWorker = async () => {
+    const ensureCurrentEditorServiceWorker = async () => {
       if (!("serviceWorker" in navigator)) return;
+      const editorScope = new URL("/editor/", window.location.origin).href;
+      const registration = await navigator.serviceWorker.getRegistration(
+        editorScope,
+      );
+      // getRegistration returns the longest MATCHING scope, so with no editor
+      // worker it is this page's own (/) worker — not ours to touch. No editor
+      // worker means the editor comes from the network anyway.
+      if (!registration || registration.scope !== editorScope) return;
+
+      const isCurrent = async () => {
+        await registration.update();
+        const next = registration.installing || registration.waiting;
+        if (!next) return true;
+        return new Promise((resolve) => {
+          const check = () => {
+            if (next.state === "activated" || next.state === "redundant") {
+              next.removeEventListener("statechange", check);
+              resolve(next.state === "activated");
+            }
+          };
+          next.addEventListener("statechange", check);
+          check();
+        });
+      };
+
+      // Shown only if the check is slow enough to notice.
+      const status = document.createElement("div");
+      status.id = "editor-loading";
+      status.textContent = "Loading the latest editor…";
+      status.style.cssText =
+        "padding: 1em; font: 14px system-ui, sans-serif; color: #555;";
+      const showStatus = setTimeout(
+        () => document.getElementById("editor-root").append(status),
+        500,
+      );
+
+      let unregistering;
+      const unregister = (reason) => {
+        if (!unregistering) {
+          console.warn(
+            `framejs: ${reason}; unregistering the editor service worker so ` +
+              "the editor loads from the network",
+          );
+          unregistering = registration.unregister();
+        }
+        return unregistering;
+      };
+      let timer;
       try {
-        const editorScope = new URL("/editor/", window.location.origin).href;
-        const registration = await navigator.serviceWorker.getRegistration(
-          editorScope,
-        );
-        // getRegistration returns the longest MATCHING scope, so with no editor
-        // worker it is this page's own (/) worker — not ours to touch. No editor
-        // worker means the editor comes from the network anyway.
-        if (!registration || registration.scope !== editorScope) return;
-        const updated = (async () => {
-          await registration.update();
-          const next = registration.installing || registration.waiting;
-          if (!next) return;
-          // The editor worker calls skipWaiting(), so a new one activates on
-          // its own once installed.
-          await new Promise((resolve) => {
-            const check = () => {
-              if (next.state === "activated" || next.state === "redundant") {
-                next.removeEventListener("statechange", check);
-                resolve();
-              }
-            };
-            next.addEventListener("statechange", check);
-            check();
-          });
-        })();
-        let timer;
-        await Promise.race([
-          updated,
-          new Promise((resolve) => {
-            timer = setTimeout(resolve, EDITOR_SW_UPDATE_TIMEOUT_MS);
-          }),
-        ]).finally(() => clearTimeout(timer));
-      } catch (err) {
-        console.warn(
-          "framejs: could not refresh the editor service worker",
-          err,
-        );
+        await new Promise((resolve, reject) => {
+          const viaUnregister = (reason) =>
+            unregister(reason).then(resolve, reject);
+          isCurrent().then(
+            (current) =>
+              current
+                ? resolve()
+                : viaUnregister("the new editor service worker failed"),
+            (err) =>
+              viaUnregister(`could not update the editor service worker (${err})`),
+          );
+          timer = setTimeout(
+            () => viaUnregister("the new editor service worker is slow to install"),
+            EDITOR_SW_UPDATE_TIMEOUT_MS,
+          );
+        });
+      } finally {
+        clearTimeout(timer);
+        clearTimeout(showStatus);
+        status.remove();
       }
     };
 
@@ -3230,6 +3282,7 @@
     // the host's iframe somewhere else instead of opening the editor.
     const mountEditor = async () => {
       if (document.getElementById("iframe-container")) return;
+      document.getElementById("editor-loading")?.remove();
       setHashParamInWindow("edit", true);
 
       document.getElementById("menu-button").style.display = "none";
@@ -3242,6 +3295,28 @@
 
       document.getElementById("editor-root").className =
         "editor-container-shown borderDashedBlue";
+
+      // Before the editor iframe exists — whichever worker answers its
+      // navigation is the build that loads — and before the editor url is
+      // built from the hash, which may change while this waits.
+      try {
+        await ensureCurrentEditorServiceWorker();
+      } catch (err) {
+        // Only reachable if the browser refuses to unregister the worker. Then
+        // the cached editor is the only one this page can load and it is not
+        // known to be current, so say so instead of opening it.
+        console.error("framejs: could not ensure a current editor", err);
+        const message = document.createElement("div");
+        message.id = "editor-loading";
+        message.textContent =
+          "Could not load the latest editor. Reload the page to try again.";
+        message.style.cssText =
+          "padding: 1em; font: 14px system-ui, sans-serif; color: #a33;";
+        document.getElementById("editor-root").append(message);
+        // The menu button reopens (and so retries) from here.
+        document.getElementById("menu-button").style.display = "";
+        return;
+      }
 
       // `js` is REMOVED from the editor's url. Every other param rides along;
       // the source travels over postMessage instead (below).
@@ -3269,10 +3344,6 @@
         undefined,
       );
       metapageDef.metaframes.editor.url = editorUrl.href;
-
-      // Before the editor iframe exists: whichever worker is active when it
-      // navigates is the build that answers.
-      await refreshEditorServiceWorker();
 
       const mp = await globalThis.metapage.Metapage.from(metapageDef);
       globalThis.metapageEditor = mp;
