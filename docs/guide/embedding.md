@@ -47,23 +47,23 @@ If the frame links [`frame.css`](https://framejs.app/frame.css), that stylesheet
 was written for a document the frame owns (`html, body { height: 100% }`,
 `body { background-color: var(--paper) }`). Re-anchored onto your host element,
 those rules would style the box *your page* gave the frame. The contract for an
-in-page embedder (also spelled out in the `EMBEDDING` section of `frame.css`'s
-header comment):
+in-page embedder:
 
 - **Keep** the `:root` custom-property blocks, re-anchored to your host (for
   example with `@scope (#host)` and `:root`/`html`/`body` → `:scope`). They are
   the design system.
 - **Drop** `background*` and the box properties (`height`, `width`, `overflow`,
-  `position`, inset) from the `html`/`body` rules. `.frame` carries the frame's
-  own ground; your page owns the box.
+  `position`, inset) from the `html`/`body` rules. Your page owns the box and
+  the ground behind the frame.
 - **Set `data-theme="light"` or `"dark"` on your host** to match your page. The
   dark palette keys off `:root:not([data-theme="light"])`, which also matches a
   host with no `data-theme`, so without it the frame follows the *viewer's OS*
   while your page follows *you*.
 
-A frame that wants a ground of its own in both worlds should put its content in
-a `<div class="frame">` (the shell `frame.css` documents); a full-bleed frame
-(a canvas filling `root`) sits on whatever is behind it.
+`.frame` (the shell `frame.css` documents) is where a frame's own ground
+belongs, but `frame.css` doesn't paint it yet: in-page, with the `body` ground
+dropped, a frame sits on your page's background — `.frame`-shaped or full-bleed
+(a canvas filling `root`) alike.
 
 The test suite pins this contract from both sides —
 `test/tests/frame-css-embedding.spec.ts` checks that frames still render the same

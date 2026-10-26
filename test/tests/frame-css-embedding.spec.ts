@@ -10,9 +10,9 @@ import {
 // look like framejs. It is authored for a document the frame owns
 // (`html, body { height: 100% }`, `body { background: var(--paper) }`), yet
 // frames are also run IN-PAGE by third-party embedders (a blog runs the frame's
-// module against a div it owns, so the app's height just flows). frame.css's
-// EMBEDDING contract says what such an embedder keeps and drops; this suite
-// pins both sides of it:
+// module against a div it owns, so the app's height just flows). The in-page
+// embedding contract (docs/guide/embedding.md) says what such an embedder keeps
+// and drops; this suite pins both sides of it:
 //
 //   - a change made for in-page embedding must not alter how frames already
 //     render on framejs.io (paths 1–4: top-level hash URL, short URL, inside an
@@ -37,7 +37,10 @@ const FRAME_CSS_URL = process.env.FRAME_CSS_URL ??
   `${process.env.FRAMEJS_APP_ORIGIN ?? "https://framejs.app"}/frame.css`;
 const FRAME_CSS_FILE = process.env.FRAME_CSS_FILE;
 
-// frame.css palette tokens, as computed colours.
+// frame.css palette tokens, as computed colours. Pinned literally rather than
+// read from frame.css, so "body's ground is unchanged" means unchanged: a
+// palette retune in framejs-nhost (frame.css lives there) breaks this suite on
+// purpose — update these values in the same breath.
 const PALETTE = {
   light: { paper: "rgb(244, 243, 239)", ink: "rgb(17, 17, 16)" },
   dark: { paper: "rgb(19, 19, 17)", ink: "rgb(238, 236, 229)" },
@@ -97,22 +100,47 @@ let frameCssText = "";
 // Whether the frame.css under test carries the `.frame` ground (the additive
 // change #127 asks of frame.css). Asserted only when present, so this suite
 // runs green against the stylesheet deployed today and starts enforcing the
-// guarantee the moment it ships.
+// guarantee the moment it ships. Once it has shipped, delete this flag and
+// assert unconditionally, so a later removal fails instead of switching the
+// check off.
 let frameCarriesGround = false;
 const shortIds = new Map<FixtureName, string>();
 
-test.beforeAll(async ({ playwright }) => {
+test.beforeAll(async ({ browser, playwright }) => {
   if (FRAME_CSS_FILE) {
     frameCssText = readFileSync(FRAME_CSS_FILE, "utf8");
   } else {
+    const unreachable = `could not fetch frame.css from ${FRAME_CSS_URL}. ` +
+      "Set FRAME_CSS_URL to a reachable frame.css, or FRAME_CSS_FILE to a " +
+      "local copy (FRAMEJS_APP_ORIGIN, e.g. from .env, also picks the origin)";
     const ctx = await playwright.request.newContext({ ignoreHTTPSErrors: true });
-    const res = await ctx.get(FRAME_CSS_URL);
-    expect(res.ok(), `GET ${FRAME_CSS_URL}`).toBeTruthy();
-    frameCssText = await res.text();
-    await ctx.dispose();
+    try {
+      const res = await ctx.get(FRAME_CSS_URL).catch((err) => {
+        throw new Error(`${unreachable}: ${err}`);
+      });
+      expect(res.ok(), `${unreachable}: HTTP ${res.status()}`).toBeTruthy();
+      frameCssText = await res.text();
+    } finally {
+      await ctx.dispose();
+    }
   }
-  frameCarriesGround = /(^|\})\s*\.frame\s*\{[^}]*\bbackground(-color)?\s*:/m
-    .test(frameCssText);
+  // Ask the browser, not a regex: whatever the rule's spelling (grouped
+  // selector, shorthand, @layer), does a `.frame` element get painted?
+  const page = await browser.newPage();
+  try {
+    frameCarriesGround = await page.evaluate((css) => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(css);
+      document.adoptedStyleSheets = [sheet];
+      const el = document.createElement("div");
+      el.className = "frame";
+      document.body.appendChild(el);
+      const bg = getComputedStyle(el).backgroundColor;
+      return bg !== "transparent" && !/rgba\(.*,\s*0\)$/.test(bg);
+    }, frameCssText);
+  } finally {
+    await page.close();
+  }
 });
 
 test.beforeEach(async ({ page }) => {
@@ -235,7 +263,7 @@ for (const scheme of ["light", "dark"] as Scheme[]) {
 
 // --- Path 5: in-page, by an embedder following the EMBEDDING contract -----
 
-// The embedder transform from frame.css's EMBEDDING section, as an embedder
+// The embedder transform from the in-page contract, as an embedder
 // would write it: keep everything, re-anchored to the host with @scope
 // (`:root`/`html`/`body` → `:scope`), but drop the ground and the box from the
 // rules that targeted `html`/`body` — `.frame` carries the ground, the page
@@ -469,6 +497,11 @@ function computedState(hostSelector?: string) {
     if (!n.textContent?.trim() || !el || !el.getClientRects().length) continue;
     const color = getComputedStyle(el).color;
     const ground = groundOf(el);
+    if (ground === "none") {
+      // Nothing paints behind it: the ground this suite exists to guard is gone.
+      lowContrast.push(`"${n.textContent.trim()}": ${color} on no painted ground`);
+      continue;
+    }
     const ratio = contrast(color, ground);
     if (ratio < 3) {
       lowContrast.push(
