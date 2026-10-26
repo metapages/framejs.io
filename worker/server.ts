@@ -155,7 +155,7 @@ function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
 
 const port: number = parseInt(Deno.env.get("PORT") || "3000");
 
-// S3-compatible storage config (works with Cloudflare R2 and MinIO)
+// S3-compatible storage config (works with Cloudflare R2 and SeaweedFS)
 const S3_ENDPOINT = Deno.env.get("S3_ENDPOINT");
 const S3_PRESIGN_ENDPOINT = Deno.env.get("S3_PRESIGN_ENDPOINT");
 const S3_ACCESS_KEY_ID = Deno.env.get("S3_ACCESS_KEY_ID");
@@ -206,7 +206,7 @@ const s3Mod = (): Promise<
 > => (_s3Mod ??= import("npm:@aws-sdk/client-s3"));
 
 // Server-side S3 client for actual S3 operations (PutObject, GetObject).
-// Uses the internal Docker network endpoint (e.g. http://minio:9000).
+// Uses the internal Docker network endpoint (e.g. http://seaweedfs:8333).
 // Constructed lazily on first use; `null` means S3 is not configured.
 let _s3Client: S3Client | null | undefined;
 async function getS3Client(): Promise<S3Client | null> {
