@@ -1,66 +1,78 @@
 name: metaframe-js
 
 services:
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
-    # Published only for developer convenience (the console on :9001, and poking
-    # at the API directly). Nothing in the stack or the tests needs them: the
-    # worker and minio-init reach minio at http://minio:9000 over the compose
+  # Local S3. `weed mini` runs SeaweedFS's master, volume, filer and S3 gateway
+  # in one process and creates the bucket. Credentials and the anonymous
+  # public-read grant on `uploads` live in .seaweedfs/s3.json.
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.50
+    command:
+      - mini
+      - -dir=/data
+      - -ip=seaweedfs
+      - -bucket=uploads
+      - -s3.config=/etc/seaweedfs/s3.json
+      # SigV4 signs the host the presigned URL was minted for. Behind traefik
+      # SeaweedFS derives the host from X-Forwarded-Host, which for a pr-daemon
+      # preview is the local `localhost` rather than the public s3 host, so name
+      # the browser-facing endpoint explicitly: it is always tried first.
+      - -s3.externalUrl=${S3_PRESIGN_ENDPOINT:-https://s3.localhost:${APP_PORT:-443}}
+      - -webdav=false
+      - -s3.port.iceberg=0
+      - -s3.port.lance=0
+      - -master.telemetry=false
+    # Published only for developer convenience (the filer UI on :8888 to browse
+    # buckets, and poking at the S3 API directly). Nothing in the stack or the
+    # tests needs them: the worker and seaweedfs-init reach it over the compose
     # network, and the browser reaches it through traefik at s3.localhost. So CI
-    # sets both to 0 (ephemeral) — a shared runner may well already have 9000
+    # sets both to 0 (ephemeral) — a shared runner may well already have 8333
     # bound by another stack, and a fixed host port turns that into a failed
     # `up` for a port no test uses.
     ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - "${SEAWEEDFS_S3_PORT:-8333}:8333"
+      - "${SEAWEEDFS_FILER_PORT:-8888}:8888"
     volumes:
-      - minio_data:/data
+      - seaweedfs_data:/data
+      - ./.seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
     healthcheck:
-      test: curl --fail http://localhost:9000/minio/health/live || exit 1
+      test: curl --fail http://localhost:8333/healthz || exit 1
       interval: 5s
       timeout: 1s
     logging:
       driver: ${LOGGING_SERVER:-local}
     labels:
       - traefik.enable=true
-      - traefik.http.routers.minio-s3.tls=true
-      - traefik.http.routers.minio-s3.rule=Host(`s3.localhost`)
-      - traefik.http.services.minio-s3.loadbalancer.server.port=9000
-      - traefik.http.routers.minio-s3.middlewares=minio-cors
-      - traefik.http.middlewares.minio-cors.headers.accesscontrolalloworiginlist=*
-      - traefik.http.middlewares.minio-cors.headers.accesscontrolallowmethods=GET,PUT,POST,DELETE,OPTIONS,HEAD
-      - traefik.http.middlewares.minio-cors.headers.accesscontrolallowheaders=Content-Type,Content-Length,Accept,Authorization,X-Amz-Date,X-Amz-Security-Token,X-Amz-Content-Sha256,X-Amz-User-Agent,x-amz-acl
-      - traefik.http.middlewares.minio-cors.headers.accesscontrolmaxage=86400
-      - traefik.http.middlewares.minio-cors.headers.accesscontrolexposeheaders=ETag,x-amz-request-id
+      - traefik.http.routers.s3.tls=true
+      - traefik.http.routers.s3.rule=Host(`s3.localhost`)
+      - traefik.http.services.s3.loadbalancer.server.port=8333
+      - traefik.http.routers.s3.middlewares=s3-cors
+      - traefik.http.middlewares.s3-cors.headers.accesscontrolalloworiginlist=*
+      - traefik.http.middlewares.s3-cors.headers.accesscontrolallowmethods=GET,PUT,POST,DELETE,OPTIONS,HEAD
+      - traefik.http.middlewares.s3-cors.headers.accesscontrolallowheaders=Content-Type,Content-Length,Accept,Authorization,X-Amz-Date,X-Amz-Security-Token,X-Amz-Content-Sha256,X-Amz-User-Agent,x-amz-acl
+      - traefik.http.middlewares.s3-cors.headers.accesscontrolmaxage=86400
+      - traefik.http.middlewares.s3-cors.headers.accesscontrolexposeheaders=ETag,x-amz-request-id
       # pr-daemon previews (see `pr-daemon-up` in the justfile). The browser
-      # reaches minio at a PUBLIC host (https://<branch>--s3.<domain>), and
+      # reaches S3 at a PUBLIC host (https://<branch>--s3.<domain>), and
       # pr-daemon forwards those requests here with the LOCAL Host header it was
-      # given (localhost). A presigned URL signs the host it was minted for, so
-      # minio must see the public host again or every upload fails with
-      # SignatureDoesNotMatch: this router puts it back. Inert unless
+      # given (localhost): this router catches them. Signatures still verify
+      # because -s3.externalUrl above names the public host. Inert unless
       # S3_PREVIEW_UPSTREAM_HOST is set (`.invalid` never resolves).
-      - traefik.http.routers.minio-s3-preview.tls=true
-      - traefik.http.routers.minio-s3-preview.rule=Host(`${S3_PREVIEW_UPSTREAM_HOST:-s3-preview.invalid}`)
-      - traefik.http.routers.minio-s3-preview.service=minio-s3
-      - traefik.http.routers.minio-s3-preview.middlewares=minio-cors,minio-preview-host
-      - traefik.http.middlewares.minio-preview-host.headers.customrequestheaders.Host=${S3_PUBLIC_FQDN:-s3.localhost}
+      - traefik.http.routers.s3-preview.tls=true
+      - traefik.http.routers.s3-preview.rule=Host(`${S3_PREVIEW_UPSTREAM_HOST:-s3-preview.invalid}`)
+      - traefik.http.routers.s3-preview.service=s3
+      - traefik.http.routers.s3-preview.middlewares=s3-cors
 
-  minio-init:
-    image: minio/mc
+  # One-shot: the 7-day expiry on transient uploads (`f/`). A filer path TTL,
+  # so `j/` and `favicon/` are kept. Idempotent.
+  seaweedfs-init:
+    image: chrislusf/seaweedfs:4.50
     depends_on:
-      minio:
+      seaweedfs:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin;
-      mc mb --ignore-existing local/uploads;
-      mc anonymous set download local/uploads;
-      mc ilm rule add local/uploads --expire-days 7 --prefix 'f/';
-      exit 0;
+      echo 'fs.configure -locationPrefix=/buckets/uploads/f/ -ttl=7d -apply'
+      | weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888
       "
 
   worker:
@@ -69,7 +81,7 @@ services:
     command: deno run --unsafely-ignore-certificate-errors -A --watch ./server.ts
     working_dir: /app/worker
     depends_on:
-      minio-init:
+      seaweedfs-init:
         condition: service_completed_successfully
       # The runtime embeds the editor from /editor/ on this same origin, so a
       # worker that is up before the editor serves its first byte hands the
@@ -88,13 +100,13 @@ services:
       - "PORT=3000"
       - "APP_FQDN=${APP_FQDN:-framejs-io.localhost}"
       - "PATH=$PATH:/DENO_INSTALL_ROOT/bin"
-      - "S3_ENDPOINT=${S3_ENDPOINT:-http://minio:9000}"
+      - "S3_ENDPOINT=${S3_ENDPOINT:-http://seaweedfs:8333}"
       - "S3_PRESIGN_ENDPOINT=${S3_PRESIGN_ENDPOINT:-https://s3.localhost:${APP_PORT:-443}}"
-      - "S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-minioadmin}"
-      - "S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-minioadmin}"
+      - "S3_ACCESS_KEY_ID=${S3_ACCESS_KEY_ID:-seaweedadmin}"
+      - "S3_SECRET_ACCESS_KEY=${S3_SECRET_ACCESS_KEY:-seaweedadmin}"
       - "S3_BUCKET_NAME=${S3_BUCKET_NAME:-uploads}"
       # S3_PUBLIC_URL must include the full path prefix matching the S3 key structure.
-      # Objects are stored with key "f/{id}" in bucket "uploads", so MinIO serves them
+      # Objects are stored with key "f/{id}" in bucket "uploads", so SeaweedFS serves them
       # at /uploads/f/{id}. Production uses a custom domain (files.framejs.io/f) where
       # the path maps directly to the key, so the /f suffix is needed here too.
       - "S3_PUBLIC_URL=${S3_PUBLIC_URL:-https://s3.localhost:${APP_PORT:-443}/uploads/f}"
@@ -224,7 +236,7 @@ volumes:
     driver: local
   node_modules:
     driver: local
-  minio_data:
+  seaweedfs_data:
     driver: local
   docs_node_modules:
     driver: local
