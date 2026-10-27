@@ -20,7 +20,7 @@ import { pinnedVersionSuffix } from "./pinned-version.ts";
  * so this is defence in depth rather than a live hole — but the escaping
  * belongs with the serialization, not with the callers remembering to guard.
  */
-function jsonForScript(value: unknown): string {
+export function jsonForScript(value: unknown): string {
   return JSON.stringify(value ?? null)
     .replace(/</g, "\\u003C")
     .replace(/>/g, "\\u003E");

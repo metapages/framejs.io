@@ -706,6 +706,9 @@
       forceSW;
 
     async function unregisterAllServiceWorkers() {
+      // A standalone export (worker/src/standalone-export.ts) never had one,
+      // and opened from file:// the lookup itself throws.
+      if (window.__FRAMEJS_STANDALONE) return;
       if ("serviceWorker" in navigator) {
         const registrations = await navigator
           .serviceWorker
@@ -2998,31 +3001,52 @@
       );
       runJsFromUrl();
 
+      // Commit the editor's changes to the page url. The page url is what an
+      // embedder (framejs.app) watches to decide when to save a version, so
+      // this is the one write that persists an edit.
+      //
+      // Two kinds of change arrive, on separate channels: the editor's hash
+      // (its OTHER params: inputs, modules, definition) and the frame's source
+      // (an output). They are debounced together into ONE write, and the
+      // write COMPOSES them. Each used to rebuild the whole hash from its own
+      // base and the later one cancelled the earlier, so one action that does
+      // both at once lost half of it: embedding a file adds an input AND
+      // injects a comment into the code, and the code's write — built from the
+      // page hash, which had no input yet — replaced the one carrying it. The
+      // file uploaded, and the frame never got the input.
       let pending;
-      // Commit a new hash to the page url. The page url is what an embedder
-      // (framejs.app) watches to decide when to save a version, so this is the
-      // one write that persists an edit.
-      const commitHash = (hash) => {
+      let pendingEditorHash = null;
+      let pendingSource = null;
+      const flushCommit = () => {
+        pending = null;
+        const [, ours] = getUrlHashParamsFromHashString(currentHashString());
+        // The editor's hash, when it changed, is the base: it is the editor's
+        // view of every param but `js`. Otherwise the page's own.
+        let hash = pendingEditorHash ?? currentHashString();
+        // `js` never travels in the editor's hash: put back the new source if
+        // there is one, or else ours, or adopting the hash would drop the code.
+        const js = pendingSource !== null
+          ? stringToBase64String(pendingSource)
+          : ours["js"];
+        if (js !== undefined) {
+          hash = setHashParamValueInHashString(hash, "js", js);
+        }
+        pendingEditorHash = null;
+        pendingSource = null;
+        window.location.hash = hash;
+      };
+      const scheduleCommit = () => {
         if (pending) {
           clearTimeout(pending);
         }
-        pending = setTimeout(() => {
-          pending = null;
-          window.location.hash = hash;
-        }, 400);
+        pending = setTimeout(flushCommit, 400);
       };
 
-      // An edit, arriving as a metaframe OUTPUT rather than in a url. Write it
-      // into `js` on the page url, leaving every other param alone.
+      // An edit, arriving as a metaframe OUTPUT rather than in a url.
       const commitSource = (source) => {
         seededEditorSource = source;
-        commitHash(
-          setHashParamValueInHashString(
-            currentHashString(),
-            "js",
-            stringToBase64String(source),
-          ),
-        );
+        pendingSource = source;
+        scheduleCommit();
       };
       mp.addListener(
         globalThis.metapage.Metapage.DEFINITION,
@@ -3035,17 +3059,12 @@
           const url = event?.definition?.metaframes?.editor?.url;
           if (!url) return;
           // The editor's hash carries its OTHER params (definition, modules,
-          // inputs) — never `js`, which travels as an output instead. Take the
-          // hash off the string rather than via `new URL()`, and put our own
-          // `js` back, or adopting this hash would drop the frame's code.
+          // inputs) — never `js`, which travels as an output instead (the
+          // flush puts it back). Take the hash off the string rather than via
+          // `new URL()`.
           const hashIndex = url.indexOf("#");
-          const editorHash = hashIndex === -1 ? "" : url.slice(hashIndex);
-          const [, ours] = getUrlHashParamsFromHashString(currentHashString());
-          commitHash(
-            ours["js"] === undefined
-              ? editorHash
-              : setHashParamValueInHashString(editorHash, "js", ours["js"]),
-          );
+          pendingEditorHash = hashIndex === -1 ? "" : url.slice(hashIndex);
+          scheduleCommit();
         },
       );
 

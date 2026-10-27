@@ -36,6 +36,13 @@ import {
   runtimeHashParams,
 } from "./src/pinned-version.ts";
 import { frameOgPath, shortUrlInitScript } from "./src/short-url-init.ts";
+import type { FetchAsset } from "./src/standalone-bundle.ts";
+import {
+  buildStandaloneHtml,
+  createPublicFetch,
+  ExportError,
+  withBudget,
+} from "./src/standalone-export.ts";
 
 /**
  * Reads index.html, strips its default OG block, and injects the given OG meta
@@ -169,6 +176,22 @@ const PUBLIC_ORIGIN = (
 ).replace(/\/$/, "");
 const S3_UPLOAD_MAX_SIZE_MB = parseInt(
   Deno.env.get("S3_UPLOAD_MAX_SIZE_MB") || "500",
+);
+// Cap on a standalone HTML export, applied twice: to everything it pulls in
+// (code, modules, inputs — streamed, so no fetch holds much more than what is
+// left of it) and to the finished file. The file is LARGER than what was
+// fetched: an inlined input is base64'd into a data: URL, and that again by the
+// hash-param encoding (~1.8x), so the fetch budget is the early abort and the
+// file check is the real bound. Kept low because the build holds a few copies
+// of the file in memory at once.
+const EXPORT_HTML_MAX_SIZE_MB = parseInt(
+  Deno.env.get("EXPORT_HTML_MAX_SIZE_MB") || "50",
+);
+// Exports building at once in this isolate. Each one holds up to a few times
+// EXPORT_HTML_MAX_SIZE_MB and runs esbuild, so more are turned away (429)
+// rather than allowed to exhaust the isolate's memory.
+const EXPORT_HTML_MAX_CONCURRENT = parseInt(
+  Deno.env.get("EXPORT_HTML_MAX_CONCURRENT") || "2",
 );
 // Backend that resolves a frame UUID to its hash-param values. The /j/:uuid
 // route fetches `${FRAMEJS_APP_ORIGIN}/<uuid>` and expects a JSON object of hash
@@ -790,6 +813,209 @@ app.post("/api/frame", async (c) => {
   } catch (error) {
     console.error("Save frame error:", error);
     return c.json({ error: "Failed to save frame" }, 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Standalone HTML export (POST /api/export/html, GET /html/:sha256).
+//
+// Bakes a frame — runtime, code, every module and input — into ONE .html file
+// that needs no network to run (see src/standalone-export.ts), for archiving.
+// The file is stored content-addressed at `html/<sha256 of the file>`: an
+// export that already exists is not uploaded again, and the link to it is
+// stable. It is built and hashed in memory and never written to local disk,
+// so there is no local copy to clean up. Exports expire 30 days after upload
+// (a bucket lifecycle rule on `html/`: seaweedfs-init in docker-compose.yml
+// locally, see docs/development/deployment.md for R2) — the downloaded file is
+// the archive, the server copy a convenience. Exporting again re-uploads it.
+// ---------------------------------------------------------------------------
+
+// Where the export fetches what a frame references. A file uploaded to this
+// worker's store (`/f/<id>`, relative or on this origin, or its public bucket
+// URL) is read straight from S3 — the worker cannot necessarily reach its own
+// public origin. Everything else goes over the public internet, guarded.
+const exportFetchAsset = (requestOrigin: string): FetchAsset => {
+  const publicFetch = createPublicFetch();
+  const ownHosts = new Set(
+    [requestOrigin, PUBLIC_ORIGIN].map((o) => new URL(o).host),
+  );
+  return async (url, options) => {
+    const parsed = new URL(url);
+    let fileId: string | undefined;
+    if (S3_PUBLIC_URL && url.startsWith(`${S3_PUBLIC_URL}/`)) {
+      fileId = url.slice(S3_PUBLIC_URL.length + 1).split(/[?#]/)[0];
+    } else if (ownHosts.has(parsed.host)) {
+      fileId = /^\/f\/([^/]+)$/.exec(parsed.pathname)?.[1];
+    }
+    // Only ever a plain `f/<id>` key: nothing here can name another prefix.
+    if (fileId && !/^[A-Za-z0-9._-]+$/.test(fileId)) fileId = undefined;
+    const s3 = fileId ? await getS3Client() : null;
+    if (!fileId || !s3) return publicFetch(url, options);
+    const { GetObjectCommand } = await s3Mod();
+    const response = await s3.send(
+      new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `f/${fileId}` }),
+    );
+    if (!response.Body) throw new ExportError(`File ${url} is empty`);
+    if (
+      options?.maxBytes !== undefined &&
+      (response.ContentLength ?? Infinity) > options.maxBytes
+    ) {
+      await response.Body.transformToWebStream().cancel();
+      throw new ExportError(`${url} is larger than the export size limit`, 413);
+    }
+    return {
+      url,
+      bytes: await response.Body.transformToByteArray(),
+      contentType: response.ContentType || "application/octet-stream",
+    };
+  };
+};
+
+const exportHtmlKey = (sha256: string) => `html/${sha256}`;
+let activeExports = 0;
+
+app.post("/api/export/html", async (c) => {
+  const s3 = await getS3Client();
+  if (!s3) {
+    return c.json({ error: "Export not configured" }, 503);
+  }
+
+  const body = await c.req.json().catch(() => null);
+  const hashParams = body?.hashParams;
+  if (!hashParams || typeof hashParams !== "string") {
+    return c.json({ error: "Missing required field: hashParams" }, 400);
+  }
+
+  if (activeExports >= EXPORT_HTML_MAX_CONCURRENT) {
+    return c.json(
+      { error: "Too many exports in progress — try again in a moment" },
+      429,
+    );
+  }
+
+  // The host the browser used: behind a proxy that is x-forwarded-host. It is
+  // what relative and same-origin `/f/<id>` references in the frame mean, and
+  // nothing else: being client-controlled, it is never recorded in the file
+  // or used in the returned link (PUBLIC_ORIGIN is).
+  const protocol = c.req.header("x-forwarded-proto") || "https";
+  const host = c.req.header("x-forwarded-host") || c.req.header("host");
+  const origin = `${protocol}://${host}`;
+  const maxBytes = EXPORT_HTML_MAX_SIZE_MB * 1024 * 1024;
+  const tooLarge = () =>
+    c.json(
+      {
+        error:
+          `The exported file is larger than the ${EXPORT_HTML_MAX_SIZE_MB}MB limit`,
+      },
+      413,
+    );
+
+  activeExports++;
+  try {
+    const html = await buildStandaloneHtml({
+      params: decodeHashParamsToJson(hashParams),
+      runtimeHtml: await Deno.readTextFile("./index.html"),
+      faviconSvg: await Deno.readTextFile("./static/favicon.svg").catch(() =>
+        undefined
+      ),
+      origin,
+      publicOrigin: PUBLIC_ORIGIN,
+      fetchAsset: withBudget(exportFetchAsset(origin), maxBytes),
+      encodeHashParams: jsonToHashParams,
+    });
+
+    // A string's length never exceeds its UTF-8 size: refuse before copying.
+    if (html.length > maxBytes) return tooLarge();
+    const bytes = new TextEncoder().encode(html);
+    if (bytes.byteLength > maxBytes) return tooLarge();
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const sha256 = Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    const key = exportHtmlKey(sha256);
+
+    // Content-addressed: if it is there, it is this exact file.
+    const { HeadObjectCommand, PutObjectCommand } = await s3Mod();
+    let existed = true;
+    try {
+      await s3.send(
+        new HeadObjectCommand({ Bucket: S3_BUCKET_NAME, Key: key }),
+      );
+    } catch {
+      existed = false;
+    }
+    if (!existed) {
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: S3_BUCKET_NAME,
+          Key: key,
+          Body: bytes,
+          ContentType: "text/html; charset=utf-8",
+        }),
+      );
+    }
+
+    track(c, { name: "export-html", source: detectSource(c) });
+
+    return c.json({
+      id: sha256,
+      path: `/html/${sha256}`,
+      url: `${PUBLIC_ORIGIN}/html/${sha256}`,
+      size: bytes.byteLength,
+      existed,
+    });
+  } catch (error) {
+    if (error instanceof ExportError) {
+      return c.json({ error: error.message }, error.status);
+    }
+    console.error("Export HTML error:", error);
+    return c.json({ error: "Failed to export HTML" }, 500);
+  } finally {
+    activeExports--;
+  }
+});
+
+// Downloads an export. `?inline` opens it in the browser instead.
+app.get("/html/:sha256", async (c) => {
+  const sha256 = c.req.param("sha256").replace(/\.html$/, "");
+  if (!/^[a-f0-9]{64}$/.test(sha256)) {
+    return c.json({ error: "Invalid export id" }, 400);
+  }
+  const s3 = await getS3Client();
+  if (!s3) {
+    return c.json({ error: "Export not configured" }, 503);
+  }
+  try {
+    const { GetObjectCommand } = await s3Mod();
+    const response = await s3.send(
+      new GetObjectCommand({
+        Bucket: S3_BUCKET_NAME,
+        Key: exportHtmlKey(sha256),
+      }),
+    );
+    if (!response.Body) throw new Error("S3 response body is empty");
+    const filename = `framejs-${sha256.slice(0, 12)}.html`;
+    const headers: Record<string, string> = {
+      "Content-Type": "text/html; charset=utf-8",
+      // Content-addressed, so it can never change.
+      "Cache-Control": "public, max-age=31536000, immutable",
+    };
+    if (c.req.query("inline") === undefined) {
+      headers["Content-Disposition"] = `attachment; filename="${filename}"`;
+    }
+    if (response.ContentLength !== undefined) {
+      headers["Content-Length"] = String(response.ContentLength);
+    }
+    return new Response(
+      response.Body.transformToWebStream() as ReadableStream,
+      { headers },
+    );
+  } catch (error: any) {
+    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") {
+      return c.json({ error: "Export not found" }, 404);
+    }
+    console.error("Export download error:", error);
+    return c.json({ error: "Failed to download export" }, 500);
   }
 });
 
