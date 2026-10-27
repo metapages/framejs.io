@@ -98,6 +98,7 @@ it, **clone** the version into a Frame of your own, or copy the code out.
 | Full hash URL `#?js=…` | framejs.io | — | **Forever** — no server copy; you hold it |
 | Short URL `/j/<sha256>` | framejs.io | No | **~30 days**, best-effort, then garbage-collected |
 | Uploaded file `/f/<sha256>` | framejs.io | No | **~30 days**, best-effort (same free tier as short URLs) |
+| Standalone HTML export `/html/<sha256>` | framejs.io | No | Best-effort server copy — **the file you download is the archive**: it runs with no server at all |
 | Frame (current version) `/j/<uuid>` | framejs.app | Yes | **Durable while the account is active** (free tier included) |
 | Frame version history | framejs.app | Append-only | Current version always kept; **older versions pruned after 12 months** (published versions exempt) |
 | Published version `?v=<sha256>` (Pro) | framejs.app | No | **Permanent ("human-permanent")** — stays public even if the Frame is later made private or deleted |
@@ -151,6 +152,8 @@ durable, owned Frames.
 | `GET /api/j/:sha256/url` | Retrieve the full URL as plain text. |
 | `POST /api/upload/presign` | Presigned URL for direct browser→storage file upload (`/f/<sha256>`). |
 | `GET /f/:sha256` | Download a content-addressed uploaded file. |
+| `POST /api/export/html` | Bake hash params (`{hashParams}`) into one self-contained `.html` file; returns `{id, path, size}`. See [Standalone HTML export](/guide/short-urls#howto-standalone-html-export-an-offline-archive). |
+| `GET /html/:sha256` | Download a standalone HTML export (`?inline` to open it instead). |
 
 ### framejs.app — durable Frames
 

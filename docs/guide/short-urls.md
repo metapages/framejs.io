@@ -35,6 +35,35 @@ across every kind of URL.
 4. You can claim this URL for your account if authenticated
 
 
+## Howto: Standalone HTML export (an offline archive)
+
+A link, however durable, still needs the internet to run: the runtime, your npm
+imports, your modules and your inputs are all fetched when the page loads. For
+long-term science you may want the frame **as a file**, with everything inside.
+
+1. Click the **Export standalone HTML** button in the editor header (the file
+   icon; in a narrow editor it is in the menu)
+2. The server bundles the frame into one self-contained `.html` file:
+   - your code, with **every import it makes** (`https://esm.sh/…`, jsdelivr,
+     import-map entries) bundled in
+   - every entry of `modules` — stylesheets (with their fonts and images),
+     module and classic scripts — inlined
+   - every **input**, including `url` datarefs and uploaded files, inlined as
+     `data:` URLs, so your code receives exactly what it did before
+   - the framejs runtime itself
+3. The file downloads. Open it from disk — it makes **no network requests**
+   for any of the above, even with the network unplugged.
+
+Requests your own code makes while it runs (a `fetch()` to an API, an
+`import()` of a URL computed at run time, a library loading its own `.wasm`) are
+outside what the export can see, and still need the network.
+
+The file is stored on the server under the SHA-256 of its contents, at
+`framejs.io/html/<sha256>`: exporting the same frame again gives the same link
+and is not uploaded twice. The un-bundled source, modules and inputs are kept,
+readable, inside the file (`<script id="framejs-original">`). There is no
+editor in the file, so its edit button is removed.
+
 ## Longer discussion between the two short-URL forms: `/j/<sha256>` vs `/j/<uuid>`
 
 Both forms look alike — `framejs.io/j/…` and `framejs.app/j/…` — but they make
