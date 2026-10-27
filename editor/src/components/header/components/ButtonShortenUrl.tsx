@@ -1,16 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
-import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
-import { useFrameSourceForPersist } from "/@/hooks/useFrameSource";
-import { convertMetaframeInputs } from "/@/utils/convertInputs";
-import {
-  getAllowedHashParams,
-  stripDisallowedHashParamsFromHashString,
-} from "/@/utils/hashParams";
-import {
-  LocalInputUploadError,
-  uploadLocalUrlInputs,
-} from "/@/utils/localInputs";
+import { useSnapshotHashParams } from "/@/hooks/useSnapshotHashParams";
+import { LocalInputUploadError } from "/@/utils/localInputs";
 
 import {
   Box,
@@ -20,14 +11,6 @@ import {
   useClipboard,
   useToast,
 } from "@chakra-ui/react";
-import { stringToBase64String } from "@metapages/hash-query";
-import {
-  getHashParamValueJsonFromWindow,
-  setHashParamValueInHashString,
-  setHashParamValueJsonInHashString,
-} from "@metapages/hash-query/react-hooks";
-import { MetaframeDefinition } from "@metapages/metapage";
-import { useMetaframe } from "@metapages/metapage-react/hooks";
 import { UploadIcon } from "@phosphor-icons/react";
 
 import { HeaderButtonProps, HeaderMenuItem } from "./types";
@@ -41,28 +24,12 @@ export const ButtonShortenUrl: React.FC<HeaderButtonProps> = ({
   const [shortenedUrl, setShortenedUrl] = useState("");
   const { onCopy } = useClipboard(shortenedUrl);
   const toast = useToast();
-  const metaframeBlob = useMetaframe();
-  // The source is NOT in the url any more (see useFrameSource), so it has to be
-  // injected into the hash this builds — serializing the hash alone would
-  // shorten a frame with no code.
-  const source = useFrameSourceForPersist();
-  const [metaframeInputs, setMetaframeInputs] = useState<
-    InputsHashParam | undefined
-  >(undefined);
-
-  useEffect(() => {
-    if (metaframeBlob.metaframe) {
-      setMetaframeInputs(metaframeBlob.metaframe.getInputs());
-      return metaframeBlob.metaframe.onInputs(() => {
-        setMetaframeInputs(metaframeBlob.metaframe.getInputs());
-      });
-    }
-  }, [metaframeBlob.metaframe]);
+  const snapshot = useSnapshotHashParams();
 
   const handleShorten = async () => {
     // With no code in the editor there's nothing to shorten/save. Surface a
     // gentle notice instead of the generic error toast.
-    if (source === null) {
+    if (!snapshot.hasSource) {
       toast({
         title: "Empty: nothing to save",
         status: "info",
@@ -75,48 +42,8 @@ export const ButtonShortenUrl: React.FC<HeaderButtonProps> = ({
     try {
       setLoading(true);
 
-      // Get current hash params and remove "edit" and "hm" (the edit-button
-      // visibility setting) so a shortened URL never forces the edit button
-      // to stay visible.
-      let hash = window.location.hash.slice(1); // Remove leading "#"
-      hash = setHashParamValueInHashString(hash, "edit", undefined);
-      hash = setHashParamValueInHashString(hash, "hm", undefined);
-      // Put the source back: it lives in the store, not the url.
-      hash = setHashParamValueInHashString(
-        hash,
-        "js",
-        stringToBase64String(source),
-      );
-
-      // Merge metaframe inputs (received via onInputs) into hash params
-      let newInputs = getHashParamValueJsonFromWindow<
-        InputsHashParam | undefined
-      >("inputs");
-      if (metaframeInputs && Object.keys(metaframeInputs).length > 0) {
-        newInputs = await convertMetaframeInputs(
-          metaframeInputs,
-          newInputs || undefined,
-        );
-      }
-      // Inputs pointing at http://localhost:<port> are only reachable from the
-      // machine that authored the frame. A snapshot is a shared, immutable
-      // artifact, so copy that content into the remote file store and rewrite
-      // the reference to the canonical /f/<sha256> URL. This must happen before
-      // the hash string is built: the snapshot's sha256 is computed from it.
-      newInputs = await uploadLocalUrlInputs(newInputs || undefined);
-
-      if (newInputs && Object.keys(newInputs).length > 0) {
-        hash = setHashParamValueJsonInHashString(hash, "inputs", newInputs);
-      }
-
-      // Strip any hash params not in the metaframe.json defaults or the
-      // user's `definition` whitelist (same logic as ButtonCopyExternalLink).
-      const definition = getHashParamValueJsonFromWindow<
-        MetaframeDefinition | undefined
-      >("definition");
-      const allowed = getAllowedHashParams(definition);
-
-      hash = stripDisallowedHashParamsFromHashString(hash, allowed);
+      const hash = await snapshot.build();
+      if (hash === null) return;
 
       // Store in S3 via API (SHA256 calculated on server)
       const response = await fetch("/api/shorten", {
