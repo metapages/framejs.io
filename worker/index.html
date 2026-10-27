@@ -706,6 +706,9 @@
       forceSW;
 
     async function unregisterAllServiceWorkers() {
+      // A standalone export (worker/src/standalone-export.ts) never had one,
+      // and opened from file:// the lookup itself throws.
+      if (window.__FRAMEJS_STANDALONE) return;
       if ("serviceWorker" in navigator) {
         const registrations = await navigator
           .serviceWorker
