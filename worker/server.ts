@@ -177,10 +177,21 @@ const PUBLIC_ORIGIN = (
 const S3_UPLOAD_MAX_SIZE_MB = parseInt(
   Deno.env.get("S3_UPLOAD_MAX_SIZE_MB") || "500",
 );
-// Cap on everything one standalone HTML export pulls in (code, modules,
-// inputs), and so on the size of the exported file.
+// Cap on a standalone HTML export, applied twice: to everything it pulls in
+// (code, modules, inputs — streamed, so no fetch holds much more than what is
+// left of it) and to the finished file. The file is LARGER than what was
+// fetched: an inlined input is base64'd into a data: URL, and that again by the
+// hash-param encoding (~1.8x), so the fetch budget is the early abort and the
+// file check is the real bound. Kept low because the build holds a few copies
+// of the file in memory at once.
 const EXPORT_HTML_MAX_SIZE_MB = parseInt(
-  Deno.env.get("EXPORT_HTML_MAX_SIZE_MB") || "200",
+  Deno.env.get("EXPORT_HTML_MAX_SIZE_MB") || "50",
+);
+// Exports building at once in this isolate. Each one holds up to a few times
+// EXPORT_HTML_MAX_SIZE_MB and runs esbuild, so more are turned away (429)
+// rather than allowed to exhaust the isolate's memory.
+const EXPORT_HTML_MAX_CONCURRENT = parseInt(
+  Deno.env.get("EXPORT_HTML_MAX_CONCURRENT") || "2",
 );
 // Backend that resolves a frame UUID to its hash-param values. The /j/:uuid
 // route fetches `${FRAMEJS_APP_ORIGIN}/<uuid>` and expects a JSON object of hash
@@ -813,8 +824,10 @@ app.post("/api/frame", async (c) => {
 // The file is stored content-addressed at `html/<sha256 of the file>`: an
 // export that already exists is not uploaded again, and the link to it is
 // stable. It is built and hashed in memory and never written to local disk,
-// so there is no local copy to clean up. The `html/` prefix is outside the
-// transient `f/` upload expiry, like `j/` and `favicon/`.
+// so there is no local copy to clean up. Exports expire 30 days after upload
+// (a bucket lifecycle rule on `html/`: seaweedfs-init in docker-compose.yml
+// locally, see docs/development/deployment.md for R2) — the downloaded file is
+// the archive, the server copy a convenience. Exporting again re-uploads it.
 // ---------------------------------------------------------------------------
 
 // Where the export fetches what a frame references. A file uploaded to this
@@ -826,7 +839,7 @@ const exportFetchAsset = (requestOrigin: string): FetchAsset => {
   const ownHosts = new Set(
     [requestOrigin, PUBLIC_ORIGIN].map((o) => new URL(o).host),
   );
-  return async (url) => {
+  return async (url, options) => {
     const parsed = new URL(url);
     let fileId: string | undefined;
     if (S3_PUBLIC_URL && url.startsWith(`${S3_PUBLIC_URL}/`)) {
@@ -834,13 +847,22 @@ const exportFetchAsset = (requestOrigin: string): FetchAsset => {
     } else if (ownHosts.has(parsed.host)) {
       fileId = /^\/f\/([^/]+)$/.exec(parsed.pathname)?.[1];
     }
+    // Only ever a plain `f/<id>` key: nothing here can name another prefix.
+    if (fileId && !/^[A-Za-z0-9._-]+$/.test(fileId)) fileId = undefined;
     const s3 = fileId ? await getS3Client() : null;
-    if (!fileId || !s3) return publicFetch(url);
+    if (!fileId || !s3) return publicFetch(url, options);
     const { GetObjectCommand } = await s3Mod();
     const response = await s3.send(
       new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `f/${fileId}` }),
     );
     if (!response.Body) throw new ExportError(`File ${url} is empty`);
+    if (
+      options?.maxBytes !== undefined &&
+      (response.ContentLength ?? Infinity) > options.maxBytes
+    ) {
+      await response.Body.transformToWebStream().cancel();
+      throw new ExportError(`${url} is larger than the export size limit`, 413);
+    }
     return {
       url,
       bytes: await response.Body.transformToByteArray(),
@@ -850,6 +872,7 @@ const exportFetchAsset = (requestOrigin: string): FetchAsset => {
 };
 
 const exportHtmlKey = (sha256: string) => `html/${sha256}`;
+let activeExports = 0;
 
 app.post("/api/export/html", async (c) => {
   const s3 = await getS3Client();
@@ -863,12 +886,31 @@ app.post("/api/export/html", async (c) => {
     return c.json({ error: "Missing required field: hashParams" }, 400);
   }
 
+  if (activeExports >= EXPORT_HTML_MAX_CONCURRENT) {
+    return c.json(
+      { error: "Too many exports in progress — try again in a moment" },
+      429,
+    );
+  }
+
   // The host the browser used: behind a proxy that is x-forwarded-host. It is
-  // what relative and same-origin `/f/<id>` references in the frame mean.
+  // what relative and same-origin `/f/<id>` references in the frame mean, and
+  // nothing else: being client-controlled, it is never recorded in the file
+  // or used in the returned link (PUBLIC_ORIGIN is).
   const protocol = c.req.header("x-forwarded-proto") || "https";
   const host = c.req.header("x-forwarded-host") || c.req.header("host");
   const origin = `${protocol}://${host}`;
+  const maxBytes = EXPORT_HTML_MAX_SIZE_MB * 1024 * 1024;
+  const tooLarge = () =>
+    c.json(
+      {
+        error:
+          `The exported file is larger than the ${EXPORT_HTML_MAX_SIZE_MB}MB limit`,
+      },
+      413,
+    );
 
+  activeExports++;
   try {
     const html = await buildStandaloneHtml({
       params: decodeHashParamsToJson(hashParams),
@@ -877,14 +919,15 @@ app.post("/api/export/html", async (c) => {
         undefined
       ),
       origin,
-      fetchAsset: withBudget(
-        exportFetchAsset(origin),
-        EXPORT_HTML_MAX_SIZE_MB * 1024 * 1024,
-      ),
+      publicOrigin: PUBLIC_ORIGIN,
+      fetchAsset: withBudget(exportFetchAsset(origin), maxBytes),
       encodeHashParams: jsonToHashParams,
     });
 
+    // A string's length never exceeds its UTF-8 size: refuse before copying.
+    if (html.length > maxBytes) return tooLarge();
     const bytes = new TextEncoder().encode(html);
+    if (bytes.byteLength > maxBytes) return tooLarge();
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     const sha256 = Array.from(new Uint8Array(digest))
       .map((b) => b.toString(16).padStart(2, "0"))
@@ -917,7 +960,7 @@ app.post("/api/export/html", async (c) => {
     return c.json({
       id: sha256,
       path: `/html/${sha256}`,
-      url: `${origin}/html/${sha256}`,
+      url: `${PUBLIC_ORIGIN}/html/${sha256}`,
       size: bytes.byteLength,
       existed,
     });
@@ -927,6 +970,8 @@ app.post("/api/export/html", async (c) => {
     }
     console.error("Export HTML error:", error);
     return c.json({ error: "Failed to export HTML" }, 500);
+  } finally {
+    activeExports--;
   }
 });
 

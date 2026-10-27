@@ -163,6 +163,21 @@ differ, so this is harmless-to-useful, but it does mean deletion is not
 immediately effective. Use a single-file purge if an object ever needs to
 actually disappear.
 
+### Required: 30-day lifecycle rule on `html/`
+
+Standalone HTML exports (`POST /api/export/html`) are written to `html/<sha256>`
+by an unauthenticated endpoint, outside the `f/` upload expiry. Without a rule
+they would accumulate forever. Add an R2 **object lifecycle rule**: prefix
+`html/`, delete objects **30 days** after upload. The local stack does the same
+with a seaweedfs filer TTL (`seaweedfs-init` in `docker-compose.yml`).
+
+The downloaded file is the archive; the server copy only backs the link for a
+while. An expired export is uploaded again the next time it is exported.
+
+Related env vars: `EXPORT_HTML_MAX_SIZE_MB` (default 50: the cap on what one
+export fetches and on the file it produces) and `EXPORT_HTML_MAX_CONCURRENT`
+(default 2: exports building at once per isolate; more get a 429).
+
 ## Python package (PyPI)
 
 Two packages are published to PyPI, and both come from one release:

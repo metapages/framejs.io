@@ -151,6 +151,18 @@ test("export rejects bad requests with a reason", async ({ request }) => {
   expect(unresolvable.status).toBe(422);
   expect(unresolvable.body.error).toContain('"not-mapped"');
 
+  // A public name for a private address (wildcard DNS) is refused, not
+  // fetched: the export must never read the server's own network.
+  const ssrf = await exportHtml(
+    request,
+    await hashParamsFor(request, {
+      js: "root.innerText = 1;",
+      inputs: { x: { type: "url", value: "http://127.0.0.1.nip.io:8333/" } },
+    }),
+  );
+  expect(ssrf.status).toBe(422);
+  expect(ssrf.body.error).toContain("non-public address");
+
   const notFound = await request.get(`/html/${"0".repeat(64)}`);
   expect(notFound.status()).toBe(404);
   const invalid = await request.get("/html/nope");

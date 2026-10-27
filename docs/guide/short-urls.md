@@ -60,9 +60,16 @@ outside what the export can see, and still need the network.
 
 The file is stored on the server under the SHA-256 of its contents, at
 `framejs.io/html/<sha256>`: exporting the same frame again gives the same link
-and is not uploaded twice. The un-bundled source, modules and inputs are kept,
+and is not uploaded twice. The server copy is kept for **~30 days**: the file
+you download is the archive. The un-bundled source, modules and inputs are kept,
 readable, inside the file (`<script id="framejs-original">`). There is no
 editor in the file, so its edit button is removed.
+
+An export is limited to **50 MB** (everything it pulls in, and the file itself;
+inlined inputs grow by roughly 1.8× on the way in). Entries in `modules` that
+cannot be made network-free — an inline `<script>` with no `src`, a tag that is
+not a `<script>` or `<link>` — fail the export with a message naming them,
+rather than being dropped or left to make a request.
 
 ## Longer discussion between the two short-URL forms: `/j/<sha256>` vs `/j/<uuid>`
 

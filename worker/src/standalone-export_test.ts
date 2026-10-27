@@ -7,12 +7,14 @@ import {
 } from "./standalone-bundle.ts";
 import {
   assembleStandaloneHtml,
+  attr,
   buildStandaloneHtml,
   createPublicFetch,
   ExportError,
   inlineInputs,
   inlineModules,
   isFetchableUrl,
+  isPrivateAddress,
   toDataUrl,
   withBudget,
 } from "./standalone-export.ts";
@@ -221,6 +223,18 @@ Deno.test("isFetchableUrl refuses the server's own network", () => {
       "http://172.20.0.2/x",
       "http://169.254.169.254/latest/meta-data",
       "http://[::1]/x",
+      // IPv6 forms that carry 127.0.0.1
+      "http://[::7f00:1]/",
+      "http://[64:ff9b::7f00:1]/",
+      "http://[::ffff:127.0.0.1]/",
+      "http://[2002:7f00:1::]/",
+      "http://[fd00::1]/",
+      "http://[fe80::1]/",
+      // Numeric spellings the URL parser turns into 127.0.0.1
+      "http://2130706433/",
+      "http://0x7f.0.0.1/",
+      "http://100.64.0.1/",
+      "http://router.home.arpa/",
       "file:///etc/passwd",
       "not a url",
     ]
@@ -233,27 +247,159 @@ Deno.test("isFetchableUrl refuses the server's own network", () => {
       "https://cdn.jsdelivr.net/npm/x",
       "http://example.com/a.js",
       "https://8.8.8.8/x",
+      "http://[2606:4700::1111]/",
+      "http://[64:ff9b::808:808]/", // NAT64 of 8.8.8.8
     ]
   ) {
     assertEquals(isFetchableUrl(url), true, url);
   }
 });
 
-Deno.test("createPublicFetch will not follow a redirect inward", async () => {
-  const fetchImpl = ((url: string) =>
-    Promise.resolve(
-      url === "https://public.example/x"
-        ? new Response(null, {
-          status: 302,
-          headers: { location: "http://127.0.0.1/secret" },
-        })
-        : new Response("secret"),
-    )) as unknown as typeof fetch;
-  await assertRejects(
-    () => createPublicFetch(fetchImpl)("https://public.example/x"),
-    ExportError,
-    "Refusing to fetch http://127.0.0.1/secret",
+// A fake DNS: hostname -> addresses.
+const fakeDns = (records: Record<string, string[]>) => (host: string) =>
+  Promise.resolve(records[host] ?? []);
+
+// A fetch that records what it was asked for and answers from `respond`.
+const recordingFetch = (respond: (url: string) => Response) => {
+  const requested: string[] = [];
+  const fn = ((url: string) => {
+    requested.push(url);
+    return Promise.resolve(respond(url));
+  }) as unknown as typeof fetch;
+  return { fetchImpl: fn, requested };
+};
+
+Deno.test("isPrivateAddress covers resolved IPv4 and IPv6 answers", () => {
+  for (
+    const ip of [
+      "127.0.0.1",
+      "10.1.2.3",
+      "172.31.255.255",
+      "100.127.0.1",
+      "0.0.0.0",
+      "224.0.0.1",
+      "::1",
+      "::",
+      "::7f00:1",
+      "::ffff:7f00:1",
+      "64:ff9b::a00:1",
+      "64:ff9b:1::1",
+      "fc00::1",
+      "fe80::1%eth0",
+      "2001:db8::1",
+      "not an ip",
+    ]
+  ) {
+    assertEquals(isPrivateAddress(ip), true, ip);
+  }
+  for (const ip of ["8.8.8.8", "1.1.1.1", "2606:4700::1111", "2a00:1450::1"]) {
+    assertEquals(isPrivateAddress(ip), false, ip);
+  }
+});
+
+Deno.test("createPublicFetch refuses names that resolve to a private address", async () => {
+  const { fetchImpl, requested } = recordingFetch(() => new Response("secret"));
+  const publicFetch = createPublicFetch({
+    fetchImpl,
+    resolveHost: fakeDns({
+      "127.0.0.1.nip.io": ["127.0.0.1"],
+      "localtest.me": ["127.0.0.1", "::1"],
+      // One private answer among public ones is enough to refuse.
+      "mixed.example": ["93.184.216.34", "10.0.0.1"],
+      "v6.example": ["::ffff:7f00:1"],
+    }),
+  });
+  for (
+    const url of [
+      "http://127.0.0.1.nip.io:8333/uploads",
+      "http://localtest.me/",
+      "https://mixed.example/x",
+      "https://v6.example/x",
+      "https://nxdomain.example/x",
+    ]
+  ) {
+    await assertRejects(() => publicFetch(url), ExportError, "Refusing", url);
+  }
+  assertEquals(requested, [], "nothing was ever requested");
+});
+
+Deno.test("createPublicFetch fetches a name that resolves publicly", async () => {
+  const { fetchImpl, requested } = recordingFetch(() =>
+    new Response("ok", { headers: { "content-type": "text/plain" } })
   );
+  const asset = await createPublicFetch({
+    fetchImpl,
+    resolveHost: fakeDns({ "esm.sh": ["104.21.0.1", "2606:4700::1"] }),
+  })("https://esm.sh/x");
+  assertEquals(new TextDecoder().decode(asset.bytes), "ok");
+  assertEquals(requested, ["https://esm.sh/x"]);
+});
+
+Deno.test("createPublicFetch will not follow a redirect inward", async () => {
+  const { fetchImpl, requested } = recordingFetch((url) =>
+    url === "https://public.example/x"
+      ? new Response(null, {
+        status: 302,
+        headers: { location: "http://127.0.0.1.nip.io/secret" },
+      })
+      : new Response("secret")
+  );
+  await assertRejects(
+    () =>
+      createPublicFetch({
+        fetchImpl,
+        resolveHost: fakeDns({
+          "public.example": ["93.184.216.34"],
+          "127.0.0.1.nip.io": ["127.0.0.1"],
+        }),
+      })("https://public.example/x"),
+    ExportError,
+    "Refusing to fetch http://127.0.0.1.nip.io/secret",
+  );
+  assertEquals(requested, ["https://public.example/x"]);
+});
+
+Deno.test("createPublicFetch stops reading past maxBytes", async () => {
+  const resolveHost = fakeDns({ "big.example": ["93.184.216.34"] });
+
+  // Declared too large: refused before a byte is read.
+  const declared = recordingFetch(() =>
+    new Response("x".repeat(10), { headers: { "content-length": "999999999" } })
+  );
+  const error = await assertRejects(
+    () =>
+      createPublicFetch({ fetchImpl: declared.fetchImpl, resolveHost })(
+        "https://big.example/declared",
+        { maxBytes: 100 },
+      ),
+    ExportError,
+  );
+  assertEquals(error.status, 413);
+
+  // An endless stream with no Content-Length: cancelled once over the limit.
+  let pulled = 0;
+  let cancelled = false;
+  const endless = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      pulled++;
+      controller.enqueue(new Uint8Array(64));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const stream = recordingFetch(() => new Response(endless));
+  const streamError = await assertRejects(
+    () =>
+      createPublicFetch({ fetchImpl: stream.fetchImpl, resolveHost })(
+        "https://big.example/endless",
+        { maxBytes: 1000 },
+      ),
+    ExportError,
+  );
+  assertEquals(streamError.status, 413);
+  assert(cancelled, "the stream was cancelled");
+  assert(pulled < 40, `stopped early (pulled ${pulled} chunks)`);
 });
 
 Deno.test("withBudget fetches each url once and enforces the size limit", async () => {
@@ -266,6 +412,87 @@ Deno.test("withBudget fetches each url once and enforces the size limit", async 
   const tight = withBudget(fakeFetch({ "https://a/x": [JS, "12345"] }), 4);
   const error = await assertRejects(() => tight("https://a/x"), ExportError);
   assertEquals(error.status, 413);
+});
+
+Deno.test("withBudget only lets each fetch use what is left", async () => {
+  const limits: (number | undefined)[] = [];
+  const inner: FetchAsset = (url, options) => {
+    limits.push(options?.maxBytes);
+    return Promise.resolve({ url, bytes: new Uint8Array(30), contentType: JS });
+  };
+  const budgeted = withBudget(inner, 100);
+  await budgeted("https://a/1");
+  await budgeted("https://a/2");
+  assertEquals(limits, [100, 70]);
+});
+
+Deno.test("attr reads quoted, single-quoted and bare attributes", () => {
+  assertEquals(attr(`<script src="a.js">`, "src"), "a.js");
+  assertEquals(attr(`<script src='a.js'>`, "src"), "a.js");
+  assertEquals(attr(`<script src=a.js>`, "src"), "a.js");
+  assertEquals(
+    attr(`<link REL = 'stylesheet' href=x.css>`, "rel"),
+    "stylesheet",
+  );
+  // Not data-src, and not an attribute of a later tag.
+  assertEquals(attr(`<script data-src="x.js">`, "src"), undefined);
+  assertEquals(attr(`<script></script><img src="y">`, "src"), undefined);
+});
+
+Deno.test("inlineModules handles single quotes and fails loudly on what it cannot inline", async () => {
+  const fetchAsset = fakeFetch({
+    "https://cdn.example/style.css": ["text/css", "h1 { color: blue; }"],
+    "https://cdn.example/classic.js": [JS, "window.CLASSIC = 1;"],
+  });
+  const options = { fetchAsset, origin: "https://framejs.io" };
+  const { modules } = await inlineModules([
+    "<link rel='stylesheet' href='https://cdn.example/style.css'>",
+    "<script src='https://cdn.example/classic.js'></script>",
+  ], options);
+  assertEquals(modules.length, 2);
+  assert(modules[0].includes("data:text/css;base64,"));
+  assert(modules[1].includes("data:text/javascript;base64,"));
+  assert(!modules.join("").includes("cdn.example"));
+
+  for (
+    const [entry, reason] of [
+      [
+        "<script type='module'>import 'https://x.example/a.js'</script>",
+        "without a src",
+      ],
+      ["<link rel=stylesheet>", "without an href"],
+      ["<style>body{}</style>", "not a <script> or <link>"],
+      ["ftp://files.example/a.js", "ftp://files.example/a.js"],
+    ]
+  ) {
+    const error = await assertRejects(
+      () => inlineModules([entry], options),
+      ExportError,
+      reason,
+    );
+    assertEquals(error.status, 422);
+  }
+});
+
+Deno.test("inlineInputs keeps the other fields of a key dataref", async () => {
+  const fetchAsset = fakeFetch({
+    "https://container.mtfm.io/download/k1": [
+      "application/json",
+      '{"url":"https://files.example/k1.bin"}',
+    ],
+    "https://files.example/k1.bin": ["application/octet-stream", "BIN"],
+  });
+  const out = await inlineInputs(
+    { k: { type: "key", value: "k1", name: "n" } },
+    {
+      fetchAsset,
+      origin: "https://framejs.io",
+    },
+  );
+  const ref = out.k as Record<string, string>;
+  assertEquals(ref.type, "url");
+  assertEquals(ref.name, "n");
+  assertEquals(decodeDataUrl(ref.value).text, "BIN");
 });
 
 Deno.test("toDataUrl round-trips bytes", () => {
@@ -335,6 +562,7 @@ const s = "<link";
     },
     runtimeHtml,
     origin: "https://framejs.io",
+    publicOrigin: "https://framejs.io",
     fetchAsset,
     encodeHashParams: (p) => {
       encoded = p;
@@ -366,6 +594,7 @@ Deno.test("buildStandaloneHtml refuses a frame with no code", async () => {
         params: { js: "  " },
         runtimeHtml: "<head></head>",
         origin: "https://framejs.io",
+        publicOrigin: "https://framejs.io",
         fetchAsset: fakeFetch({}),
         encodeHashParams: () => "",
       }),

@@ -20,18 +20,72 @@ export type FetchedAsset = {
   contentType: string;
 };
 
-export type FetchAsset = (url: string) => Promise<FetchedAsset>;
+export type FetchAsset = (
+  url: string,
+  /** Refuse (413) a response larger than this many bytes. */
+  options?: { maxBytes?: number },
+) => Promise<FetchedAsset>;
 
 /** The `imports` half of an import map. Scopes are not supported. */
 export type ImportMapImports = Record<string, string>;
 
+// esbuild's wasm, pinned by content. Left to itself, `initialize()` downloads
+// it from deno.land/x on first use, making every export depend on that one
+// host. Instead it is fetched from whichever mirror answers first in this list,
+// checked against the hash (so a mirror cannot serve anything else), compiled
+// once per isolate and handed over as a module.
+const ESBUILD_VERSION = "0.25.0";
+const ESBUILD_WASM_SHA256 =
+  "92303a29c9d60620a756925939bbb0f60800fa1eed14a29f93b8a3e9394ac0b9";
+const ESBUILD_WASM_MIRRORS = [
+  `https://cdn.jsdelivr.net/npm/esbuild-wasm@${ESBUILD_VERSION}/esbuild.wasm`,
+  `https://unpkg.com/esbuild-wasm@${ESBUILD_VERSION}/esbuild.wasm`,
+  `https://deno.land/x/esbuild@v${ESBUILD_VERSION}/esbuild.wasm`,
+];
+
+const sha256Hex = async (bytes: Uint8Array) =>
+  Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", bytes as BufferSource),
+    ),
+  ).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+async function loadEsbuildWasm(): Promise<WebAssembly.Module> {
+  const failures: string[] = [];
+  for (const url of ESBUILD_WASM_MIRRORS) {
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      const hash = await sha256Hex(bytes);
+      if (hash !== ESBUILD_WASM_SHA256) throw new Error(`sha256 ${hash}`);
+      return await WebAssembly.compile(bytes as BufferSource);
+    } catch (error) {
+      failures.push(
+        `${url}: ${error instanceof Error ? error.message : error}`,
+      );
+    }
+  }
+  throw new Error(`Could not load esbuild.wasm (${failures.join("; ")})`);
+}
+
 let _esbuild: Promise<typeof Esbuild> | undefined;
-const esbuild = (): Promise<typeof Esbuild> => (_esbuild ??= (async () => {
-  const mod = await import("https://deno.land/x/esbuild@v0.25.0/wasm.js");
-  // worker:false — Deno Deploy cannot run esbuild's wasm in a Worker.
-  await mod.initialize({ worker: false });
-  return mod;
-})());
+const esbuild = (): Promise<typeof Esbuild> => {
+  _esbuild ??= (async () => {
+    const [mod, wasmModule] = await Promise.all([
+      import("https://deno.land/x/esbuild@v0.25.0/wasm.js"),
+      loadEsbuildWasm(),
+    ]);
+    // worker:false — Deno Deploy cannot run esbuild's wasm in a Worker.
+    await mod.initialize({ worker: false, wasmModule });
+    return mod;
+  })();
+  // A failed start is not cached: the next export tries again.
+  _esbuild.catch(() => (_esbuild = undefined));
+  return _esbuild;
+};
 
 const HTTP_NAMESPACE = "framejs-http";
 
