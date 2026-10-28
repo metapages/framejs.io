@@ -71,6 +71,42 @@ cannot be made network-free — an inline `<script>` with no `src`, a tag that i
 not a `<script>` or `<link>` — fail the export with a message naming them,
 rather than being dropped or left to make a request.
 
+## Howto: Import a frame's functions from another frame
+
+Add `.js` to any short URL and you get the frame's code as an **ES module of its
+functions**, ready to `import` from another frame (or any browser module):
+
+```js
+import { total } from "https://framejs.io/j/<uuid>.js";
+// a published version, cached forever:
+import { total } from "https://framejs.io/j/<uuid>.js?v=<sha256>";
+// an expiring snapshot works too:
+import { total } from "https://framejs.io/j/<sha256>.js";
+```
+
+A frame's code is written to *run* — it renders into `root`, adds listeners,
+fetches data. None of that happens when you import it. The module keeps only
+what is safe to evaluate:
+
+- function declarations, exported or not (the unexported ones are the helpers
+  the exported ones call), and `const f = () => …` / `function () {…}`
+- constants set to a plain literal (`const SCALE = 10`, `["a", "b"]`,
+  `{ unit: "px" }`)
+- `import` statements that bind names (your functions may use them), and
+  re-exports (`export … from`)
+- `export { … }` / `export default` of any of the above
+
+Everything else is removed: top-level statements, classes,
+`let x = compute()`, `await`, and side-effect-only `import "x"`. An export that
+was removed is listed in a comment at the top of the module. A function that
+reads something removed — or a runtime global such as `root` or `setOutput` —
+throws when it is **called**, not when it is imported, so write the functions
+you want to share to take what they need as arguments.
+
+Caching follows the URL: `/j/<sha256>.js` and a published `/j/<uuid>.js?v=…` are
+immutable and cached for a year; the live `/j/<uuid>.js` revalidates on every
+import (a cheap `304` when unchanged), so it always serves the current version.
+
 ## Longer discussion between the two short-URL forms: `/j/<sha256>` vs `/j/<uuid>`
 
 Both forms look alike — `framejs.io/j/…` and `framejs.app/j/…` — but they make
