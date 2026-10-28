@@ -26,17 +26,55 @@ console.log("ran");
   assertEquals(await mod.later(5), 5);
 });
 
-Deno.test("keeps literal constants the functions read", async () => {
+Deno.test("keeps const primitives the functions read", async () => {
   const { code } = extractModule(`
 const SCALE = 10;
-const NAMES = ["a", "b"];
-const CONFIG = { unit: "px", neg: -1, fmt: (v) => v + "px" };
+const UNIT = \`px\`;
+const NEG = -1;
 const computed = Math.random();
-export const scale = (x) => x * SCALE + NAMES.length + CONFIG.neg;
+export const scale = (x) => x * SCALE + NEG + UNIT;
 `);
   assertEquals(code.includes("Math.random"), false);
   const mod = await importModule(code);
-  assertEquals(mod.scale(2), 21);
+  assertEquals(mod.scale(2), "19px");
+});
+
+// Top-level code that would change these is dropped, so keeping them would
+// hand a function a value the frame never had. Dropped instead, a read throws.
+Deno.test("let/var and const objects are dropped, not kept stale", async () => {
+  const { code, skipped } = extractModule(`
+let count = 0; count = 5;
+var v = 1;
+const cfg = {}; cfg.unit = "px";
+const list = [1]; list.push(2);
+export let exportedLet = 1;
+export const get = () => count;
+export const u = () => cfg.unit;
+export const n = () => list.length;
+export const w = () => v;
+`);
+  assertEquals(skipped, ["exportedLet"]);
+  for (const name of ["count", "cfg", "list", "var v"]) {
+    assertEquals(code.includes(`${name} =`), false, name);
+  }
+  const mod = await importModule(code);
+  for (const f of [mod.get, mod.u, mod.n, mod.w]) {
+    assertThrows(() => f(), ReferenceError);
+  }
+});
+
+Deno.test("a function reassigned at top level is dropped", async () => {
+  const { code, skipped } = extractModule(`
+export function f() { return 1; }
+f = () => 2;
+function helper() { return 1; }
+if (true) helper = () => 2;
+export const g = () => helper();
+`);
+  assertEquals(skipped, ["f"]);
+  const mod = await importModule(code);
+  assertEquals("f" in mod, false);
+  assertThrows(() => mod.g(), ReferenceError);
 });
 
 Deno.test("reports exports that are not functions", () => {
@@ -69,26 +107,67 @@ const b = function () { return "b"; };
   assertEquals(mod.default(), "a");
 });
 
-Deno.test("keeps binding imports and re-exports, drops side-effect imports", () => {
+Deno.test("keeps used imports and re-exports, drops the rest", () => {
   const { code } = extractModule(`
 import "https://esm.sh/some-polyfill";
 import * as d3 from "https://esm.sh/d3@7";
-import { x } from "https://esm.sh/x";
-export * from "https://esm.sh/y";
+import { x, unusedName } from "https://esm.sh/x";
+import def, { y as why } from "https://esm.sh/y" with { type: "json" };
+import { max } from "d3";
+export * from "https://esm.sh/w";
 export { z } from "https://esm.sh/z";
-export const f = () => d3.max([x]);
+export const f = () => d3.max([x, why, def]);
 `);
-  assertEquals(code.includes("some-polyfill"), false);
+  for (
+    const dropped of ["some-polyfill", "unusedName", '"d3"', "max }"]
+  ) {
+    assertEquals(code.includes(dropped), false, dropped);
+  }
   for (
     const kept of [
       'import * as d3 from "https://esm.sh/d3@7";',
       'import { x } from "https://esm.sh/x";',
-      'export * from "https://esm.sh/y";',
+      'import def, { y as why } from "https://esm.sh/y" with { type: "json" };',
+      'export * from "https://esm.sh/w";',
       'export { z } from "https://esm.sh/z";',
     ]
   ) {
     assertEquals(code.includes(kept), true, kept);
   }
+});
+
+Deno.test("an import used only through export { … } is kept", () => {
+  const { code } = extractModule(`
+import { helper } from "https://esm.sh/h";
+export { helper };
+`);
+  assertEquals(
+    code.includes('import { helper } from "https://esm.sh/h";'),
+    true,
+  );
+});
+
+// An unresolvable bare import must not break the functions that never use it.
+Deno.test("a module with an unused bare import still loads", async () => {
+  const { code } = extractModule(`
+import { max } from "d3";
+export const total = (xs) => xs.reduce((a, b) => a + b, 0);
+`);
+  assertEquals((await importModule(code)).total([1, 2, 3]), 6);
+});
+
+Deno.test("keeps the comments directly above a kept statement", () => {
+  const { code } = extractModule(`// file header
+root.innerHTML = "x"; // trailing note
+/** Doubles x. */
+export function double(x) { return x * 2; }
+`);
+  assertEquals(
+    code.includes("/** Doubles x. */\nexport function double"),
+    true,
+  );
+  assertEquals(code.includes("trailing note"), false);
+  assertEquals(code.includes("file header"), false);
 });
 
 Deno.test("anonymous default function export", async () => {
