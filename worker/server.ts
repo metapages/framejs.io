@@ -35,7 +35,8 @@ import {
   pinnedVersionSuffix,
   runtimeHashParams,
 } from "./src/pinned-version.ts";
-import { extractModule, ModuleExportError } from "./src/module-export.ts";
+import { computeEtag } from "./src/etag.ts";
+import { frameModuleResponse } from "./src/frame-module.ts";
 import { frameOgPath, shortUrlInitScript } from "./src/short-url-init.ts";
 import type { FetchAsset } from "./src/standalone-bundle.ts";
 import {
@@ -510,18 +511,6 @@ let indexHtmlEtag = "";
 // loads. Custom events on the uncached /api and /j routes are unaffected.
 const SHELL_CDN_CACHE = "public, s-maxage=86400, stale-while-revalidate=604800";
 const SHELL_BROWSER_CACHE = "public, max-age=0, must-revalidate";
-
-// Short, stable ETag from a SHA-256 prefix of the served body.
-async function computeEtag(body: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(body),
-  );
-  const hex = Array.from(new Uint8Array(digest).slice(0, 8))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `"${hex}"`;
-}
 
 // Inject the configured framejs.app origin so the client can link/navigate to the
 // right host in dev vs prod (the client reads window.__FRAMEJS_APP_ORIGIN, falling
@@ -1151,101 +1140,61 @@ async function loadFrameHashParams(
 const MODULE_SOURCE_MAX_BYTES = 10 * 1024 * 1024;
 
 /**
+ * Whether a hoisted `js=<url>` source can never change. Only framejs.app's
+ * `/f/<id>` qualifies: it stores each source once, content-addressed. This
+ * worker's own `/f/<id>` does NOT — its key is whatever `sha256` the uploading
+ * client claims (unverified) and the `f/` prefix expires — and any other URL
+ * (say a `raw.githubusercontent.com/…/main/…` file) is plainly mutable.
+ */
+const isImmutableSourceUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === new URL(FRAMEJS_APP_ORIGIN).origin &&
+      /^\/f\/[A-Za-z0-9._-]+$/.test(parsed.pathname) && !parsed.search;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * `/j/<id>.js` (and `/j/<uuid>.js?v=<sha256>`): the frame's code as an ES
  * module of its functions only, so another frame can
- * `import { f } from "https://framejs.io/j/<id>.js"`. What survives is decided
- * by extractModule (src/module-export.ts).
+ * `import { f } from "https://framejs.io/j/<id>.js"`. See src/frame-module.ts.
  */
 async function serveFrameModule(c: Context, id: string): Promise<Response> {
-  // User code at a stable same-origin path could be registered as a service
-  // worker scoped to /j/ — over every other frame's page. A module import never
-  // sends this header; a service worker registration always does.
-  if (c.req.header("service-worker")) {
-    return c.json({ error: "Not available as a service worker" }, 403);
-  }
-  id = normalizeUuid(id);
-  const isUuid = UUID_REGEX.test(id);
-  if (!isUuid && !/^[a-f0-9]{64}$/.test(id)) {
-    return c.json({ error: "Invalid shortened URL ID" }, 400);
-  }
-  if (!isUuid && !s3Configured) {
-    return c.json({ error: "URL shortening not configured" }, 503);
-  }
-  const pinnedVersion = pinnedVersionFromQuery((k) => c.req.query(k));
-  let frame: { hashParams: string; immutable: boolean } | null;
-  let source: string;
-  try {
-    frame = await loadFrameHashParams(id, pinnedVersion);
-    if (frame === null) {
-      return c.json({ error: "Shortened URL not found" }, 404);
-    }
-    const js = decodeHashParamsToJson(frame.hashParams).js;
-    source = typeof js === "string" ? js : "";
-    if (!source.trim()) {
-      return c.json({ error: "This frame has no code" }, 404);
-    }
-    // A hoisted frame stores `js=<url>` of its source.
-    const protocol = c.req.header("x-forwarded-proto") || "https";
-    const host = c.req.header("x-forwarded-host") || c.req.header("host");
-    source = await resolveJsSource(
-      source,
-      withBudget(
-        exportFetchAsset(`${protocol}://${host}`),
-        MODULE_SOURCE_MAX_BYTES,
-      ),
-    );
-  } catch (error) {
-    if (error instanceof ExportError) {
-      return c.json({ error: error.message }, error.status);
-    }
-    console.error("Frame module error:", error);
-    return c.json({ error: "Failed to retrieve frame" }, 502);
-  }
-
-  let body: string;
-  try {
-    const { code, skipped } = extractModule(source);
-    const canonical = `${PUBLIC_ORIGIN}/j/${id}.js${
-      pinnedVersionSuffix(pinnedVersion)
-    }`;
-    body = `// ${canonical}\n` +
-      `// The functions of this frame's code: top-level code is removed.\n` +
-      (skipped.length
-        ? `// Not exported (not functions): ${skipped.join(", ")}\n`
-        : "") +
-      `\n${code}`;
-  } catch (error) {
-    if (error instanceof ModuleExportError) {
-      return c.json({ error: error.message }, 422);
-    }
-    throw error;
-  }
-
-  track(c, { name: "module", source: detectSource(c) });
-  const headers: Record<string, string> = {
-    "Content-Type": "text/javascript; charset=utf-8",
-    "X-Content-Type-Options": "nosniff",
-  };
-  if (frame.immutable) {
-    headers["Cache-Control"] = "public, max-age=31536000, immutable";
-    return new Response(body, { headers });
-  }
-  // Live uuid: revalidate every import, but answer 304 when unchanged.
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(body),
+  // The host the browser used: what a same-origin `/f/<id>` reference means.
+  const protocol = c.req.header("x-forwarded-proto") || "https";
+  const host = c.req.header("x-forwarded-host") || c.req.header("host");
+  const fetchAsset = withBudget(
+    exportFetchAsset(`${protocol}://${host}`),
+    MODULE_SOURCE_MAX_BYTES,
   );
-  const etag = `"${
-    Array.from(new Uint8Array(digest)).slice(0, 16).map((b) =>
-      b.toString(16).padStart(2, "0")
-    ).join("")
-  }"`;
-  headers["ETag"] = etag;
-  headers["Cache-Control"] = "no-cache";
-  if (c.req.header("if-none-match") === etag) {
-    return new Response(null, { status: 304, headers });
+  const response = await frameModuleResponse(
+    {
+      id,
+      pinnedVersion: pinnedVersionFromQuery((k) => c.req.query(k)),
+      header: (name) => c.req.header(name),
+    },
+    {
+      publicOrigin: PUBLIC_ORIGIN,
+      s3Configured,
+      loadFrameJs: async (frameId, pinnedVersion) => {
+        const frame = await loadFrameHashParams(frameId, pinnedVersion);
+        if (!frame) return null;
+        const js = decodeHashParamsToJson(frame.hashParams).js;
+        return {
+          js: typeof js === "string" ? js : "",
+          immutable: frame.immutable,
+        };
+      },
+      fetchSource: (url) => resolveJsSource(url, fetchAsset),
+      isImmutableSourceUrl,
+    },
+  );
+  if (response.status === 200) {
+    track(c, { name: "module", source: detectSource(c) });
   }
-  return new Response(body, { headers });
+  return response;
 }
 
 // Shortened URL — fetches hash params and serves index.html with injected init
