@@ -86,26 +86,38 @@ import { total } from "https://framejs.io/j/<sha256>.js";
 
 A frame's code is written to *run* — it renders into `root`, adds listeners,
 fetches data. None of that happens when you import it. The module keeps only
-what is safe to evaluate:
+what is safe to evaluate **and** has the same value it has in the running
+frame:
 
 - function declarations, exported or not (the unexported ones are the helpers
-  the exported ones call), and `const f = () => …` / `function () {…}`
-- constants set to a plain literal (`const SCALE = 10`, `["a", "b"]`,
-  `{ unit: "px" }`)
-- `import` statements that bind names (your functions may use them), and
-  re-exports (`export … from`)
+  the exported ones call), with the comments directly above them, and
+  `const f = () => …` / `function () {…}`
+- `const` primitives (`const SCALE = 10`, `const UNIT = "px"`)
+- `import`s of names the kept code uses, and re-exports (`export … from`).
+  A kept import still runs the imported library's own top level, as any import
+  does
 - `export { … }` / `export default` of any of the above
 
-Everything else is removed: top-level statements, classes,
-`let x = compute()`, `await`, and side-effect-only `import "x"`. An export that
-was removed is listed in a comment at the top of the module. A function that
-reads something removed — or a runtime global such as `root` or `setOutput` —
-throws when it is **called**, not when it is imported, so write the functions
-you want to share to take what they need as arguments.
+Everything else is removed: top-level statements, classes, `let`/`var`, `const`
+arrays and objects, `const x = compute()`, `await`, imports nothing kept uses
+(including side-effect-only `import "x"`), and functions that top-level code
+reassigns. `let`, `var` and `const` objects are removed rather than kept with
+their initial value because the top-level code that changes them is removed
+too: keeping them would hand your function a value the frame never had. An
+export that was removed is listed in a comment at the top of the module. A
+function that reads something removed — or a runtime global such as `root` or
+`setOutput` — throws when it is **called**, not when it is imported, so write
+the functions you want to share to take what they need as arguments.
+
+Imports resolved by the frame's own import map (`import { max } from "d3"`
+with a `modules` entry) are not rewritten: the module loads as long as no kept
+function uses them, but a function that does needs the same import map in the
+importing frame. Prefer full URLs (`https://esm.sh/d3@7`) in code you share.
 
 Caching follows the URL: `/j/<sha256>.js` and a published `/j/<uuid>.js?v=…` are
 immutable and cached for a year; the live `/j/<uuid>.js` revalidates on every
 import (a cheap `304` when unchanged), so it always serves the current version.
+So does any frame whose code is stored behind a URL that can change.
 
 ## Longer discussion between the two short-URL forms: `/j/<sha256>` vs `/j/<uuid>`
 
