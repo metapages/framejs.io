@@ -1097,7 +1097,7 @@
       isIframe,
       Metaframe,
       Metapage,
-    } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.15";
+    } from "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.16";
 
     // In short URL mode, wait for the async hash-params fetch to complete
     // so window.__SHORT_URL_HASH_PARAMS is populated before any code reads it.
@@ -2700,10 +2700,11 @@
     // `onInputs` one update at a time, in arrival order. While no code is
     // ready to take inputs — still loading, or between re-runs — they wait.
     //
-    // What @metapages/metapage (>= 1.10.15) already does, and is NOT redone
+    // What @metapages/metapage (>= 1.10.16) already does, and is NOT redone
     // here: it buffers updates that arrive while the metaframe registers,
     // re-sends the full inputs on every (re)registration, and applies its own
-    // deserialization (data: URLs, legacy _s/_c) in arrival order. What it
+    // deserialization (data: URLs, legacy _s/_c) in arrival order, without
+    // letting one value that fails to deserialize stall the rest. What it
     // cannot do, so this queue does: it knows nothing about the frame's code
     // being ready (a listener attached late gets one collapsed snapshot), and
     // it never resolves `{ type: "url" }` datarefs — that fetch happens in
