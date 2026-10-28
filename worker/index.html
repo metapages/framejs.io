@@ -2699,6 +2699,16 @@
     // below), queue every update, and drain the queue into the running code's
     // `onInputs` one update at a time, in arrival order. While no code is
     // ready to take inputs — still loading, or between re-runs — they wait.
+    //
+    // What @metapages/metapage (>= 1.10.15) already does, and is NOT redone
+    // here: it buffers updates that arrive while the metaframe registers,
+    // re-sends the full inputs on every (re)registration, and applies its own
+    // deserialization (data: URLs, legacy _s/_c) in arrival order. What it
+    // cannot do, so this queue does: it knows nothing about the frame's code
+    // being ready (a listener attached late gets one collapsed snapshot), and
+    // it never resolves `{ type: "url" }` datarefs — that fetch happens in
+    // deliverInputs below, so ordering it is this runtime's job. It also emits
+    // its own `_inputPipeValues` object on connect, hence the copy.
     // -------------------------------------------------------------------
     const pendingInputs = [];
     // The running code and its input options, or null while there is none.
