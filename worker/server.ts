@@ -35,12 +35,14 @@ import {
   pinnedVersionSuffix,
   runtimeHashParams,
 } from "./src/pinned-version.ts";
+import { extractModule, ModuleExportError } from "./src/module-export.ts";
 import { frameOgPath, shortUrlInitScript } from "./src/short-url-init.ts";
 import type { FetchAsset } from "./src/standalone-bundle.ts";
 import {
   buildStandaloneHtml,
   createPublicFetch,
   ExportError,
+  resolveJsSource,
   withBudget,
 } from "./src/standalone-export.ts";
 
@@ -1111,11 +1113,151 @@ async function fetchUuidHashParams(
   return { hashParams: await response.text() };
 }
 
+/**
+ * A frame's stored hash params, by uuid (framejs.app, honoring a `?v=` pin) or
+ * sha256 (S3). `immutable` is whether they can ever change: a sha256 blob is
+ * content-addressed and a pinned version is permanent; a live uuid is not.
+ * null when there is no such frame. The caller validates `id` (a uuid or a
+ * sha256) and that storage is configured for a sha256.
+ */
+async function loadFrameHashParams(
+  id: string,
+  pinnedVersion?: string,
+): Promise<{ hashParams: string; immutable: boolean } | null> {
+  if (UUID_REGEX.test(id)) {
+    const fetched = await fetchUuidHashParams(id, pinnedVersion);
+    return fetched &&
+      { hashParams: fetched.hashParams, immutable: !!pinnedVersion };
+  }
+  const s3 = await getS3Client();
+  if (!s3) throw new Error("URL shortening not configured");
+  try {
+    const { GetObjectCommand } = await s3Mod();
+    const response = await s3.send(
+      new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${id}` }),
+    );
+    if (!response.Body) throw new Error("S3 response body is empty");
+    return {
+      hashParams: await response.Body.transformToString(),
+      immutable: true,
+    };
+  } catch (error: any) {
+    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") return null;
+    throw error;
+  }
+}
+
+/** Cap on a hoisted (`js=<url>`) source fetched for `/j/<id>.js`. */
+const MODULE_SOURCE_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * `/j/<id>.js` (and `/j/<uuid>.js?v=<sha256>`): the frame's code as an ES
+ * module of its functions only, so another frame can
+ * `import { f } from "https://framejs.io/j/<id>.js"`. What survives is decided
+ * by extractModule (src/module-export.ts).
+ */
+async function serveFrameModule(c: Context, id: string): Promise<Response> {
+  // User code at a stable same-origin path could be registered as a service
+  // worker scoped to /j/ — over every other frame's page. A module import never
+  // sends this header; a service worker registration always does.
+  if (c.req.header("service-worker")) {
+    return c.json({ error: "Not available as a service worker" }, 403);
+  }
+  id = normalizeUuid(id);
+  const isUuid = UUID_REGEX.test(id);
+  if (!isUuid && !/^[a-f0-9]{64}$/.test(id)) {
+    return c.json({ error: "Invalid shortened URL ID" }, 400);
+  }
+  if (!isUuid && !s3Configured) {
+    return c.json({ error: "URL shortening not configured" }, 503);
+  }
+  const pinnedVersion = pinnedVersionFromQuery((k) => c.req.query(k));
+  let frame: { hashParams: string; immutable: boolean } | null;
+  let source: string;
+  try {
+    frame = await loadFrameHashParams(id, pinnedVersion);
+    if (frame === null) {
+      return c.json({ error: "Shortened URL not found" }, 404);
+    }
+    const js = decodeHashParamsToJson(frame.hashParams).js;
+    source = typeof js === "string" ? js : "";
+    if (!source.trim()) {
+      return c.json({ error: "This frame has no code" }, 404);
+    }
+    // A hoisted frame stores `js=<url>` of its source.
+    const protocol = c.req.header("x-forwarded-proto") || "https";
+    const host = c.req.header("x-forwarded-host") || c.req.header("host");
+    source = await resolveJsSource(
+      source,
+      withBudget(
+        exportFetchAsset(`${protocol}://${host}`),
+        MODULE_SOURCE_MAX_BYTES,
+      ),
+    );
+  } catch (error) {
+    if (error instanceof ExportError) {
+      return c.json({ error: error.message }, error.status);
+    }
+    console.error("Frame module error:", error);
+    return c.json({ error: "Failed to retrieve frame" }, 502);
+  }
+
+  let body: string;
+  try {
+    const { code, skipped } = extractModule(source);
+    const canonical = `${PUBLIC_ORIGIN}/j/${id}.js${
+      pinnedVersionSuffix(pinnedVersion)
+    }`;
+    body = `// ${canonical}\n` +
+      `// The functions of this frame's code: top-level code is removed.\n` +
+      (skipped.length
+        ? `// Not exported (not functions): ${skipped.join(", ")}\n`
+        : "") +
+      `\n${code}`;
+  } catch (error) {
+    if (error instanceof ModuleExportError) {
+      return c.json({ error: error.message }, 422);
+    }
+    throw error;
+  }
+
+  track(c, { name: "module", source: detectSource(c) });
+  const headers: Record<string, string> = {
+    "Content-Type": "text/javascript; charset=utf-8",
+    "X-Content-Type-Options": "nosniff",
+  };
+  if (frame.immutable) {
+    headers["Cache-Control"] = "public, max-age=31536000, immutable";
+    return new Response(body, { headers });
+  }
+  // Live uuid: revalidate every import, but answer 304 when unchanged.
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(body),
+  );
+  const etag = `"${
+    Array.from(new Uint8Array(digest)).slice(0, 16).map((b) =>
+      b.toString(16).padStart(2, "0")
+    ).join("")
+  }"`;
+  headers["ETag"] = etag;
+  headers["Cache-Control"] = "no-cache";
+  if (c.req.header("if-none-match") === etag) {
+    return new Response(null, { status: 304, headers });
+  }
+  return new Response(body, { headers });
+}
+
 // Shortened URL — fetches hash params and serves index.html with injected init
 // script. Accepts either a sha256 (S3-backed blob) or a uuid (resolved via
 // FRAMEJS_APP_ORIGIN).
 app.get("/j/:sha256", async (c) => {
   const id = c.req.param("sha256");
+
+  // .js form: the frame's functions as an importable ES module.
+  if (id && id.endsWith(".js")) {
+    return await serveFrameModule(c, id.slice(0, -".js".length));
+  }
 
   // uuid.json form: proxy the raw frame JSON to the framejs.app backend (or the
   // dev-stack equivalent via FRAMEJS_APP_ORIGIN) so callers can fetch a frame's
