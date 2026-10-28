@@ -10,6 +10,7 @@
     "npm:@aws-sdk/s3-request-presigner@^3.997.0": "3.1044.0",
     "npm:@metapages/metapage@^1.10.15": "1.10.15_react@19.3.1",
     "npm:@resvg/resvg-wasm@^2.6.2": "2.6.2",
+    "npm:acorn@^8.15.0": "8.19.0",
     "npm:qrcode@1.5.4": "1.5.4",
     "npm:uuidv7@^1.0.2": "1.2.1"
   },
@@ -1037,6 +1038,10 @@
         "tslib"
       ]
     },
+    "acorn@8.19.0": {
+      "integrity": "sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw==",
+      "bin": true
+    },
     "ansi-regex@5.0.1": {
       "integrity": "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=="
     },
@@ -1261,6 +1266,7 @@
       "npm:@aws-sdk/s3-request-presigner@^3.997.0",
       "npm:@metapages/metapage@^1.10.15",
       "npm:@resvg/resvg-wasm@^2.6.2",
+      "npm:acorn@^8.15.0",
       "npm:qrcode@1.5.4",
       "npm:uuidv7@^1.0.2"
     ]
