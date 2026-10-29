@@ -144,6 +144,21 @@ prompt, and the existing code: a concise title (<= ~60 chars), a ~110-150 char
 description of what the app shows and, if interactive, how to use it, and 3-6
 short topic tags.
 
+### A short URL's code, css and params as files
+
+Every short URL `https://framejs.io/j/<id>` (`<id>` = a `<sha256>`, or a
+framejs.app `<uuid>` with optional `?v=<sha256>` pin) also serves:
+
+- `/j/<id>.js` — the code, unaltered (text/javascript)
+- `/j/<id>.esm.js` — the code's functions only, as an ES module another frame
+  can `import { f } from "https://framejs.io/j/<id>.esm.js"`; top-level code is
+  stripped
+- `/j/<id>.css` — the `css` param (text/css), 404 if none
+- `/j/<id>.<param>.json` — any hash param as JSON (`inputs`, `modules`, `og`,
+  `options`, `definition`, a `setJson` key…), 404 if absent
+
+Details: https://framejs.io/docs/guide/short-urls#howto-get-a-frame-s-code-css-and-params-as-files
+
 ### Modifying existing short URLs
 
 Fetch existing code: `GET https://framejs.io/api/j/<sha256>`

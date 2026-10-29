@@ -319,3 +319,26 @@ and any open framejs.app page updates live.
 A legacy framejs.io `/j/<sha256>` (64 hex) URL can also be fetched — `fetch`
 detects the length and returns `{ id, hashParams }` — then re-created as a new
 framejs.app frame.
+
+## One param as a file — `/j/<id>.js`, `.esm.js`, `.css`, `.<param>.json`
+
+framejs.io also serves each of a frame's hash params as a plain file, for a
+`<uuid>` (dashed or not, with an optional `?v=<sha256>` pin) or a `<sha256>`:
+
+| URL                                | Returns                                                                     |
+| ---------------------------------- | --------------------------------------------------------------------------- |
+| `https://framejs.io/j/<id>.js`     | the code (`js`), unaltered — `text/javascript`                              |
+| `https://framejs.io/j/<id>.esm.js` | the code's functions only, as an importable ES module — `text/javascript`   |
+| `https://framejs.io/j/<id>.css`    | the `css` param, `404` when the frame has none — `text/css`                 |
+| `https://framejs.io/j/<id>.<param>.json` | any param as JSON (`inputs`, `og`, a `setJson` key…) — `application/json` |
+
+To reuse another frame's functions in the frame you are writing, import its
+`.esm.js` — top-level code is stripped, so importing runs none of it:
+
+```js
+import { total } from "https://framejs.io/j/<uuid>.esm.js";
+```
+
+Only functions, `const` primitives and the imports they use survive: a shared
+function should take what it needs as arguments rather than read `root` or
+top-level state. Details: https://framejs.io/docs/guide/short-urls#howto-get-a-frame-s-code-css-and-params-as-files

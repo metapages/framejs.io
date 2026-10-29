@@ -150,6 +150,11 @@ durable, owned Frames.
 | `POST /api/shorten/json` | Same, encoding `{js, options, …}` into hash params for you. |
 | `GET /api/j/:sha256` | Retrieve decoded hash params for a short URL. |
 | `GET /api/j/:sha256/url` | Retrieve the full URL as plain text. |
+| `GET /j/:id.js` | A short URL's code, unaltered (`:id` is a `<sha256>` or a framejs.app `<uuid>`, with `?v=<sha256>` for a published version — as for every row below). See [Code, CSS and params as files](/guide/short-urls#howto-get-a-frame-s-code-css-and-params-as-files). |
+| `GET /j/:id.esm.js` | The code's functions only, as an ES module another frame can `import`. |
+| `GET /j/:id.css` | The frame's `css`, `404` if it has none. |
+| `GET /j/:id.:param.json` | Any one hash param as JSON — `inputs`, `modules`, `og`, `options`, `definition`, a `setJson` key… |
+| `GET /j/:uuid.json` | A Frame's whole hash params as JSON, proxied from framejs.app with CORS open. |
 | `POST /api/upload/presign` | Presigned URL for direct browser→storage file upload (`/f/<sha256>`). |
 | `GET /f/:sha256` | Download a content-addressed uploaded file. |
 | `POST /api/export/html` | Bake hash params (`{hashParams}`) into one self-contained `.html` file; returns `{id, path, size}`. See [Standalone HTML export](/guide/short-urls#howto-standalone-html-export-an-offline-archive). |
