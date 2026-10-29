@@ -75,7 +75,8 @@ The recommended, portable integration is the `framejs` Agent Skill
 (https://framejs.io/skill/framejs/SKILL.md) — a single SKILL.md folder supported
 by ~40 agent harnesses (Claude Code, Gemini CLI, Cursor, opencode, Goose, Codex,
 pi, …). It auto-routes: full automation when a shell is available, code-block
-output for chat-only agents. See https://framejs.io/docs/ai/agent-skill to install.
+output for chat-only agents. See https://framejs.io/docs/ai/agent-skill to
+install.
 
 Full CLI integration guide (encoding, short URLs, file uploads):
 https://framejs.io/llms-claude-code.txt

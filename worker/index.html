@@ -209,71 +209,6 @@
       overflow: auto;
     }
 
-    /* Landing (no code in the URL). The inline `display: none` hides it until
-       showLandingContent() clears it; then this flex column applies. */
-    #landing-content {
-      display: flex;
-      flex-direction: column;
-      box-sizing: border-box;
-    }
-
-    /* Header bar pointing at framejs.app — the guide iframe below is a
-       cross-origin page, so this is the one link to the account app that
-       framejs.io itself owns. Palette mirrors framejs.app (Offprint). */
-    .landing-app-bar {
-      flex: none;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px 16px;
-      padding: 12px 16px;
-      border-bottom: 1px solid #e6e3db;
-      background: #f4f3ef;
-      color: #111110;
-    }
-    .landing-app-bar .lab-text {
-      flex: 1 1 260px;
-      font-size: 0.95rem;
-      line-height: 1.4;
-    }
-    .landing-app-bar .lab-text strong {
-      font-weight: 600;
-    }
-    .landing-app-bar .lab-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .landing-app-bar a {
-      display: inline-block;
-      padding: 7px 14px;
-      border-radius: 2px;
-      border: 1px solid #465775;
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-    .landing-app-bar a.lab-primary {
-      background: #465775;
-      color: #fff;
-    }
-    .landing-app-bar a.lab-primary:hover {
-      background: #354462;
-      border-color: #354462;
-    }
-    .landing-app-bar a.lab-secondary {
-      background: transparent;
-      color: #465775;
-    }
-    .landing-app-bar a.lab-secondary:hover {
-      background: #e9ecf2;
-    }
-    .landing-app-bar a:focus-visible {
-      outline: 2px solid #465775;
-      outline-offset: 2px;
-    }
-
     .root-with-editor {
       position: absolute;
       top: 0;
@@ -459,225 +394,37 @@
       <span>Edit</span>
     </button>
 
-    <div id="root" class="root borderFatSolidGreen transparent">
-      <div
-        id="landing-content"
-        style="background-color: #f4f3ef; display: none; height: 100%; width: 100%; margin: 4px auto; padding: 0 4px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #111110; line-height: 1.6"
-      >
-        <!-- <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap"
-        > -->
+    <div id="root" class="root borderFatSolidGreen transparent"></div>
 
-        <!-- `data-src`, NOT `src`: a hidden iframe still loads. This guide is a
-             cross-origin page, so a plain `src` here fetched framejs.app/howto
-             on EVERY frame load — behind display:none, while the user's own
-             frame was starting up — and when the guide still embedded a live
-             framejs.io demo it recursed (guide → demo frame → guide → ...).
-             The browser tears those nested documents down mid-load, which
-             aborts the demo frame's in-flight `import(blobUrl)` and printed
-             "Error importing module undefined" into the console of unrelated
-             frames. showLandingContent() promotes it when the landing is
-             shown. -->
-        <!-- `https://framejs.app` is rewritten to FRAMEJS_APP_ORIGIN by
-             buildIndexHtml in server.ts, so these point at the local app in
-             dev. target="_top": framejs.io may itself be embedded. -->
-        <div class="landing-app-bar">
-          <div class="lab-text">
-            <strong>Create, save and share frames on framejs.app</strong>
-          </div>
-          <div class="lab-actions">
-            <a class="lab-primary" href="https://framejs.app/"
-              target="_top">Open framejs.app &rarr;</a>
-            <a class="lab-secondary" href="https://framejs.app/signup"
-              target="_top">Sign up</a>
-            <a class="lab-secondary" href="https://framejs.app/login"
-              target="_top">Log in</a>
-          </div>
-        </div>
-        <iframe data-src="https://framejs.app/howto"
-          style="border: none; width: 100%; flex: 1 1 auto; min-height: 0;"
-          frameborder="0"
-          allow="clipboard-read; clipboard-write"></iframe>
-        <!-- <h1
-          style="font-size: 2.8rem; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 8px; color: #2563eb"
-        >
-          framejs.io
-        </h1>
-        <p style="font-size: 1.25rem; color: #444; margin: 0 0 12px">
-          Create and share interactive visualizations, dashboards, and apps —
-          with AI or by hand.
-        </p>
-        <p style="font-size: 0.95rem; color: #666; margin: 0 0 32px">
-          Write JavaScript, get a shareable URL. No server, no login, no build
-          step. The entire app lives in the link.
-        </p>
+    <!-- The landing page — what `/` shows when the url carries no code — is
+         NOT inline here. It is its own module (worker/static/landing.js),
+         fetched only when there is nothing to run — this file is the runtime
+         every frame downloads, and no frame load shows the landing.
 
-        <div
-          style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 36px"
-        >
-          <a
-            href="/docs/ai/agent-skill"
-            style="background: #f8f9fa; border: 1px solid #e2e5e9; border-radius: 8px; padding: 16px 18px; text-decoration: none; color: inherit; transition: border-color 0.2s"
-            onmouseover='this.style.borderColor = "#93a3b8"'
-            onmouseout='this.style.borderColor = "#e2e5e9"'
-          >
-            <strong style="color: #333">Ask AI to build it</strong><br>
-            <span style="font-size: 0.9rem; color: #555"
-            >Describe what you want, paste the code, share the link.</span></a>
-          <a
-            href="/docs/guide/quickstart"
-            style="background: #f8f9fa; border: 1px solid #e2e5e9; border-radius: 8px; padding: 16px 18px; text-decoration: none; color: inherit; transition: border-color 0.2s"
-            onmouseover='this.style.borderColor = "#93a3b8"'
-            onmouseout='this.style.borderColor = "#e2e5e9"'
-          >
-            <strong style="color: #333">Share via URL</strong><br>
-            <span style="font-size: 0.9rem; color: #555"
-            >The link is the app. No deploy, no hosting, no accounts.</span></a>
-          <a
-            href="/docs/guide/embedding"
-            style="background: #f8f9fa; border: 1px solid #e2e5e9; border-radius: 8px; padding: 16px 18px; text-decoration: none; color: inherit; transition: border-color 0.2s"
-            onmouseover='this.style.borderColor = "#93a3b8"'
-            onmouseout='this.style.borderColor = "#e2e5e9"'
-          >
-            <strong style="color: #333">Embed anywhere</strong><br>
-            <span style="font-size: 0.9rem; color: #555"
-            >Notion, Jupyter, Confluence, blogs — just paste the URL.</span></a>
-        </div>
-
-        <h2
-          style="font-size: 1.1rem; font-weight: 600; margin: 0 0 12px; color: #333"
-        >
-          Example — real-time animated particles
-        </h2>
-        <div style="position: relative; margin: 0 0 32px">
-          <button
-            onclick='navigator.clipboard.writeText(
-        this.parentElement.querySelector("code").textContent,
-        ).then(() => {
-        this.textContent = "Copied!";
-        setTimeout(() => {
-        this.textContent = "Copy";
-        }, 1500);
-        })'
-            style="position: absolute; top: 10px; right: 10px; background: #3a3a3a; color: #ddd; border: none; border-radius: 5px; padding: 5px 12px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; cursor: pointer; z-index: 1; transition: background 0.2s"
-            onmouseover='this.style.background = "#555"'
-            onmouseout='this.style.background = "#3a3a3a"'
-          >
-            Copy
-          </button>
-          <pre
-            style="background: #1a1a1a; color: #d4d4d4; border-radius: 8px; padding: 18px 20px; overflow: auto; max-height: 280px; font-family: 'jetbrains mono', monospace; font-size: 0.82rem; line-height: 1.5; margin: 0"
-          ><code>const canvas = document.createelement("canvas");
-        canvas.width = root.getboundingclientrect().width;
-        canvas.height = root.getboundingclientrect().height;
-        root.appendchild(canvas);
-        const ctx = canvas.getcontext("2d");
-
-        let particles = array.from({length: 80}, () => ({
-        x: math.random() * root.getboundingclientrect().width, y: math.random() * root.getboundingclientrect().height,
-        vx: (math.random() - 0.5) * 2, vy: (math.random() - 0.5) * 2,
-        r: math.random() * 3 + 1
-        }));
-
-        function frame() {
-        ctx.fillstyle = "rgba(0,0,0,0.08)";
-        ctx.fillrect(0, 0, root.getboundingclientrect().width, root.getboundingclientrect().height);
-        for (const p of particles) {
-        p.x += p.vx; p.y += p.vy;
-        if (p.x < 0 || p.x > root.getboundingclientrect().width) p.vx *= -1;
-        if (p.y < 0 || p.y > root.getboundingclientrect().height) p.vy *= -1;
-        ctx.beginpath();
-        ctx.arc(p.x, p.y, p.r, 0, math.pi * 2);
-        ctx.fillstyle = `hsl(210, 40%, ${50 + p.r * 10}%)`;
-        ctx.fill();
-        }
-        requestanimationframe(frame);
-        }
-        frame();</code></pre>
-        </div>
-
-        <div
-          style="display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.9rem; margin-bottom: 24px"
-        >
-          <a
-            href="/docs/"
-            style="color: #4b7be5; text-decoration: none; font-weight: 500"
-            onmouseover='this.style.textDecoration = "underline"'
-            onmouseout='this.style.textDecoration = "none"'
-          >Docs</a>
-          <a
-            href="/docs/examples/"
-            style="color: #4b7be5; text-decoration: none; font-weight: 500"
-            onmouseover='this.style.textDecoration = "underline"'
-            onmouseout='this.style.textDecoration = "none"'
-          >Examples</a>
-          <a
-            href="/docs/ai/agent-skill"
-            style="color: #4b7be5; text-decoration: none; font-weight: 500"
-            onmouseover='this.style.textDecoration = "underline"'
-            onmouseout='this.style.textDecoration = "none"'
-          >AI setup</a>
-          <a
-            href="https://github.com/metapages/framejs.io"
-            style="color: #4b7be5; text-decoration: none; font-weight: 500"
-            onmouseover='this.style.textDecoration = "underline"'
-            onmouseout='this.style.textDecoration = "none"'
-          >GitHub</a>
-        </div>
-
-        <div
-          style="margin-top: 24px; padding: 18px 20px; background: #f0f4f8; border-radius: 8px; border: 1px solid #dde3ea; font-size: 0.85rem; color: #444; line-height: 1.6"
-        >
-          <strong style="color: #333"
-          >AI / CLI tools (Claude Code, Cursor, etc.)</strong>
-          <p style="margin: 6px 0 0">
-            CLI tools can generate JavaScript and create a short URL via
-            <code
-              style="background: #e2e8f0; padding: 2px 5px; border-radius: 3px; font-size: 0.8rem"
-            >POST /api/shorten/json</code>
-            with body
-            <code
-              style="background: #e2e8f0; padding: 2px 5px; border-radius: 3px; font-size: 0.8rem"
-            >{"js": "code", "modules": []}</code>
-            — the API returns a short URL that opens directly in the browser.
-            Never create local files. Full guide:
-            <a href="/llms-claude-code.txt" style="color: #4b7be5"
-            >CLI integration guide</a>
-            &#x2022;
-            <a href="/llms-prompt.md" style="color: #4b7be5">JS coding guide</a>
-            &#x2022;
-            <a href="/llms.txt" style="color: #4b7be5">llms.txt</a>
-          </p>
-        </div> -->
-      </div>
-    </div>
-    <!-- Show landing content only if no JS is pending (no short URL, no js hash param) -->
+         Loaded here rather than from the runtime module below because this is
+         the front page's first paint: the runtime module imports from a CDN,
+         and waiting for that would leave the page blank meanwhile. The same
+         import is used again by runJsFromUrl when the user clears their code
+         (free the second time — module cache). -->
     <script>
     (function () {
-      // Reveal the landing content AND start loading the iframes inside it
-      // (they carry `data-src` so nothing loads while it is hidden — see the
-      // comment on the guide iframe above). Also used by runJsFromUrl when the
-      // user clears their code and the landing is restored.
-      globalThis.showLandingContent = function () {
-        var el = document.getElementById("landing-content");
-        if (!el) return;
-        el.style.display = "";
-        var frames = el.querySelectorAll("iframe[data-src]");
-        for (var i = 0; i < frames.length; i++) {
-          frames[i].src = frames[i].getAttribute("data-src");
-          frames[i].removeAttribute("data-src");
-        }
+      globalThis.showLanding = function () {
+        return import("/landing.js").then(function (landing) {
+          landing.renderLanding(document.getElementById("root"));
+        }).catch(function (error) {
+          console.error("Failed to load the landing page", error);
+        });
       };
 
       var hash = window.location.hash || "";
       var hasJsParam = hash.indexOf("js=") > -1;
       var hasShortUrl = !!window.__SHORT_URL_READY;
       if (!hasJsParam && !hasShortUrl) {
-        globalThis.showLandingContent();
+        globalThis.showLanding();
       }
     })();
     </script>
+
     <div
       id="editor-root"
       class="editor-container-hidden borderDashedPurple transparent"
@@ -959,6 +706,9 @@
       forceSW;
 
     async function unregisterAllServiceWorkers() {
+      // A standalone export (worker/src/standalone-export.ts) never had one,
+      // and opened from file:// the lookup itself throws.
+      if (window.__FRAMEJS_STANDALONE) return;
       if ("serviceWorker" in navigator) {
         const registrations = await navigator
           .serviceWorker
@@ -1430,9 +1180,6 @@
     globalThis.setJson = (key, value) => setJson(key, value, "setJson");
     // Alias, kept for frames written before setJson was the preferred name.
     globalThis.saveJson = (key, value) => setJson(key, value, "saveJson");
-
-    // Save the initial landing content so it can be restored when code is cleared
-    const __landingHtml = document.getElementById("root").innerHTML;
 
     const MAX_LOG_ELEMENTS = 1000;
     let logScrollRafPending = false;
@@ -2255,7 +2002,7 @@
     // silently lands the iframe on about:blank#blocked, so a large frame
     // embedded by hash URL renders as a blank page. framejs.app therefore
     // hoists an oversize frame's source into its own storage and stores
-    // `js=<https://framejs.app/f/<id>>` instead, keeping the URL small.
+    // `js=<the app's /f/<id> url>` instead, keeping the URL small.
     //
     // Same rule (and the same one-line-http(s)-URL test) as the `css` param
     // below, and no new privilege: `js` already runs whatever code the hash
@@ -2941,11 +2688,9 @@
           console.error(err);
         }
       } else {
-        // No code — restore and show the landing content. showLandingContent()
-        // also promotes the guide iframe's data-src, which the snapshot still
-        // carries whenever the landing never showed on this load.
-        root.innerHTML = __landingHtml;
-        globalThis.showLandingContent?.();
+        // No code — the landing page belongs here instead. It builds itself
+        // (worker/static/landing.js); this is a no-op when it is already up.
+        globalThis.showLanding?.();
       }
     };
 
@@ -3152,6 +2897,7 @@
           previousContainer,
         );
       }
+      document.getElementById("editor-loading")?.remove();
       refreshUpdateSvgButton();
 
       if (!window.__SHORT_URL_ID) {
@@ -3164,6 +2910,116 @@
       if (resizeHandle) resizeHandle.style.display = "none";
     };
 
+    // Make sure the editor that loads is the build this runtime expects.
+    //
+    // This page always comes from the network (worker/sw.js is network-first
+    // for navigations), but /editor/ is served by its own precaching service
+    // worker (editor/src/sw.ts). A browser only notices a new editor deploy
+    // WHILE serving the old one, so the first editor opened after a deploy is
+    // the PREVIOUS build, running against THIS runtime. When the two disagree
+    // on how the source is handed over — an editor from before the source
+    // moved to the `__framejs_source` input reads `js` from its url, which
+    // mountEditor no longer puts there — the pane opens with no code, and only
+    // the next open (served by the now-updated worker) shows it.
+    // metapages/framejs.io#115, test/tests/editor-stale-service-worker.spec.ts
+    //
+    // The editor iframe navigates only once the cached build is PROVEN current;
+    // there is no "load whatever is cached" fallback. Proven current means one
+    // of:
+    //   - there is no editor worker: the editor comes from the network;
+    //   - update() found no new worker: the deployed sw.js is byte-identical to
+    //     the active one, and sw.js embeds the precache manifest (a revision
+    //     per file), so any editor change is a new sw.js;
+    //   - the new worker activated (it calls skipWaiting/clientsClaim);
+    //   - the editor worker was unregistered: an unregistered scope no longer
+    //     matches navigations, so the network answers. The editor page
+    //     registers its worker again itself (registerSW.js).
+    // update() failing or the new worker going redundant unregisters at once.
+    // A new worker still installing after EDITOR_SW_UPDATE_TIMEOUT_MS also
+    // gets an unregister — but service-worker jobs run one at a time per
+    // scope, so that unregister cannot complete before the install does
+    // either way. A slow install therefore means a slower editor, never an
+    // older one; the pane says so while it waits, and the browser itself
+    // bounds how long an install may run.
+    //
+    // Offline this ends in the network too, i.e. no editor. Nothing is lost:
+    // the code buffer is a cross-origin iframe (editor.mtfm.io) that no
+    // framejs.io worker caches, so the cached editor could not edit offline.
+    const EDITOR_SW_UPDATE_TIMEOUT_MS = 10000;
+    const ensureCurrentEditorServiceWorker = async () => {
+      if (!("serviceWorker" in navigator)) return;
+      const editorScope = new URL("/editor/", window.location.origin).href;
+      const registration = await navigator.serviceWorker.getRegistration(
+        editorScope,
+      );
+      // getRegistration returns the longest MATCHING scope, so with no editor
+      // worker it is this page's own (/) worker — not ours to touch. No editor
+      // worker means the editor comes from the network anyway.
+      if (!registration || registration.scope !== editorScope) return;
+
+      const isCurrent = async () => {
+        await registration.update();
+        const next = registration.installing || registration.waiting;
+        if (!next) return true;
+        return new Promise((resolve) => {
+          const check = () => {
+            if (next.state === "activated" || next.state === "redundant") {
+              next.removeEventListener("statechange", check);
+              resolve(next.state === "activated");
+            }
+          };
+          next.addEventListener("statechange", check);
+          check();
+        });
+      };
+
+      // Shown only if the check is slow enough to notice.
+      const status = document.createElement("div");
+      status.id = "editor-loading";
+      status.textContent = "Loading the latest editor…";
+      status.style.cssText =
+        "padding: 1em; font: 14px system-ui, sans-serif; color: #555;";
+      const showStatus = setTimeout(
+        () => document.getElementById("editor-root").append(status),
+        500,
+      );
+
+      let unregistering;
+      const unregister = (reason) => {
+        if (!unregistering) {
+          console.warn(
+            `framejs: ${reason}; unregistering the editor service worker so ` +
+              "the editor loads from the network",
+          );
+          unregistering = registration.unregister();
+        }
+        return unregistering;
+      };
+      let timer;
+      try {
+        await new Promise((resolve, reject) => {
+          const viaUnregister = (reason) =>
+            unregister(reason).then(resolve, reject);
+          isCurrent().then(
+            (current) =>
+              current
+                ? resolve()
+                : viaUnregister("the new editor service worker failed"),
+            (err) =>
+              viaUnregister(`could not update the editor service worker (${err})`),
+          );
+          timer = setTimeout(
+            () => viaUnregister("the new editor service worker is slow to install"),
+            EDITOR_SW_UPDATE_TIMEOUT_MS,
+          );
+        });
+      } finally {
+        clearTimeout(timer);
+        clearTimeout(showStatus);
+        status.remove();
+      }
+    };
+
     // Mount the editor pane in place. Split out of onMenuClick because the two
     // entry points want different things: a user clicking the menu button on a
     // short url is handed off to framejs.app (below), but an EMBEDDER that
@@ -3171,6 +3027,7 @@
     // the host's iframe somewhere else instead of opening the editor.
     const mountEditor = async () => {
       if (document.getElementById("iframe-container")) return;
+      document.getElementById("editor-loading")?.remove();
       setHashParamInWindow("edit", true);
 
       document.getElementById("menu-button").style.display = "none";
@@ -3183,6 +3040,28 @@
 
       document.getElementById("editor-root").className =
         "editor-container-shown borderDashedBlue";
+
+      // Before the editor iframe exists — whichever worker answers its
+      // navigation is the build that loads — and before the editor url is
+      // built from the hash, which may change while this waits.
+      try {
+        await ensureCurrentEditorServiceWorker();
+      } catch (err) {
+        // Only reachable if the browser refuses to unregister the worker. Then
+        // the cached editor is the only one this page can load and it is not
+        // known to be current, so say so instead of opening it.
+        console.error("framejs: could not ensure a current editor", err);
+        const message = document.createElement("div");
+        message.id = "editor-loading";
+        message.textContent =
+          "Could not load the latest editor. Reload the page to try again.";
+        message.style.cssText =
+          "padding: 1em; font: 14px system-ui, sans-serif; color: #a33;";
+        document.getElementById("editor-root").append(message);
+        // The menu button reopens (and so retries) from here.
+        document.getElementById("menu-button").style.display = "";
+        return;
+      }
 
       // `js` is REMOVED from the editor's url. Every other param rides along;
       // the source travels over postMessage instead (below).
@@ -3256,31 +3135,52 @@
       );
       runJsFromUrl();
 
+      // Commit the editor's changes to the page url. The page url is what an
+      // embedder (framejs.app) watches to decide when to save a version, so
+      // this is the one write that persists an edit.
+      //
+      // Two kinds of change arrive, on separate channels: the editor's hash
+      // (its OTHER params: inputs, modules, definition) and the frame's source
+      // (an output). They are debounced together into ONE write, and the
+      // write COMPOSES them. Each used to rebuild the whole hash from its own
+      // base and the later one cancelled the earlier, so one action that does
+      // both at once lost half of it: embedding a file adds an input AND
+      // injects a comment into the code, and the code's write — built from the
+      // page hash, which had no input yet — replaced the one carrying it. The
+      // file uploaded, and the frame never got the input.
       let pending;
-      // Commit a new hash to the page url. The page url is what an embedder
-      // (framejs.app) watches to decide when to save a version, so this is the
-      // one write that persists an edit.
-      const commitHash = (hash) => {
+      let pendingEditorHash = null;
+      let pendingSource = null;
+      const flushCommit = () => {
+        pending = null;
+        const [, ours] = getUrlHashParamsFromHashString(currentHashString());
+        // The editor's hash, when it changed, is the base: it is the editor's
+        // view of every param but `js`. Otherwise the page's own.
+        let hash = pendingEditorHash ?? currentHashString();
+        // `js` never travels in the editor's hash: put back the new source if
+        // there is one, or else ours, or adopting the hash would drop the code.
+        const js = pendingSource !== null
+          ? stringToBase64String(pendingSource)
+          : ours["js"];
+        if (js !== undefined) {
+          hash = setHashParamValueInHashString(hash, "js", js);
+        }
+        pendingEditorHash = null;
+        pendingSource = null;
+        window.location.hash = hash;
+      };
+      const scheduleCommit = () => {
         if (pending) {
           clearTimeout(pending);
         }
-        pending = setTimeout(() => {
-          pending = null;
-          window.location.hash = hash;
-        }, 400);
+        pending = setTimeout(flushCommit, 400);
       };
 
-      // An edit, arriving as a metaframe OUTPUT rather than in a url. Write it
-      // into `js` on the page url, leaving every other param alone.
+      // An edit, arriving as a metaframe OUTPUT rather than in a url.
       const commitSource = (source) => {
         seededEditorSource = source;
-        commitHash(
-          setHashParamValueInHashString(
-            currentHashString(),
-            "js",
-            stringToBase64String(source),
-          ),
-        );
+        pendingSource = source;
+        scheduleCommit();
       };
       mp.addListener(
         globalThis.metapage.Metapage.DEFINITION,
@@ -3293,17 +3193,12 @@
           const url = event?.definition?.metaframes?.editor?.url;
           if (!url) return;
           // The editor's hash carries its OTHER params (definition, modules,
-          // inputs) — never `js`, which travels as an output instead. Take the
-          // hash off the string rather than via `new URL()`, and put our own
-          // `js` back, or adopting this hash would drop the frame's code.
+          // inputs) — never `js`, which travels as an output instead (the
+          // flush puts it back). Take the hash off the string rather than via
+          // `new URL()`.
           const hashIndex = url.indexOf("#");
-          const editorHash = hashIndex === -1 ? "" : url.slice(hashIndex);
-          const [, ours] = getUrlHashParamsFromHashString(currentHashString());
-          commitHash(
-            ours["js"] === undefined
-              ? editorHash
-              : setHashParamValueInHashString(editorHash, "js", ours["js"]),
-          );
+          pendingEditorHash = hashIndex === -1 ? "" : url.slice(hashIndex);
+          scheduleCommit();
         },
       );
 
@@ -3407,6 +3302,43 @@
     document
       .getElementById("menu-button")
       .addEventListener("click", onMenuClick);
+
+    // The seam the landing page's Edit button comes in through
+    // (worker/static/landing.js calls this with its starter frame source).
+    //
+    // The landing has the source; the hash write and the editor pane are the
+    // runtime's business, so they stay here. `js` goes in with
+    // history.replaceState rather than through hash-query because
+    // announceSelfHashWrites classes that as a self-write, which does NOT
+    // re-run the frame — mountEditor runs it once itself, after the pane is up.
+    // Writing it as a normal hash change instead ran the frame twice.
+    globalThis.framejsStartEditing = async (source) => {
+      if (document.getElementById("iframe-container")) return;
+      if (!getJsFromUrl()) {
+        const hash = setHashParamValueInHashString(
+          window.location.hash,
+          "js",
+          stringToBase64String(source),
+        );
+        window.history.replaceState(
+          null,
+          document.title,
+          `${window.location.pathname}${window.location.search}${
+            hash.startsWith("#") ? "" : "#"
+          }${hash}`,
+        );
+      }
+      await mountEditor();
+    };
+
+    // A click that landed while this module was still evaluating (it imports
+    // from a CDN, and the landing is painted before that finishes). The landing
+    // leaves it here rather than dropping it.
+    if (globalThis.framejsPendingEdit) {
+      const pendingSource = globalThis.framejsPendingEdit;
+      globalThis.framejsPendingEdit = null;
+      globalThis.framejsStartEditing(pendingSource);
+    }
 
     refreshUpdateSvgButton();
 

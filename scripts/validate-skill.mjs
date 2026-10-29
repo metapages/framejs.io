@@ -42,6 +42,7 @@ for (const rel of [
   "references/short-url-api.md",
   "references/file-inputs.md",
   "references/export-from-your-app.md",
+  "references/website-integration.md",
   "scripts/framejs.mjs",
 ]) {
   if (!existsSync(join(SKILL, rel))) err(`missing bundled file: ${rel}`);
@@ -55,6 +56,7 @@ const mdFiles = [
   "references/short-url-api.md",
   "references/file-inputs.md",
   "references/export-from-your-app.md",
+  "references/website-integration.md",
 ];
 for (const rel of mdFiles) {
   const lines = readFileSync(join(SKILL, rel), "utf8").split("\n");
@@ -63,6 +65,17 @@ for (const rel of mdFiles) {
       err(`${rel}:${i + 1}: inline \`\`\` fence in prose — a formatter may break this. Reword without literal triple backticks.`);
     }
   });
+}
+
+// --- the website runner template is the same in the skill and the docs -------
+// docs/integrations/website.md shows readers the exact HTML the skill reference
+// tells agents to copy verbatim; the two must not drift apart.
+const htmlBlock = (text) => (text.match(/^```html\n[\s\S]*?^```$/m) || [])[0];
+const skillTemplate = htmlBlock(readFileSync(join(SKILL, "references/website-integration.md"), "utf8"));
+const docsTemplate = htmlBlock(readFileSync(join(ROOT, "docs/integrations/website.md"), "utf8"));
+if (!skillTemplate) err("references/website-integration.md: missing the ```html runner template");
+else if (skillTemplate !== docsTemplate) {
+  err("docs/integrations/website.md: its ```html template differs from references/website-integration.md — copy it across");
 }
 
 // --- bundled scripts parse cleanly ------------------------------------------

@@ -361,6 +361,21 @@ pr-daemon-up:
     local_url="https://{{ APP_FQDN }}:${APP_PORT}"
 
     # Public mode: all three PR_DAEMON_* are empty when no preview domain is set.
+    # pr-daemon passes them; a manual `just pr-daemon-up` (a restart) does not,
+    # and used to silently bring the stack back in LOCAL mode — presigned
+    # uploads then point at s3.localhost and fail CORS in the browser. So they
+    # are remembered on every pr-daemon run and reused when absent (cleared by
+    # pr-daemon-down).
+    public_env=.traefik/pr-daemon/public.env
+    mkdir -p .traefik/pr-daemon
+    if [ -n "${PR_DAEMON_PUBLIC_URL:-}" ]; then
+        printf 'PR_DAEMON_PUBLIC_URL=%q\nPR_DAEMON_PUBLIC_HOST=%q\nPR_DAEMON_SERVICE_URL_TEMPLATE=%q\n' \
+            "$PR_DAEMON_PUBLIC_URL" "${PR_DAEMON_PUBLIC_HOST:-}" "${PR_DAEMON_SERVICE_URL_TEMPLATE:-}" > "$public_env"
+    elif [ -f "$public_env" ]; then
+        # shellcheck disable=SC1090
+        source "$public_env"
+        echo "[pr-daemon-up] reusing the public settings of the last pr-daemon run ($public_env)"
+    fi
     if [ -n "${PR_DAEMON_PUBLIC_URL:-}" ]; then
         s3_url="${PR_DAEMON_SERVICE_URL_TEMPLATE/\{service\}/s3}"
         public_port="$(printf '%s' "$PR_DAEMON_PUBLIC_URL" | sed -nE 's#^https?://[^/:]+:([0-9]+).*#\1#p')"
