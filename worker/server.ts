@@ -36,7 +36,11 @@ import {
   runtimeHashParams,
 } from "./src/pinned-version.ts";
 import { computeEtag } from "./src/etag.ts";
-import { frameModuleResponse } from "./src/frame-module.ts";
+import {
+  type FrameAsset,
+  frameAssetResponse,
+  parseFrameAssetPath,
+} from "./src/frame-asset.ts";
 import { frameOgPath, shortUrlInitScript } from "./src/short-url-init.ts";
 import type { FetchAsset } from "./src/standalone-bundle.ts";
 import {
@@ -114,6 +118,11 @@ function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
       typeMap[k] = (v as { type?: HashParamType }).type || "json";
     }
   }
+
+  // `css` is a transient param — deliberately absent from the definition, so
+  // a short URL never stores it unless the frame declares it — but when one is
+  // stored it is base64 text, exactly as the runtime reads it.
+  typeMap.css ??= "stringBase64";
 
   // Decode definition (always json type) to discover custom param types
   if (hashObject.definition) {
@@ -1136,7 +1145,7 @@ async function loadFrameHashParams(
   }
 }
 
-/** Cap on a hoisted (`js=<url>`) source fetched for `/j/<id>.js`. */
+/** Cap on a `js=<url>` / `css=<url>` reference fetched for `/j/<id>.js|.css`. */
 const MODULE_SOURCE_MAX_BYTES = 10 * 1024 * 1024;
 
 /**
@@ -1157,11 +1166,15 @@ const isImmutableSourceUrl = (url: string): boolean => {
 };
 
 /**
- * `/j/<id>.js` (and `/j/<uuid>.js?v=<sha256>`): the frame's code as an ES
- * module of its functions only, so another frame can
- * `import { f } from "https://framejs.io/j/<id>.js"`. See src/frame-module.ts.
+ * `/j/<id>.js`, `.esm.js`, `.css`, `.<param>.json` (each with the uuid's
+ * `?v=<sha256>` pin): one of a frame's hash params as a plain file. See
+ * src/frame-asset.ts.
  */
-async function serveFrameModule(c: Context, id: string): Promise<Response> {
+async function serveFrameAsset(
+  c: Context,
+  id: string,
+  asset: FrameAsset,
+): Promise<Response> {
   // The host the browser used: what a same-origin `/f/<id>` reference means.
   const protocol = c.req.header("x-forwarded-proto") || "https";
   const host = c.req.header("x-forwarded-host") || c.req.header("host");
@@ -1169,30 +1182,29 @@ async function serveFrameModule(c: Context, id: string): Promise<Response> {
     exportFetchAsset(`${protocol}://${host}`),
     MODULE_SOURCE_MAX_BYTES,
   );
-  const response = await frameModuleResponse(
+  const response = await frameAssetResponse(
     {
       id,
+      asset,
       pinnedVersion: pinnedVersionFromQuery((k) => c.req.query(k)),
       header: (name) => c.req.header(name),
     },
     {
       publicOrigin: PUBLIC_ORIGIN,
       s3Configured,
-      loadFrameJs: async (frameId, pinnedVersion) => {
+      loadFrameParams: async (frameId, pinnedVersion) => {
         const frame = await loadFrameHashParams(frameId, pinnedVersion);
-        if (!frame) return null;
-        const js = decodeHashParamsToJson(frame.hashParams).js;
-        return {
-          js: typeof js === "string" ? js : "",
+        return frame && {
+          params: decodeHashParamsToJson(frame.hashParams),
           immutable: frame.immutable,
         };
       },
-      fetchSource: (url) => resolveJsSource(url, fetchAsset),
+      fetchText: (url) => resolveJsSource(url, fetchAsset),
       isImmutableSourceUrl,
     },
   );
   if (response.status === 200) {
-    track(c, { name: "module", source: detectSource(c) });
+    track(c, { name: `frame-${asset.kind}`, source: detectSource(c) });
   }
   return response;
 }
@@ -1203,9 +1215,10 @@ async function serveFrameModule(c: Context, id: string): Promise<Response> {
 app.get("/j/:sha256", async (c) => {
   const id = c.req.param("sha256");
 
-  // .js form: the frame's functions as an importable ES module.
-  if (id && id.endsWith(".js")) {
-    return await serveFrameModule(c, id.slice(0, -".js".length));
+  // <id>.js / .esm.js / .css / .<param>.json: one hash param as a file.
+  const assetPath = id ? parseFrameAssetPath(id) : null;
+  if (assetPath) {
+    return await serveFrameAsset(c, assetPath.id, assetPath.asset);
   }
 
   // uuid.json form: proxy the raw frame JSON to the framejs.app backend (or the

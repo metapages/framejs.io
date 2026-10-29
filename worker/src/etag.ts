@@ -1,4 +1,4 @@
-// Content ETags, shared by the app shell and /j/<id>.js.
+// Content ETags, shared by the app shell and the /j/<id>.<ext> files.
 
 /** Short, stable ETag from a SHA-256 prefix of the served body. */
 export async function computeEtag(body: string): Promise<string> {

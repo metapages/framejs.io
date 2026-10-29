@@ -1,4 +1,4 @@
-// `/j/<id>.js`: a frame's code served as an importable ES module, reduced to
+// `/j/<id>.esm.js`: a frame's code served as an importable ES module, reduced to
 // its functions (issue #134).
 //
 // A frame's source is written to RUN: its top level renders into `root`, adds
@@ -23,7 +23,7 @@
 // throws a ReferenceError when CALLED, not when imported — the trade the issue
 // asks for.
 //
-// Pure (no I/O) so it can be unit-tested; the route lives in frame-module.ts.
+// Pure (no I/O) so it can be unit-tested; the route lives in frame-asset.ts.
 
 import { parse } from "acorn";
 import type {
