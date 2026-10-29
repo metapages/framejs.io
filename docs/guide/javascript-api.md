@@ -140,6 +140,19 @@ Saving does not re-run your app, and `setJson` whitelists the key for you so
 the value survives being saved, shortened, or copied — see
 [URL State](/guide/url-state). (`saveJson` is an alias of `setJson`.)
 
+## Reusing Another Frame's Functions
+
+Any frame's functions can be imported by another frame from its short URL plus
+`.esm.js`. Top-level code is stripped, so importing runs none of it:
+
+```javascript
+import { total } from "https://framejs.io/j/<uuid>.esm.js";
+```
+
+`/j/<id>.js` is the same frame's code unaltered, and `/j/<id>.<param>.json` any
+of its hash params (`inputs`, a `setJson` key, …) — see
+[Code, CSS and params as files](/guide/short-urls#howto-get-a-frame-s-code-css-and-params-as-files).
+
 ## Misc
 
 - `"use strict"` is automatically added to the top of the module code
