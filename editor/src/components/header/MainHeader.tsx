@@ -28,6 +28,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { ButtonCopyExternalLink } from "./components/ButtonCopyExternalLink";
+import { ButtonExportHtml } from "./components/ButtonExportHtml";
 import { ButtonSaveFrame } from "./components/ButtonSaveFrame";
 import { ButtonShortenUrl } from "./components/ButtonShortenUrl";
 import { HeaderMenuItem } from "./components/types";
@@ -38,8 +39,8 @@ export const capitalize = (str: string): string => {
 };
 
 // Width (px) below which the icon row no longer fits and the header collapses
-// to just [menu][close]. Roughly: the "js" button + 8 icons + padding.
-const MIN_WIDTH_FOR_ICON_ROW = 420;
+// to just [menu][close]. Roughly: the "js" button + 9 icons + padding.
+const MIN_WIDTH_FOR_ICON_ROW = 455;
 
 type HeaderAction = {
   /** Matches `shownPanel` for actions that toggle a panel, so the icon can be
@@ -207,6 +208,9 @@ export const MainHeader: React.FC = () => {
           {actionMenuItem(docsAction)}
           {readOnly ? null : <ButtonShortenUrl variant="menuitem" />}
           {readOnly ? null : <ButtonSaveFrame variant="menuitem" />}
+          {/* Not hidden when read-only: archiving a published version is
+              exactly what it is for. */}
+          <ButtonExportHtml variant="menuitem" />
         </MenuList>
       </Portal>
     </Menu>
@@ -322,6 +326,7 @@ export const MainHeader: React.FC = () => {
             {readOnly ? null : (
               <ButtonSaveFrame iconSize={iconSize} iconPadding={iconPadding} />
             )}
+            <ButtonExportHtml iconSize={iconSize} iconPadding={iconPadding} />
           </>
         )}
         {closeIcon}

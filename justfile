@@ -286,7 +286,7 @@ _integration-test +args="": _mkcert
     # Checked explicitly: this recipe does not `set -e`, so an unchecked failure
     # here would fall through to the readiness wait and be reported 90s later as
     # a timeout instead of the build/pull error it actually is.
-    if ! MINIO_PORT=0 MINIO_CONSOLE_PORT=0 TRAEFIK_WEB_UI_PORT=0 docker compose up --build -d; then
+    if ! SEAWEEDFS_S3_PORT=0 SEAWEEDFS_FILER_PORT=0 TRAEFIK_WEB_UI_PORT=0 docker compose up --build -d; then
       echo "❌ docker compose up failed"
       exit 1
     fi
@@ -294,7 +294,7 @@ _integration-test +args="": _mkcert
     # Wait for BOTH the runtime and the editor to be ready.
     #
     # The runtime is not a proxy for the editor: they are separate containers,
-    # and the runtime is the LATER of the two to start (it waits on minio-init)
+    # and the runtime is the LATER of the two to start (it waits on seaweedfs-init)
     # yet the first to answer, because the editor has to cold-install its deps
     # and boot Vite. Waiting only on the runtime let Playwright start while
     # /editor/ was still 404ing from traefik — and a test that opens the editor
@@ -335,10 +335,11 @@ _integration-test +args="": _mkcert
 #
 # Public previews (`https://<branch>.<domain>`): traefik also routes the public
 # host (APP_PUBLIC_FQDN), the editor's HMR websocket is told the public port, and
-# the docs dev server allows the public host. The browser also talks to minio
-# directly (presigned uploads, file downloads), so it is declared as the `s3`
-# route and the worker hands out `https://<branch>--s3.<domain>` URLs. See the
-# minio labels in docker-compose.yml for why that route goes to `localhost`.
+# the docs dev server allows the public host. The browser also talks to S3
+# (seaweedfs) directly (presigned uploads, file downloads), so it is declared as
+# the `s3` route and the worker hands out `https://<branch>--s3.<domain>` URLs.
+# See the seaweedfs labels in docker-compose.yml for why that route goes to
+# `localhost`.
 
 # Prints this branch's preview identity as KEY=VALUE lines for eval
 @_pr-daemon-env:
@@ -356,10 +357,25 @@ pr-daemon-up:
     exec 3>&1 1>&2
     eval "$(just _pr-daemon-env)"
     export COMPOSE_PROJECT_NAME APP_PORT
-    export MINIO_PORT=0 MINIO_CONSOLE_PORT=0 TRAEFIK_WEB_UI_PORT=0
+    export SEAWEEDFS_S3_PORT=0 SEAWEEDFS_FILER_PORT=0 TRAEFIK_WEB_UI_PORT=0
     local_url="https://{{ APP_FQDN }}:${APP_PORT}"
 
     # Public mode: all three PR_DAEMON_* are empty when no preview domain is set.
+    # pr-daemon passes them; a manual `just pr-daemon-up` (a restart) does not,
+    # and used to silently bring the stack back in LOCAL mode — presigned
+    # uploads then point at s3.localhost and fail CORS in the browser. So they
+    # are remembered on every pr-daemon run and reused when absent (cleared by
+    # pr-daemon-down).
+    public_env=.traefik/pr-daemon/public.env
+    mkdir -p .traefik/pr-daemon
+    if [ -n "${PR_DAEMON_PUBLIC_URL:-}" ]; then
+        printf 'PR_DAEMON_PUBLIC_URL=%q\nPR_DAEMON_PUBLIC_HOST=%q\nPR_DAEMON_SERVICE_URL_TEMPLATE=%q\n' \
+            "$PR_DAEMON_PUBLIC_URL" "${PR_DAEMON_PUBLIC_HOST:-}" "${PR_DAEMON_SERVICE_URL_TEMPLATE:-}" > "$public_env"
+    elif [ -f "$public_env" ]; then
+        # shellcheck disable=SC1090
+        source "$public_env"
+        echo "[pr-daemon-up] reusing the public settings of the last pr-daemon run ($public_env)"
+    fi
     if [ -n "${PR_DAEMON_PUBLIC_URL:-}" ]; then
         s3_url="${PR_DAEMON_SERVICE_URL_TEMPLATE/\{service\}/s3}"
         public_port="$(printf '%s' "$PR_DAEMON_PUBLIC_URL" | sed -nE 's#^https?://[^/:]+:([0-9]+).*#\1#p')"
@@ -367,7 +383,6 @@ pr-daemon-up:
         export HMR_CLIENT_PORT="${public_port:-443}"
         export S3_PRESIGN_ENDPOINT="$s3_url"
         export S3_PUBLIC_URL="$s3_url/uploads/f"
-        export S3_PUBLIC_FQDN="$(printf '%s' "$s3_url" | sed -E 's#^https?://([^/]+).*#\1#')"
         export S3_PREVIEW_UPSTREAM_HOST="localhost"
         echo "[pr-daemon-up] public origin: $PR_DAEMON_PUBLIC_URL (s3: $s3_url)"
     fi

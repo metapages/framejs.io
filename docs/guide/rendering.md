@@ -84,6 +84,12 @@ setInputs(networkGraphml)
 
 See the [@metapages/metapage npm package](https://www.npmjs.com/package/@metapages/metapage) for full documentation.
 
+## Without an iframe
+
+To run a frame's code directly in your page — as part of a blog post, say, with
+no iframe and no metapage wiring — see
+[Website Integration](../integrations/website).
+
 ## The other direction
 
 To let your app turn what it is showing into a framejs link (an **Open in
