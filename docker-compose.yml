@@ -68,8 +68,9 @@ services:
       - traefik.http.routers.s3-preview.service=s3
       - traefik.http.routers.s3-preview.middlewares=s3-cors
 
-  # One-shot: the 7-day expiry on transient uploads (`f/`). A filer path TTL,
-  # so `j/` and `favicon/` are kept. Idempotent.
+  # One-shot: the 7-day expiry on transient uploads (`f/`) and the 30-day
+  # expiry on standalone HTML exports (`html/`). Filer path TTLs, so `j/` and
+  # `favicon/` are kept. Idempotent.
   seaweedfs-init:
     image: chrislusf/seaweedfs:4.50
     depends_on:
@@ -77,7 +78,8 @@ services:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
-      echo 'fs.configure -locationPrefix=/buckets/uploads/f/ -ttl=7d -apply'
+      { echo 'fs.configure -locationPrefix=/buckets/uploads/f/ -ttl=7d -apply';
+      echo 'fs.configure -locationPrefix=/buckets/uploads/html/ -ttl=30d -apply'; }
       | weed shell -master=seaweedfs:9333 -filer=seaweedfs:8888
       "
 

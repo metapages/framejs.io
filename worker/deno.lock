@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@hono/hono@4": "4.6.16",
     "jsr:@std/assert@1": "1.0.13",
+    "jsr:@std/encoding@1": "1.0.11",
     "jsr:@std/internal@^1.0.6": "1.0.12",
     "npm:@aws-sdk/client-s3@*": "3.1044.0",
     "npm:@aws-sdk/s3-request-presigner@*": "3.1044.0",
@@ -21,6 +22,9 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
+    },
+    "@std/encoding@1.0.11": {
+      "integrity": "e7cef2f0b3153bccc17431e7c864a1de03a4b6d9647389c43e08aaa775d37385"
     },
     "@std/internal@1.0.12": {
       "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
@@ -1241,6 +1245,7 @@
     }
   },
   "remote": {
+    "https://deno.land/x/esbuild@v0.25.0/wasm.js": "4ec30a06a38a7496594e44fd4a3f9879d942bccf5534bd08bf96933c6a1c66a3",
     "https://esm.sh/@metapages/hash-query@0.10.0": "a54442e5ec5b377c633cd17587828b3ce51a9a4c8bfaa598272cf555b6cbda4a",
     "https://esm.sh/@metapages/hash-query@0.10.0/denonext/hash-query.mjs": "046d88b49bbff832151dd8eede6cde18c71b1db717889fcf3b254f749d1d3408",
     "https://esm.sh/@metapages/hash-query@0.9.12": "7989f751255566f00c64b60ad208393f2fc9a5f559952384eff062b56f7b3bff",
@@ -1252,6 +1257,7 @@
     "dependencies": [
       "jsr:@hono/hono@4",
       "jsr:@std/assert@1",
+      "jsr:@std/encoding@1",
       "npm:@aws-sdk/s3-request-presigner@^3.997.0",
       "npm:@metapages/metapage@^1.10.15",
       "npm:@resvg/resvg-wasm@^2.6.2",
