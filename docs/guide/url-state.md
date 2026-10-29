@@ -94,6 +94,10 @@ Every other param name is whitelisted by declaring it in the frame's
 to that definition (creating the definition if the frame has none), in the same
 write that stores the value. You do not have to do anything.
 
+Once the frame is saved to a short URL, the stored value can be read on its own
+as JSON at `https://framejs.io/j/<id>.state.json` (any key works the same way —
+see [Code, CSS and params as files](/guide/short-urls#howto-get-a-frame-s-code-css-and-params-as-files)).
+
 ### Seeing it in the editor
 
 Open **Settings** (the ⚙ icon) → the **Runtime** tab → **Allowed Hash
@@ -152,6 +156,10 @@ location.hash = "?css=" + css;
 ```
 
 Appended to a short URL: `https://framejs.io/j/<id>#?css=<base64>`
+
+Because it is not stored, `https://framejs.io/j/<id>.css` (the frame's `css` as
+a file) is a `404` unless the frame explicitly declared `css` in its
+definition.
 
 ::: tip
 Clearing or changing the `css` param replaces the previously injected stylesheet, so you can swap themes live by updating the param.

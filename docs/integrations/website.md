@@ -176,6 +176,12 @@ curl -o frame.json https://framejs.io/j/<uuid>.json
 
 Use `framejs.io` in these URLs: its `.json` route is the CORS-open one.
 
+framejs.io also serves each part on its own, CORS-open too: the code at
+`/j/<uuid>.js`, the inputs at `/j/<uuid>.inputs.json`, any other param at
+`/j/<uuid>.<param>.json`, and the code's functions as an importable module at
+`/j/<uuid>.esm.js` — see
+[Code, CSS and params as files](/guide/short-urls#howto-get-a-frame-s-code-css-and-params-as-files).
+
 ## Your data, and outputs
 
 `runFrame` resolves to `{ setInputs }`, so the page can feed the frame its own

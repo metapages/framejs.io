@@ -35,12 +35,19 @@ import {
   pinnedVersionSuffix,
   runtimeHashParams,
 } from "./src/pinned-version.ts";
+import { computeEtag } from "./src/etag.ts";
+import {
+  type FrameAsset,
+  frameAssetResponse,
+  parseFrameAssetPath,
+} from "./src/frame-asset.ts";
 import { frameOgPath, shortUrlInitScript } from "./src/short-url-init.ts";
 import type { FetchAsset } from "./src/standalone-bundle.ts";
 import {
   buildStandaloneHtml,
   createPublicFetch,
   ExportError,
+  resolveJsSource,
   withBudget,
 } from "./src/standalone-export.ts";
 
@@ -111,6 +118,11 @@ function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
       typeMap[k] = (v as { type?: HashParamType }).type || "json";
     }
   }
+
+  // `css` is a transient param — deliberately absent from the definition, so
+  // a short URL never stores it unless the frame declares it — but when one is
+  // stored it is base64 text, exactly as the runtime reads it.
+  typeMap.css ??= "stringBase64";
 
   // Decode definition (always json type) to discover custom param types
   if (hashObject.definition) {
@@ -508,18 +520,6 @@ let indexHtmlEtag = "";
 // loads. Custom events on the uncached /api and /j routes are unaffected.
 const SHELL_CDN_CACHE = "public, s-maxage=86400, stale-while-revalidate=604800";
 const SHELL_BROWSER_CACHE = "public, max-age=0, must-revalidate";
-
-// Short, stable ETag from a SHA-256 prefix of the served body.
-async function computeEtag(body: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(body),
-  );
-  const hex = Array.from(new Uint8Array(digest).slice(0, 8))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return `"${hex}"`;
-}
 
 // Inject the configured framejs.app origin so the client can link/navigate to the
 // right host in dev vs prod (the client reads window.__FRAMEJS_APP_ORIGIN, falling
@@ -1111,11 +1111,115 @@ async function fetchUuidHashParams(
   return { hashParams: await response.text() };
 }
 
+/**
+ * A frame's stored hash params, by uuid (framejs.app, honoring a `?v=` pin) or
+ * sha256 (S3). `immutable` is whether they can ever change: a sha256 blob is
+ * content-addressed and a pinned version is permanent; a live uuid is not.
+ * null when there is no such frame. The caller validates `id` (a uuid or a
+ * sha256) and that storage is configured for a sha256.
+ */
+async function loadFrameHashParams(
+  id: string,
+  pinnedVersion?: string,
+): Promise<{ hashParams: string; immutable: boolean } | null> {
+  if (UUID_REGEX.test(id)) {
+    const fetched = await fetchUuidHashParams(id, pinnedVersion);
+    return fetched &&
+      { hashParams: fetched.hashParams, immutable: !!pinnedVersion };
+  }
+  const s3 = await getS3Client();
+  if (!s3) throw new Error("URL shortening not configured");
+  try {
+    const { GetObjectCommand } = await s3Mod();
+    const response = await s3.send(
+      new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${id}` }),
+    );
+    if (!response.Body) throw new Error("S3 response body is empty");
+    return {
+      hashParams: await response.Body.transformToString(),
+      immutable: true,
+    };
+  } catch (error: any) {
+    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") return null;
+    throw error;
+  }
+}
+
+/** Cap on a `js=<url>` / `css=<url>` reference fetched for `/j/<id>.js|.css`. */
+const MODULE_SOURCE_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Whether a hoisted `js=<url>` source can never change. Only framejs.app's
+ * `/f/<id>` qualifies: it stores each source once, content-addressed. This
+ * worker's own `/f/<id>` does NOT — its key is whatever `sha256` the uploading
+ * client claims (unverified) and the `f/` prefix expires — and any other URL
+ * (say a `raw.githubusercontent.com/…/main/…` file) is plainly mutable.
+ */
+const isImmutableSourceUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === new URL(FRAMEJS_APP_ORIGIN).origin &&
+      /^\/f\/[A-Za-z0-9._-]+$/.test(parsed.pathname) && !parsed.search;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * `/j/<id>.js`, `.esm.js`, `.css`, `.<param>.json` (each with the uuid's
+ * `?v=<sha256>` pin): one of a frame's hash params as a plain file. See
+ * src/frame-asset.ts.
+ */
+async function serveFrameAsset(
+  c: Context,
+  id: string,
+  asset: FrameAsset,
+): Promise<Response> {
+  // The host the browser used: what a same-origin `/f/<id>` reference means.
+  const protocol = c.req.header("x-forwarded-proto") || "https";
+  const host = c.req.header("x-forwarded-host") || c.req.header("host");
+  const fetchAsset = withBudget(
+    exportFetchAsset(`${protocol}://${host}`),
+    MODULE_SOURCE_MAX_BYTES,
+  );
+  const response = await frameAssetResponse(
+    {
+      id,
+      asset,
+      pinnedVersion: pinnedVersionFromQuery((k) => c.req.query(k)),
+      header: (name) => c.req.header(name),
+    },
+    {
+      publicOrigin: PUBLIC_ORIGIN,
+      s3Configured,
+      loadFrameParams: async (frameId, pinnedVersion) => {
+        const frame = await loadFrameHashParams(frameId, pinnedVersion);
+        return frame && {
+          params: decodeHashParamsToJson(frame.hashParams),
+          immutable: frame.immutable,
+        };
+      },
+      fetchText: (url) => resolveJsSource(url, fetchAsset),
+      isImmutableSourceUrl,
+    },
+  );
+  if (response.status === 200) {
+    track(c, { name: `frame-${asset.kind}`, source: detectSource(c) });
+  }
+  return response;
+}
+
 // Shortened URL — fetches hash params and serves index.html with injected init
 // script. Accepts either a sha256 (S3-backed blob) or a uuid (resolved via
 // FRAMEJS_APP_ORIGIN).
 app.get("/j/:sha256", async (c) => {
   const id = c.req.param("sha256");
+
+  // <id>.js / .esm.js / .css / .<param>.json: one hash param as a file.
+  const assetPath = id ? parseFrameAssetPath(id) : null;
+  if (assetPath) {
+    return await serveFrameAsset(c, assetPath.id, assetPath.asset);
+  }
 
   // uuid.json form: proxy the raw frame JSON to the framejs.app backend (or the
   // dev-stack equivalent via FRAMEJS_APP_ORIGIN) so callers can fetch a frame's

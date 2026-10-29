@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.13"
+  version: "1.14"
 ---
 
 # framejs
@@ -206,7 +206,9 @@ see the OG rules in [references/short-url-api.md](references/short-url-api.md):
 - [references/short-url-api.md](references/short-url-api.md) — create/update a
   frame (`POST /j/<uuid>.json`), one-frame-per-session state, Open Graph tags,
   the `definition` hash-param whitelist, API tokens (keep updating after a frame
-  is claimed), inline fallbacks.
+  is claimed), inline fallbacks, and a frame's params as files (`/j/<id>.js`,
+  `.css`, `.<param>.json`; import another frame's functions from
+  `/j/<id>.esm.js`).
 - [references/file-inputs.md](references/file-inputs.md) — upload local files
   and wire them in as inputs.
 - [references/export-from-your-app.md](references/export-from-your-app.md) — add

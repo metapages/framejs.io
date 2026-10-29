@@ -71,6 +71,101 @@ cannot be made network-free — an inline `<script>` with no `src`, a tag that i
 not a `<script>` or `<link>` — fail the export with a message naming them,
 rather than being dropped or left to make a request.
 
+## Howto: Get a frame's code, CSS and params as files
+
+Every short URL — `framejs.io/j/<uuid>`, `framejs.io/j/<sha256>` — also serves
+each of the frame's hash params as a plain file. Add an extension to the URL:
+
+| URL                    | Returns                                                                                                                                                    | `Content-Type`     |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `/j/<id>.js`           | the frame's code (`js`), **unaltered**                                                                                                                     | `text/javascript`  |
+| `/j/<id>.esm.js`       | the code reduced to an **importable ES module of its functions** (see below)                                                                               | `text/javascript`  |
+| `/j/<id>.css`          | the frame's `css`, if it stored one                                                                                                                        | `text/css`         |
+| `/j/<id>.<param>.json` | any hash param's value as JSON: `inputs`, `modules`, `og`, `options`, `definition`, `bgColor`, … and the frame's own `setJson` keys (`/j/<id>.state.json`) | `application/json` |
+| `/j/<uuid>.json`       | the whole frame — `{js, modules, inputs, og, …}` — in one object (uuid only)                                                                               | `application/json` |
+
+Every variant takes the same forms as the page:
+
+- `<id>` is a `<uuid>` (with or without dashes) or a `<sha256>`;
+- a uuid takes a version pin, `?v=<sha256>`, for one **published** version:
+  `/j/<uuid>.esm.js?v=<sha256>`, `/j/<uuid>.inputs.json?v=<sha256>`, …
+  (`?sha256=` is accepted as an alias). A `?v=` on a sha256 id is ignored — it
+  already is one exact version.
+
+A param the frame does not have is a `404`
+(``{"error": "This frame has no `css`"}``): most frames have no `css`, which is
+a live-URL overlay and only stored when the frame declares it. When `js` or
+`css` is a URL — framejs.app stores a very large frame's code as a reference to
+`/f/<id>`, and `css` may link a stylesheet — the file is the **content behind
+that URL**, not the URL.
+
+```bash
+curl https://framejs.io/j/<uuid>.js            # the code, to read or save
+curl https://framejs.io/j/<uuid>.inputs.json   # the inputs
+```
+
+```js
+// from another frame:
+import { total } from "https://framejs.io/j/<uuid>.esm.js";
+const inputs = await (await fetch("https://framejs.io/j/<uuid>.inputs.json"))
+  .json();
+```
+
+**Caching** follows the URL: a `<sha256>` and a pinned `<uuid>?v=…` can never
+change, so they are cached for a year (`immutable`). The live `<uuid>` form
+revalidates on every request (`no-cache` with an `ETag`, so an unchanged file is
+a cheap `304`) and always serves the current version — as does a `js`/`css`
+whose URL points somewhere that can change.
+
+**Errors**: `400` for an id that is neither a uuid nor a sha256, `404` for no
+such frame (or no such param), `422` when `.esm.js` is asked of code that does
+not parse as a JavaScript module (`.js` still serves it as it is), `413`/`502`
+when a referenced `js`/`css` URL is too large (10 MB) or cannot be fetched.
+
+None of these can be registered as a **service worker**: a frame running on
+framejs.io could otherwise install its own code as one over every other frame's
+page, so a service-worker registration of any of them is refused (`403`).
+
+### Import a frame's functions: `/j/<id>.esm.js`
+
+`/j/<id>.js` is the frame's program, and importing it would run the whole thing:
+render into `root`, add listeners, fetch data. `/j/<id>.esm.js` is the same code
+with all of that taken out, so another frame can import just the functions:
+
+```js
+import { total } from "https://framejs.io/j/<uuid>.esm.js";
+import { total } from "https://framejs.io/j/<uuid>.esm.js?v=<sha256>"; // pinned
+import { total } from "https://framejs.io/j/<sha256>.esm.js"; // snapshot
+```
+
+The module keeps only what is safe to evaluate **and** has the same value it has
+in the running frame:
+
+- function declarations, exported or not (the unexported ones are the helpers
+  the exported ones call), with the comments directly above them, and
+  `const f = () => …` / `function () {…}`
+- `const` primitives (`const SCALE = 10`, `const UNIT = "px"`)
+- `import`s of names the kept code uses, and re-exports (`export … from`). A
+  kept import still runs the imported library's own top level, as any import
+  does
+- `export { … }` / `export default` of any of the above
+
+Everything else is removed: top-level statements, classes, `let`/`var`, `const`
+arrays and objects, `const x = compute()`, `await`, imports nothing kept uses
+(including side-effect-only `import "x"`), and functions that top-level code
+reassigns. `let`, `var` and `const` objects are removed rather than kept with
+their initial value because the top-level code that changes them is removed too:
+keeping them would hand your function a value the frame never had. An export
+that was removed is listed in a comment at the top of the module. A function
+that reads something removed — or a runtime global such as `root` or `setOutput`
+— throws when it is **called**, not when it is imported, so write the functions
+you want to share to take what they need as arguments.
+
+Imports resolved by the frame's own import map (`import { max } from "d3"` with
+a `modules` entry) are not rewritten: the module loads as long as no kept
+function uses them, but a function that does needs the same import map in the
+importing frame. Prefer full URLs (`https://esm.sh/d3@7`) in code you share.
+
 ## Longer discussion between the two short-URL forms: `/j/<sha256>` vs `/j/<uuid>`
 
 Both forms look alike — `framejs.io/j/…` and `framejs.app/j/…` — but they make
@@ -190,6 +285,19 @@ Response:
   "id": "019f2916dcb17ace8876580ebd1fdcd5",
   "url": "https://framejs.app/j/019f2916dcb17ace8876580ebd1fdcd5"
 }
+```
+
+### `GET /j/:id.js`, `.esm.js`, `.css`, `.:param.json` — One hash param as a file
+
+The frame's code (unaltered), its functions as an importable module, its CSS, or
+any one hash param as JSON. `:id` is a uuid or a sha256; a uuid takes
+`?v=<sha256>`. See
+[Get a frame's code, CSS and params as files](#howto-get-a-frame-s-code-css-and-params-as-files).
+
+```bash
+curl https://framejs.io/j/8a3b1c9f....js
+curl https://framejs.io/j/8a3b1c9f....esm.js
+curl https://framejs.io/j/8a3b1c9f....inputs.json
 ```
 
 ### `GET /api/j/:sha256` — Retrieve decoded hash params
