@@ -155,6 +155,7 @@ deploy: build
 # Checks and tests
 test:
     just check-skill
+    bash scripts/test-pr-daemon-down.sh
     just editor/test
     just worker/test
     just _integration-test
@@ -425,7 +426,8 @@ pr-daemon-down:
     set -euo pipefail
     eval "$(just _pr-daemon-env)"
     export COMPOSE_PROJECT_NAME
-    # Safe when nothing runs; --remove-orphans takes networks, -v takes volumes.
+    # Safe when nothing runs. `down` removes containers and networks;
+    # --remove-orphans catches stale services; -v takes volumes.
     # A restart keeps the volumes: `up` must start on what they already hold.
     if [ -n "${PR_DAEMON_KEEP_DATA:-}" ]; then
         docker compose down --remove-orphans
