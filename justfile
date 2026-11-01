@@ -323,7 +323,8 @@ _integration-test +args="": _mkcert
 #   up    — print the local URL as the LAST line of stdout, return only once the
 #           app answers, be idempotent, isolate per branch, never open a browser.
 #   down  — stop this branch's services and delete its volumes/data/networks;
-#           safe when nothing is up.
+#           safe when nothing is up. For a restart (`down` then `up`) pr-daemon
+#           sets PR_DAEMON_KEEP_DATA=1: the volumes survive, the rest still goes.
 #   check — must be green before a PR opens.
 #
 # Per-branch isolation: `just dev` is one fixed compose project (`metaframe-js`)
@@ -418,14 +419,20 @@ pr-daemon-up:
     echo "PR_DAEMON_ROUTE s3 https://localhost:${APP_PORT}" >&3
     echo "$local_url" >&3
 
-# Stop this branch's preview stack and delete its data (pr-daemon `down`)
+# Stop this branch's preview stack and delete its data, unless PR_DAEMON_KEEP_DATA is set (pr-daemon `down`)
 pr-daemon-down:
     #!/usr/bin/env bash
     set -euo pipefail
     eval "$(just _pr-daemon-env)"
     export COMPOSE_PROJECT_NAME
-    # Safe when nothing runs; -v and --remove-orphans take volumes and networks.
-    docker compose down -v --remove-orphans
+    # Safe when nothing runs; --remove-orphans takes networks, -v takes volumes.
+    # A restart keeps the volumes: `up` must start on what they already hold.
+    if [ -n "${PR_DAEMON_KEEP_DATA:-}" ]; then
+        docker compose down --remove-orphans
+    else
+        docker compose down -v --remove-orphans
+    fi
+    # Not data: pr-daemon hands `up` these settings again and it regenerates them.
     rm -rf .traefik/pr-daemon
 
 # Run the gate that must pass before a PR opens (pr-daemon `check`)
@@ -433,6 +440,7 @@ pr-daemon-check:
     just check
     just worker/test
     just check-skill
+    bash scripts/test-pr-daemon-down.sh
 
 # Delete all cached and generated files, and docker volumes
 clean: _delete-certs
