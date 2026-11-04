@@ -73,6 +73,11 @@ services:
   # `favicon/` are kept. Idempotent.
   seaweedfs-init:
     image: chrislusf/seaweedfs:4.50
+    # The image declares VOLUME /data and this service stores nothing there.
+    # Left unmounted, docker makes an anonymous volume per container, and a
+    # restart's `down` without -v strands it where no later `down -v` can reach.
+    tmpfs:
+      - /data
     depends_on:
       seaweedfs:
         condition: service_healthy
