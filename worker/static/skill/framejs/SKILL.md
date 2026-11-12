@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: metapages
   homepage: https://framejs.io
-  version: "1.14"
+  version: "1.15"
 ---
 
 # framejs

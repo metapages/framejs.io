@@ -201,6 +201,21 @@
       min-width: 10ch;
     }
 
+    /**
+     * A frame that wrote its content into <body> instead of #root destroys the
+     * runtime's chrome; guardRuntimeChrome() puts it back and marks #root with
+     * this attribute (see the comment there). A restored #root is empty, and it
+     * is a full-size transparent box — so without this it would sit over the
+     * frame's body-level content and swallow every click.
+     *
+     * An attribute rather than a class because the runtime assigns #root's
+     * `className` wholesale in a few places (showEditor / error display), which
+     * would drop a marker class and silently un-fix this.
+     */
+    #root[data-chrome-restored]:empty {
+      pointer-events: none;
+    }
+
     .root {
       position: absolute;
       width: 100%;
@@ -2188,6 +2203,67 @@
       });
     };
     setupEditorResizeHandle();
+
+    /**
+     * Survive a frame that builds its UI in <body> instead of under `root`.
+     *
+     * #root is one of four siblings in <body>: the Edit button, #root itself,
+     * the editor pane and the resize handle. So `document.body.innerHTML = …`
+     * in frame code deletes the runtime along with the content it replaced —
+     * the frame still renders, but the Edit button is gone (or, having lost
+     * #editor-root, opens nothing), which makes the frame uneditable from its
+     * own page: the one state from which the author cannot fix the mistake.
+     * Callers like applyEditorLayout() also assume #root exists and throw when
+     * it does not, so the frame loses its own layout and hashchange handling.
+     *
+     * The elements are captured here, at startup, while they are guaranteed to
+     * be present, and re-appended whenever something takes them out. Event
+     * listeners survive removal from the document, so a re-appended button
+     * works again with nothing to re-wire.
+     *
+     * This is a net, not a blessing: frame code must put its content under
+     * `root` (framejs.app's MCP tools reject code that does not), and the
+     * warning says so in the editor's own console.
+     */
+    const guardRuntimeChrome = () => {
+      const chrome = ["menu-button", "root", "editor-root", "editor-resize-handle"]
+        .map((id) => document.getElementById(id))
+        .filter((element) => !!element);
+      const rootElement = document.getElementById("root");
+      if (chrome.length === 0) return;
+
+      let warned = false;
+      const restore = () => {
+        let restored = false;
+        for (const element of chrome) {
+          if (element.isConnected) continue;
+          // Re-appending is itself a body mutation, which re-enters here; the
+          // second pass finds everything connected and stops.
+          document.body.appendChild(element);
+          restored = true;
+        }
+        if (!restored) return;
+
+        if (rootElement) rootElement.dataset.chromeRestored = "true";
+
+        if (warned) return;
+        warned = true;
+        // The console, and ONLY the console. logStderr appends a <pre> to
+        // #root, so warning through it would scribble on the author's canvas —
+        // and here that text lands in the root we just restored, which both
+        // floats it over the frame's body content and un-empties #root, taking
+        // the click-through rule above with it.
+        console.warn(
+          "This frame wrote to document.body, which deleted the runtime's " +
+            "Edit button and editor pane (they are siblings of #root). They " +
+            "have been restored. Build all content under the `root` global " +
+            'instead: root.innerHTML = "" then add children.',
+        );
+      };
+
+      new MutationObserver(restore).observe(document.body, { childList: true });
+    };
+    guardRuntimeChrome();
 
     /**
      * Re-running the user's JS wipes #root, taking every scrolled element with

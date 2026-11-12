@@ -59,6 +59,42 @@ Or get it with:
 document.getElementById("root");
 ```
 
+### Put everything in `root`, never in `document.body`
+
+`root` is not the only thing in `<body>` — the runtime's own chrome sits beside
+it as siblings:
+
+```html
+<body>
+  <button id="menu-button">Edit</button>   <!-- the Edit button -->
+  <div id="root"></div>                    <!-- the `root` global: your content -->
+  <div id="editor-root"></div>             <!-- the pane Edit opens -->
+  <div id="editor-resize-handle"></div>
+</body>
+```
+
+So `document.body.innerHTML = …` deletes the Edit button and the editor pane
+along with `#root`: the frame still renders, but Edit opens nothing and the
+frame can no longer be edited from its own page. (The runtime restores the
+chrome as a safety net and warns on the console — don't rely on it.) Appending
+to `<body>` is milder but still wrong: only `#root` is cleared when the code
+re-runs, so body content accumulates on every re-run.
+
+```javascript
+// ✅ right
+root.innerHTML = `<div style="width:100%;height:100%">…</div>`;
+echarts.init(root);
+
+// ❌ wrong
+document.body.innerHTML = "<h1>Title</h1>";
+document.body.appendChild(el);
+echarts.init(document.body);
+```
+
+A `<style>` or classic `<script>` tag belongs in `document.head`, which the
+runtime never clears. Reading the body (`document.body.clientWidth`, a `keydown`
+listener) is fine — it is *content* in the body that breaks things.
+
 ## Resize Handling
 
 Get the root element dimensions:

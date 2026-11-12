@@ -10,12 +10,64 @@ include it. Top-level `await` is supported.
   - ✅ `export function onInputs(inputs) {}`
   - ✅ `export const onInputs = (inputs) => {}`
   - ❌ `function onInputs(inputs) {}` — missing `export`!
+- **ALL content goes under `root`.** Never touch `document.body` — not
+  `body.innerHTML`, not `body.appendChild`, and never as a library's container.
+  See "Everything lives in `root`" below.
 - **Never modify** `root.style.position`, `root.style.height`, or
   `root.style.width` — it breaks the editor layout. To size content, create a
   child `div` with `width:100%; height:100%` and style that instead.
 - **Always clear** `root` before building DOM: `root.innerHTML = ""`.
 - **Keep the top-right corner clear** — the runtime's Edit button is overlaid
   there. See "Reserved area" below.
+
+## Everything lives in `root` — never `document.body`
+
+`root` is the display div, already in the DOM. It is **not** the only thing in
+`<body>`: the runtime's own chrome sits beside it as siblings.
+
+```html
+<body>
+  <button id="menu-button">Edit</button>   <!-- the Edit button -->
+  <div id="root"></div>                    <!-- the `root` global: YOUR content -->
+  <div id="editor-root"></div>             <!-- the pane Edit opens -->
+  <div id="editor-resize-handle"></div>
+</body>
+```
+
+So writing to the body does not merely misplace the content — it **destroys the
+app's own editor**:
+
+- `document.body.innerHTML = …` deletes the Edit button and `#editor-root` along
+  with `#root`. The frame still looks right, which is why this is easy to miss,
+  but Edit then opens nothing. (The runtime restores the chrome as a safety net
+  and warns on the console — don't rely on it.)
+- Appending to the body survives re-runs. The runtime clears only `#root` when
+  it re-runs the module (an edit, new inputs, a hash change), so body content is
+  never cleaned up and duplicates on every re-run.
+
+```js
+// ✅ right — one wrapper inside root, everything under it
+root.innerHTML = `<div style="width:100%;height:100%">
+  <h1>Title</h1>
+  <div id="chart" style="width:100%;height:100%"></div>
+</div>`;
+
+// ❌ wrong — every one of these breaks the editor
+document.body.innerHTML = "<h1>Title</h1>";
+document.body.appendChild(el);
+document.querySelector("body").append(el);
+new Chart(document.body, config);
+```
+
+- A library that mounts into an element gets `root` (or a child of `root`) as
+  its container, never `document.body`: `echarts.init(root)`,
+  `createRoot(root)`, `Plotly.newPlot(root, …)`.
+- A `<style>` or classic `<script>` tag goes in `document.head`, which the
+  runtime never clears. `root.innerHTML` may also contain a `<style>` block.
+- Full-bleed is `root`'s job already: it fills the frame, so a child with
+  `width:100%;height:100%` is as full-screen as a body-level element, without
+  the damage. Reading `document.body.clientWidth` or putting a `keydown`
+  listener on the body is fine — it is _content_ in the body that breaks things.
 
 ## Reserved area: the Edit button (top-right corner)
 
@@ -271,6 +323,9 @@ already relies on.
 
 ## Common mistakes
 
+- ❌ **`document.body.innerHTML = …` / `document.body.appendChild(…)`** — the
+  most damaging one: it deletes the runtime's Edit button and editor pane, so
+  the app stops being editable. Build under `root`.
 - ❌ Creating an HTML file — never create HTML files.
 - ❌ Writing a local `.js` file — never write files.
 - ❌ `function onInputs(inputs) {}` — not exported.
