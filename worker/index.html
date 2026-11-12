@@ -2248,17 +2248,17 @@
 
         if (warned) return;
         warned = true;
-        const message =
+        // The console, and ONLY the console. logStderr appends a <pre> to
+        // #root, so warning through it would scribble on the author's canvas —
+        // and here that text lands in the root we just restored, which both
+        // floats it over the frame's body content and un-empties #root, taking
+        // the click-through rule above with it.
+        console.warn(
           "This frame wrote to document.body, which deleted the runtime's " +
-          "Edit button and editor pane (they are siblings of #root). They " +
-          "have been restored. Build all content under the `root` global " +
-          'instead: root.innerHTML = "" then add children.';
-        console.warn(message);
-        try {
-          if (globalThis.logStderr) globalThis.logStderr(message);
-        } catch (_) {
-          // Logging must never be the thing that breaks the recovery.
-        }
+            "Edit button and editor pane (they are siblings of #root). They " +
+            "have been restored. Build all content under the `root` global " +
+            'instead: root.innerHTML = "" then add children.',
+        );
       };
 
       new MutationObserver(restore).observe(document.body, { childList: true });
