@@ -176,12 +176,35 @@ export const isFetchableUrl = (url: string): boolean => {
 export type ResolveHost = (host: string) => Promise<string[]>;
 
 export const resolveHostDns: ResolveHost = async (host) => {
-  const results = await Promise.allSettled([
-    Deno.resolveDns(host, "A"),
-    Deno.resolveDns(host, "AAAA"),
-  ]);
+  const results = await Promise.allSettled(
+    typeof Deno !== "undefined"
+      ? [Deno.resolveDns(host, "A"), Deno.resolveDns(host, "AAAA")]
+      : [resolveDoh(host, "A"), resolveDoh(host, "AAAA")],
+  );
   return results.flatMap((r) => r.status === "fulfilled" ? r.value : []);
 };
+
+// Workers has no resolver API, so off Deno the lookup is DNS-over-HTTPS
+// (Cloudflare's JSON API). Only answers of the asked-for type count: the CNAME
+// records a chain passes through are not addresses.
+const DOH_TYPES = { A: 1, AAAA: 28 } as const;
+async function resolveDoh(
+  host: string,
+  type: keyof typeof DOH_TYPES,
+): Promise<string[]> {
+  const url = `https://cloudflare-dns.com/dns-query?name=${
+    encodeURIComponent(host)
+  }&type=${type}`;
+  const response = await fetch(url, {
+    headers: { accept: "application/dns-json" },
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!response.ok) throw new Error(`DoH ${type} ${host}: ${response.status}`);
+  const { Answer = [] } = await response.json() as {
+    Answer?: { type: number; data: string }[];
+  };
+  return Answer.filter((a) => a.type === DOH_TYPES[type]).map((a) => a.data);
+}
 
 const tooLarge = (url: string) =>
   new ExportError(`${url} is larger than the export size limit allows`, 413);

@@ -7,6 +7,7 @@ APP_FQDN := env_var_or_default("APP_FQDN", DEFAULT_APP_FQDN)
 APP_PORT := env_var_or_default("APP_PORT", "4430")
 APP_PORT_BROWSER := env_var_or_default("APP_PORT_BROWSER", "4440")
 DENO_DEPLOY_TOKEN := env_var_or_default("DENO_DEPLOY_TOKEN", "")
+CLOUDFLARE_API_TOKEN := env_var_or_default("CLOUDFLARE_API_TOKEN", "")
 
 # minimal formatting, bold is very useful
 
@@ -26,7 +27,8 @@ cyan := "\\e[36m"
     echo -e "    Production URL 🔗     {{ green }}https://framejs.io/{{ normal }}"
     echo -e "    Python Package URL 🔗 {{ green }}https://pypi.org/project/framejs/{{ normal }}"
     echo -e "    Local develop URL 🔗  {{ green }}https://{{ APP_FQDN }}:{{ APP_PORT }}/{{ normal }}"
-    echo -e "    Deploy Console URL 🔗 {{ green }}https://console.deno.com/metapage/metaframe-js{{ normal }}"
+    echo -e "    Deploy Console URL 🔗 {{ green }}https://dash.cloudflare.com/87fd2334b246ea24741346c2a2140fa8/workers/services/view/framejs-io/production{{ normal }}"
+    echo -e "    Old Deno Deploy 🔗    {{ grey }}https://console.deno.com/metapage/metaframe-js (until the DNS cutover){{ normal }}"
     echo -e "    Analytics Dashboard 🔗{{ green }}https://cloud.umami.is/analytics/us/websites/774a7551-b487-4691-a52a-9b2b79a20872{{ normal }}"
     echo -e ""
     echo -e "    Sub-commands: (just <sub-command> <?command>)"
@@ -115,8 +117,16 @@ dev-install-skill dir="~/.claude/skills":
     echo -e "{{ green }}Symlinked{{ normal }} $target/framejs -> $src"
     echo "Restart your agent so it reloads SKILL.md."
 
-# deno deploy to framejs.io
-deploy: build
+# Deploy framejs.io: Cloudflare Workers, plus Deno Deploy until the DNS cutover
+deploy: build deploy-cloudflare deploy-deno
+
+# Deploy the built app to Cloudflare Workers (worker/wrangler.jsonc). Needs `just build` first.
+deploy-cloudflare:
+    cd worker && deno run -A scripts/build-cloudflare.ts
+    cd worker && npx -y wrangler@4 deploy
+
+# Deploy the built app to Deno Deploy (retiring: removed at the DNS cutover). Needs `just build` first.
+deploy-deno:
     #!/usr/bin/env bash
     set -euo pipefail
     deploy=$(mktemp -d)

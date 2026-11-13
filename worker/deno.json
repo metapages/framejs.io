@@ -13,8 +13,9 @@
   "imports": {
     "@hono/hono": "jsr:@hono/hono@^4",
     "@resvg/resvg-wasm": "npm:@resvg/resvg-wasm@^2.6.2",
-    "@aws-sdk/s3-request-presigner": "npm:@aws-sdk/s3-request-presigner@^3.997.0",
+    "aws4fetch": "npm:aws4fetch@^1.0.20",
     "qrcode": "npm:qrcode@1.5.4",
+    "qrcode/": "npm:/qrcode@1.5.4/",
     "uuidv7": "npm:uuidv7@^1.0.2",
     "acorn": "npm:acorn@^8.15.0",
     "acorn-walk": "npm:acorn-walk@^8.3.4",

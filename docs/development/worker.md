@@ -1,12 +1,18 @@
 # Worker
 
-The worker is a Deno backend using the Hono framework. It serves the static frontend and handles routing.
+The worker is a Hono app that runs on two hosts: **Cloudflare Workers** in
+production, and **Deno** in the local docker stack. It serves the static
+frontend and handles routing.
 
 ## Location
 
 ```
 worker/
-├── server.ts
+├── server.ts          # The app (all routes); `deno run server.ts` also serves static files + listens
+├── cloudflare.ts      # Cloudflare Workers entry: embeds text files, wires up wasm
+├── wrangler.jsonc     # Workers config (vars, static assets, routes)
+├── scripts/build-cloudflare.ts  # bundles cloudflare.ts + assembles assets → dist/cloudflare
+├── src/runtime.ts     # the only host differences (env vars, file reads, wasm)
 ├── deno.json
 ├── deno.lock
 ├── index.html
@@ -18,9 +24,13 @@ worker/
 ## Key details
 
 - Uses Deno URL imports + `npm:` specifiers for npm packages
-- Type checking: `just worker/check` (runs `deno check server.ts`)
+- Type checking: `just worker/check` (runs `deno check server.ts cloudflare.ts`)
 - Formatting: `just worker/fmt` (runs `deno fmt`)
-- Deployed to [Deno Deploy](https://deno.com/deploy)
+- Deployed to Cloudflare Workers (see [Deployment](./deployment.md)).
+  `just worker/cf-dev` runs the production build locally in workerd.
+- Keep the code web-platform only. Anything that needs the host (`Deno.*`,
+  Node built-ins) goes through `src/runtime.ts`; the Workers build fails if the
+  bundle imports a Node built-in.
 
 ## Analytics (optional)
 

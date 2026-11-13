@@ -15,9 +15,11 @@
 
 import type { Context } from "@hono/hono";
 
-const UMAMI_HOST = (Deno.env.get("UMAMI_HOST") || "").replace(/\/+$/, "") ||
+import { env } from "./runtime.ts";
+
+const UMAMI_HOST = (env("UMAMI_HOST") || "").replace(/\/+$/, "") ||
   "https://cloud.umami.is";
-const UMAMI_WEBSITE_ID = Deno.env.get("UMAMI_WEBSITE_ID") || "";
+const UMAMI_WEBSITE_ID = env("UMAMI_WEBSITE_ID") || "";
 
 export const analyticsEnabled: boolean = !!(UMAMI_HOST && UMAMI_WEBSITE_ID);
 
@@ -79,10 +81,13 @@ export function detectEmbed(c: Context): string | undefined {
   }
 }
 
-/** First IP in an X-Forwarded-For chain (the original client). */
+/**
+ * The original client's IP: Cloudflare's CF-Connecting-IP, else the first IP
+ * in an X-Forwarded-For chain.
+ */
 function clientIp(c: Context): string {
-  const xff = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") ||
-    "";
+  const xff = c.req.header("cf-connecting-ip") ||
+    c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "";
   return xff.split(",")[0].trim();
 }
 
@@ -91,8 +96,9 @@ function clientIp(c: Context): string {
  * standard visitors / countries / trends); `name` set => a custom event
  * (e.g. "shorten", "fetch") that can be counted and broken down by `source`.
  *
- * Fire-and-forget: not awaited by callers, uses `keepalive` so Deno Deploy
- * lets the beacon finish after the response is sent, and swallows all errors.
+ * Fire-and-forget: not awaited by callers, and swallows all errors. On Workers
+ * the send is handed to `waitUntil`, which is what lets it finish after the
+ * response is sent; Deno (no ExecutionContext) just lets it run.
  */
 export function track(
   c: Context,
@@ -126,15 +132,20 @@ export function track(
     // Umami Cloud derives geo from X-Forwarded-For; pass the real client IP.
     if (ip) headers["X-Forwarded-For"] = ip;
 
-    fetch(`${UMAMI_HOST}/api/send`, {
+    const sent = fetch(`${UMAMI_HOST}/api/send`, {
       method: "POST",
       headers,
       body: JSON.stringify({ type: "event", payload }),
       keepalive: true,
       signal: AbortSignal.timeout(2500),
-    }).catch((err) =>
+    }).then((res) => res.body?.cancel()).catch((err) =>
       console.error("analytics send failed:", err?.message || err)
     );
+    try {
+      c.executionCtx.waitUntil(sent);
+    } catch {
+      // No ExecutionContext (Deno): the promise runs on regardless.
+    }
   } catch (err) {
     console.error("analytics error:", err);
   }

@@ -29,3 +29,7 @@ editor/public/__test-*
 test/test-results/
 # jupyter lite build cache (created by --piplite-wheels indexing)
 examples/jupyterlite/.cache
+
+# Cloudflare Workers build output and wrangler local state (`just deploy`, `just worker/cf-dev`)
+worker/dist
+worker/.wrangler
