@@ -2,6 +2,7 @@
 # Read-only smoke test of a deployed framejs.io worker: every route family
 # answers, and a known public frame resolves byte-identically to a reference
 # deployment. Writes nothing (presign only signs a URL; nothing is uploaded).
+# Fails if the base is answered by Deno Deploy rather than the Worker.
 #
 #   scripts/smoke.sh https://framejs-io.<account>.workers.dev
 #   scripts/smoke.sh https://framejs.io https://framejs-io.<account>.workers.dev
@@ -62,7 +63,14 @@ same "/api/j/$UUID/runtime-params"
 same "/j/$UUID/metaframe.json"
 same "/j/$UUID.js"
 
-echo "Served by: $(curl -sI "$BASE/" | grep -i '^server:' | tr -d '\r')"
+headers=$(curl -sI "$BASE/" | tr -d '\r')
+echo "Served by: $(grep -i '^server:' <<<"$headers")"
+# During the DNS cutover a host may still (or again, after a rollback) be
+# answered by Deno Deploy, which passes every check above.
+if grep -qi '^x-deno-trace-id:' <<<"$headers"; then
+  echo "  FAIL  served by Deno Deploy (x-deno-trace-id), not the Cloudflare Worker"
+  fail=1
+fi
 if [[ $fail -ne 0 ]]; then
   echo "SMOKE TEST FAILED"
   exit 1
