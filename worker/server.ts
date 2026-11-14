@@ -1,16 +1,16 @@
 // Heavy, route-specific dependencies are loaded lazily via dynamic import()
-// inside the handlers that use them — @aws-sdk/client-s3 alone pulls ~140 modules,
-// plus @aws-sdk/s3-request-presigner, @resvg/resvg-wasm and qrcode. Keeping them
-// off the top-level import graph means a cold isolate serving the HTML shell ("/")
-// never pays their instantiation cost. Only the S3Client type is imported here
-// (erased at runtime). See getS3Client()/s3Mod(), ensureResvg()/renderFaviconPng()
-// and the /api and /j routes.
-import type { S3Client } from "npm:@aws-sdk/client-s3";
-
+// inside the handlers that use them (@resvg/resvg-wasm, and esbuild in
+// src/standalone-bundle.ts), so a cold isolate serving the HTML shell ("/")
+// never pays their instantiation cost. See ensureResvg()/renderFaviconPng().
+//
+// This module is the app; it runs on two hosts. `deno run server.ts` (the
+// local docker stack) serves it with Deno.serve plus the static files, at the
+// bottom of this file. In production it runs on Cloudflare Workers via
+// cloudflare.ts, with the static files served by Workers Static Assets.
+// Host differences are confined to src/runtime.ts.
 import { Hono } from "@hono/hono";
 import type { Context } from "@hono/hono";
 import { cors } from "@hono/hono/cors";
-import { serveStatic } from "@hono/hono/deno";
 import {
   blobFromBase64String,
   getUrlHashParamsFromHashString,
@@ -41,6 +41,9 @@ import {
   frameAssetResponse,
   parseFrameAssetPath,
 } from "./src/frame-asset.ts";
+import { env, runtime } from "./src/runtime.ts";
+import { S3Bucket } from "./src/s3.ts";
+import { qrCodePng } from "./src/qr-png.ts";
 import { frameOgPath, shortUrlInitScript } from "./src/short-url-init.ts";
 import type { FetchAsset } from "./src/standalone-bundle.ts";
 import {
@@ -61,7 +64,7 @@ async function serveShortUrlHtml(
   injectedScript: string,
   extraHead = "",
 ): Promise<Response> {
-  const indexHtml = await Deno.readTextFile("./index.html");
+  const indexHtml = await runtime.readTextFile("./index.html");
   let html = indexHtml.replace(
     /<!-- OG_START -->[\s\S]*?<!-- OG_END -->/,
     "",
@@ -172,22 +175,22 @@ function decodeHashParamsToJson(hashParams: string): Record<string, unknown> {
   return stripDefaultHashParams(result);
 }
 
-const port: number = parseInt(Deno.env.get("PORT") || "3000");
+const port: number = parseInt(env("PORT") || "3000");
 
 // S3-compatible storage config (works with Cloudflare R2 and SeaweedFS)
-const S3_ENDPOINT = Deno.env.get("S3_ENDPOINT");
-const S3_PRESIGN_ENDPOINT = Deno.env.get("S3_PRESIGN_ENDPOINT");
-const S3_ACCESS_KEY_ID = Deno.env.get("S3_ACCESS_KEY_ID");
-const S3_SECRET_ACCESS_KEY = Deno.env.get("S3_SECRET_ACCESS_KEY");
-const S3_BUCKET_NAME = Deno.env.get("S3_BUCKET_NAME") || "uploads";
-const S3_PUBLIC_URL = Deno.env.get("S3_PUBLIC_URL");
+const S3_ENDPOINT = env("S3_ENDPOINT");
+const S3_PRESIGN_ENDPOINT = env("S3_PRESIGN_ENDPOINT");
+const S3_ACCESS_KEY_ID = env("S3_ACCESS_KEY_ID");
+const S3_SECRET_ACCESS_KEY = env("S3_SECRET_ACCESS_KEY");
+const S3_BUCKET_NAME = env("S3_BUCKET_NAME") || "uploads";
+const S3_PUBLIC_URL = env("S3_PUBLIC_URL");
 // Canonical public origin, used for durable artifacts like QR codes so the
 // encoded URL is stable regardless of which host the request arrived on.
 const PUBLIC_ORIGIN = (
-  Deno.env.get("PUBLIC_ORIGIN") || "https://framejs.io"
+  env("PUBLIC_ORIGIN") || "https://framejs.io"
 ).replace(/\/$/, "");
 const S3_UPLOAD_MAX_SIZE_MB = parseInt(
-  Deno.env.get("S3_UPLOAD_MAX_SIZE_MB") || "500",
+  env("S3_UPLOAD_MAX_SIZE_MB") || "500",
 );
 // Cap on a standalone HTML export, applied twice: to everything it pulls in
 // (code, modules, inputs — streamed, so no fetch holds much more than what is
@@ -197,20 +200,20 @@ const S3_UPLOAD_MAX_SIZE_MB = parseInt(
 // file check is the real bound. Kept low because the build holds a few copies
 // of the file in memory at once.
 const EXPORT_HTML_MAX_SIZE_MB = parseInt(
-  Deno.env.get("EXPORT_HTML_MAX_SIZE_MB") || "50",
+  env("EXPORT_HTML_MAX_SIZE_MB") || "50",
 );
 // Exports building at once in this isolate. Each one holds up to a few times
 // EXPORT_HTML_MAX_SIZE_MB and runs esbuild, so more are turned away (429)
 // rather than allowed to exhaust the isolate's memory.
 const EXPORT_HTML_MAX_CONCURRENT = parseInt(
-  Deno.env.get("EXPORT_HTML_MAX_CONCURRENT") || "2",
+  env("EXPORT_HTML_MAX_CONCURRENT") || "2",
 );
 // Backend that resolves a frame UUID to its hash-param values. The /j/:uuid
 // route fetches `${FRAMEJS_APP_ORIGIN}/<uuid>` and expects a JSON object of hash
 // param values (e.g. {js, modules, inputs, og}) on a 200 response.
 const FRAMEJS_APP_ORIGIN_DEFAULT = "https://framejs.app";
 const FRAMEJS_APP_ORIGIN = (
-  Deno.env.get("FRAMEJS_APP_ORIGIN") || FRAMEJS_APP_ORIGIN_DEFAULT
+  env("FRAMEJS_APP_ORIGIN") || FRAMEJS_APP_ORIGIN_DEFAULT
 ).replace(/\/$/, "");
 if (FRAMEJS_APP_ORIGIN !== FRAMEJS_APP_ORIGIN_DEFAULT) {
   console.log(
@@ -227,59 +230,33 @@ const s3Credentials = S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY
   : undefined;
 
 // Whether S3 is configured. Kept as sync booleans so route guards can return a
-// 503 without awaiting the SDK import — and so `/` never triggers the import.
+// 503 without touching the client.
 const s3Configured = !!(s3Credentials && S3_ENDPOINT);
 const presignEndpoint = S3_PRESIGN_ENDPOINT || S3_ENDPOINT;
-const s3PresignConfigured = !!(s3Credentials && presignEndpoint);
 
-// Lazily import the AWS SDK (~140 modules) only on first S3 use. Memoized so the
-// import happens once per isolate, off the HTML hot path.
-type S3ClientModule = typeof import("npm:@aws-sdk/client-s3");
-let _s3Mod: Promise<S3ClientModule> | undefined;
-const s3Mod = (): Promise<
-  S3ClientModule
-> => (_s3Mod ??= import("npm:@aws-sdk/client-s3"));
+// Server-side bucket for actual S3 operations (get, put, exists). Locally this
+// is the internal Docker network endpoint (e.g. http://seaweedfs:8333).
+// `null` means S3 is not configured.
+const s3: S3Bucket | null = s3Configured
+  ? new S3Bucket({
+    endpoint: S3_ENDPOINT!,
+    bucket: S3_BUCKET_NAME,
+    ...s3Credentials!,
+  })
+  : null;
+if (s3) console.log(`S3 configured: endpoint=${S3_ENDPOINT}`);
 
-// Server-side S3 client for actual S3 operations (PutObject, GetObject).
-// Uses the internal Docker network endpoint (e.g. http://seaweedfs:8333).
-// Constructed lazily on first use; `null` means S3 is not configured.
-let _s3Client: S3Client | null | undefined;
-async function getS3Client(): Promise<S3Client | null> {
-  if (_s3Client !== undefined) return _s3Client;
-  if (!s3Configured) return (_s3Client = null);
-  const { S3Client } = await s3Mod();
-  _s3Client = new S3Client({
-    endpoint: S3_ENDPOINT,
-    forcePathStyle: true,
-    region: "auto",
-    credentials: s3Credentials!,
-    requestChecksumCalculation: "WHEN_REQUIRED",
-    responseChecksumValidation: "WHEN_REQUIRED",
-  });
-  console.log(`S3 client configured: endpoint=${S3_ENDPOINT}`);
-  return _s3Client;
-}
-
-// Presign client for generating browser-facing presigned URLs.
-// Uses S3_PRESIGN_ENDPOINT (browser-reachable, e.g. https://s3.localhost) if set,
+// Bucket for generating browser-facing presigned URLs. Uses
+// S3_PRESIGN_ENDPOINT (browser-reachable, e.g. https://s3.localhost) if set,
 // otherwise falls back to S3_ENDPOINT (e.g. production R2 where the endpoint is
-// directly reachable from the browser). Constructed lazily on first use.
-let _s3PresignClient: S3Client | null | undefined;
-async function getS3PresignClient(): Promise<S3Client | null> {
-  if (_s3PresignClient !== undefined) return _s3PresignClient;
-  if (!s3PresignConfigured) return (_s3PresignClient = null);
-  const { S3Client } = await s3Mod();
-  _s3PresignClient = new S3Client({
+// directly reachable from the browser).
+const s3Presign: S3Bucket | null = s3Credentials && presignEndpoint
+  ? new S3Bucket({
     endpoint: presignEndpoint,
-    forcePathStyle: true,
-    region: "auto",
-    credentials: s3Credentials!,
-    requestChecksumCalculation: "WHEN_REQUIRED",
-    responseChecksumValidation: "WHEN_REQUIRED",
-  });
-  console.log(`S3 presign client configured: endpoint=${presignEndpoint}`);
-  return _s3PresignClient;
-}
+    bucket: S3_BUCKET_NAME,
+    ...s3Credentials,
+  })
+  : null;
 
 // ---------------------------------------------------------------------------
 // Per-frame derived favicons (the frame's og image, full-bleed, 64×64).
@@ -295,9 +272,11 @@ async function getS3PresignClient(): Promise<S3Client | null> {
 // ---------------------------------------------------------------------------
 
 const FAVICON_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
-// resvg's wasm binary. Fetched (and cached by Deno) once per isolate; generation
-// only happens at shorten time and is best-effort, so a cold fetch here never sits
-// on a hot path. Pin the version to the imported package.
+// resvg's wasm binary. On Workers it ships precompiled with the script (see
+// runtime.loadWasm); under Deno it is fetched (and cached by Deno) once per
+// isolate. Generation only happens at shorten time and is best-effort, so a
+// cold fetch here never sits on a hot path. Pin the version to the imported
+// package (and to RESVG_WASM in scripts/build-cloudflare.ts).
 const RESVG_WASM_URL =
   "https://unpkg.com/@resvg/resvg-wasm@2.6.2/index_bg.wasm";
 
@@ -306,8 +285,11 @@ function ensureResvg(): Promise<void> {
   // resvg-wasm is imported lazily — favicon generation only happens at shorten
   // time, so it stays off the isolate's boot module graph.
   if (!resvgReady) {
-    resvgReady = import("@resvg/resvg-wasm").then(({ initWasm }) =>
-      initWasm(fetch(RESVG_WASM_URL))
+    resvgReady = Promise.all([
+      import("@resvg/resvg-wasm"),
+      runtime.loadWasm("resvg"),
+    ]).then(([{ initWasm }, precompiled]) =>
+      initWasm(precompiled ?? fetch(RESVG_WASM_URL))
     );
   }
   return resvgReady;
@@ -344,17 +326,9 @@ async function renderFaviconPng(
 
 /** Whether `favicon/{sha256}` already exists in storage. */
 async function faviconExists(sha256: string): Promise<boolean> {
-  const s3 = await getS3Client();
   if (!s3) return false;
   try {
-    const { HeadObjectCommand } = await s3Mod();
-    await s3.send(
-      new HeadObjectCommand({
-        Bucket: S3_BUCKET_NAME,
-        Key: `favicon/${sha256}`,
-      }),
-    );
-    return true;
+    return await s3.exists(`favicon/${sha256}`);
   } catch {
     return false;
   }
@@ -418,17 +392,12 @@ async function writeOgSidecar(
   hashParams: string,
 ): Promise<void> {
   try {
-    const s3 = await getS3Client();
     if (!s3) return;
     const og = decodeHashParamsToJson(hashParams).og ?? null;
-    const { PutObjectCommand } = await s3Mod();
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: S3_BUCKET_NAME,
-        Key: ogSidecarKey(sha256),
-        Body: JSON.stringify({ og }),
-        ContentType: "application/json; charset=utf-8",
-      }),
+    await s3.put(
+      ogSidecarKey(sha256),
+      JSON.stringify({ og }),
+      "application/json; charset=utf-8",
     );
   } catch (error) {
     console.error(`og sidecar write failed for ${sha256}:`, error);
@@ -445,22 +414,15 @@ async function readOgSidecar(
   sha256: string,
 ): Promise<Record<string, unknown> | null> {
   try {
-    const s3 = await getS3Client();
     if (!s3) return null;
-    const { GetObjectCommand } = await s3Mod();
-    const response = await s3.send(
-      new GetObjectCommand({
-        Bucket: S3_BUCKET_NAME,
-        Key: ogSidecarKey(sha256),
-      }),
-    );
-    if (!response.Body) return null;
-    const parsed = JSON.parse(await response.Body.transformToString());
+    const response = await s3.get(ogSidecarKey(sha256));
+    if (!response) return null;
+    const parsed = JSON.parse(await response.text());
     return parsed && typeof parsed === "object"
       ? parsed as Record<string, unknown>
       : null;
   } catch {
-    // NoSuchKey, or a sidecar we can't parse — either way, fall back.
+    // An S3 error, or a sidecar we can't parse — either way, fall back.
     return null;
   }
 }
@@ -475,7 +437,6 @@ async function generateFaviconForSha256(
   hashParams: string,
 ): Promise<void> {
   try {
-    const s3 = await getS3Client();
     if (!s3) return;
     const og = decodeHashParamsToJson(hashParams).og as
       | { image?: string }
@@ -485,15 +446,7 @@ async function generateFaviconForSha256(
     const source = await fetchOgImageBytes(og.image);
     if (!source) return;
     const png = await renderFaviconPng(source.bytes, source.mime);
-    const { PutObjectCommand } = await s3Mod();
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: S3_BUCKET_NAME,
-        Key: `favicon/${sha256}`,
-        Body: png,
-        ContentType: "image/png",
-      }),
-    );
+    await s3.put(`favicon/${sha256}`, png, "image/png");
   } catch (error) {
     console.error(`favicon generation failed for ${sha256}:`, error);
   }
@@ -508,17 +461,11 @@ app.use("*", cors({ origin: "*" }));
 let indexHtmlProcessed = "";
 let indexHtmlEtag = "";
 
-// Cache directives for the app shell. It is byte-identical for every visitor, so
-// let the Deno Deploy CDN hold it (Deno-CDN-Cache-Control / s-maxage) to absorb
-// isolate cold starts — the dominant cost for what is essentially a static page.
-// The edge cache is auto-invalidated on every deploy, so a new version is served
-// instantly. Browsers always revalidate (max-age=0) and get a cheap 304 via the
-// ETag, so they pick up a deploy on their next navigation too.
-//
-// TRADEOFF: because most `/` hits are served from the edge, the isolate is not
-// invoked, so the server-side pageview `track()` below undercounts top-level app
-// loads. Custom events on the uncached /api and /j routes are unaffected.
-const SHELL_CDN_CACHE = "public, s-maxage=86400, stale-while-revalidate=604800";
+// Cache directives for the app shell. It is built once per isolate (below), and
+// a Workers isolate starts in milliseconds, so there is no edge cache in front
+// of it: every `/` reaches the worker, which also keeps the server-side
+// pageview `track()` exact. Browsers always revalidate (max-age=0) and get a
+// cheap 304 via the ETag, so they pick up a deploy on their next navigation.
 const SHELL_BROWSER_CACHE = "public, max-age=0, must-revalidate";
 
 // Inject the configured framejs.app origin so the client can link/navigate to the
@@ -532,7 +479,7 @@ const SHELL_BROWSER_CACHE = "public, max-age=0, must-revalidate";
 // here; that markup is its own module now, and a blanket string replacement
 // over the whole runtime is not something to keep around on spec.
 const buildIndexHtml = async (): Promise<string> => {
-  const indexHtml = await Deno.readTextFile("./index.html");
+  const indexHtml = await runtime.readTextFile("./index.html");
   return indexHtml.replace(
     "</head>",
     `<script id="framejs-app-origin-init">window.__FRAMEJS_APP_ORIGIN=${
@@ -544,7 +491,7 @@ const buildIndexHtml = async (): Promise<string> => {
 const serveIndex = async (c?: Context): Promise<Response> => {
   // In dev, always re-read from disk (so edits are picked up without a restart)
   // and skip caching entirely.
-  if (Deno.env.get("DEV") === "true") {
+  if (env("DEV") === "true") {
     return new Response(await buildIndexHtml(), {
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });
@@ -556,8 +503,6 @@ const serveIndex = async (c?: Context): Promise<Response> => {
   }
   const cacheHeaders: Record<string, string> = {
     "Cache-Control": SHELL_BROWSER_CACHE,
-    "Deno-CDN-Cache-Control": SHELL_CDN_CACHE,
-    "Deno-Cache-Tag": "index-shell",
     "ETag": indexHtmlEtag,
   };
   // Conditional request that still reaches the isolate → 304, so the ~79KB shell
@@ -571,7 +516,7 @@ const serveIndex = async (c?: Context): Promise<Response> => {
 };
 
 app.get("/", (c) => {
-  track(c); // pageview — main app load (undercounts when edge-cached; see above)
+  track(c); // pageview — main app load
   const embedOrigin = detectEmbed(c);
   if (embedOrigin) {
     // Embedded in an iframe — record the embedding origin so the dashboard can
@@ -584,7 +529,7 @@ app.get("/index.html", (c) => serveIndex(c));
 
 app.get("/sw.js", async () => {
   try {
-    const swJs = await Deno.readTextFile("./sw.js");
+    const swJs = await runtime.readTextFile("./sw.js");
     return new Response(swJs, {
       headers: {
         "Content-Type": "application/javascript",
@@ -599,7 +544,7 @@ app.get("/sw.js", async () => {
 
 app.get("/cache-test-utils.js", async () => {
   try {
-    const testUtilsJs = await Deno.readTextFile("./cache-test-utils.js");
+    const testUtilsJs = await runtime.readTextFile("./cache-test-utils.js");
     return new Response(testUtilsJs, {
       headers: {
         "Content-Type": "application/javascript",
@@ -622,8 +567,7 @@ app.get("/editor/metaframe.json", (c) => {
 
 // Upload presign endpoint — returns a presigned URL for direct browser-to-S3 upload
 app.post("/api/upload/presign", async (c) => {
-  const s3 = await getS3PresignClient();
-  if (!s3) {
+  if (!s3Presign) {
     return c.json({ error: "File upload not configured" }, 503);
   }
 
@@ -647,18 +591,9 @@ app.post("/api/upload/presign", async (c) => {
     // Store file with just the id as the key (no filename)
     const key = `f/${id}`;
 
-    const { PutObjectCommand } = await s3Mod();
-    const command = new PutObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-      ContentType: contentType,
-    });
-
-    // Generate presigned URL using the browser-reachable endpoint
-    const { getSignedUrl } = await import("npm:@aws-sdk/s3-request-presigner");
-    const presignedUrl = await getSignedUrl(s3, command, {
-      expiresIn: 3600,
-    });
+    // Generate presigned URL using the browser-reachable endpoint. The upload
+    // stores whatever Content-Type the browser sends with its PUT.
+    const presignedUrl = await s3Presign.presignPut(key, 3600);
     // Canonical path for accessing the file via the worker's download endpoint
     const canonicalPath = `/f/${id}`;
 
@@ -671,7 +606,6 @@ app.post("/api/upload/presign", async (c) => {
 
 // URL shortening endpoint — stores hash params in S3
 app.post("/api/shorten", async (c) => {
-  const s3 = await getS3Client();
   if (!s3) {
     return c.json({ error: "URL shortening not configured" }, 503);
   }
@@ -693,16 +627,7 @@ app.post("/api/shorten", async (c) => {
       .join("");
 
     // Store in S3 with key j/{sha256}
-    const key = `j/${sha256}`;
-    const { PutObjectCommand } = await s3Mod();
-    const command = new PutObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-      Body: hashParams,
-      ContentType: "text/plain; charset=utf-8",
-    });
-
-    await s3.send(command);
+    await s3.put(`j/${sha256}`, hashParams, "text/plain; charset=utf-8");
 
     // Eagerly derive the frame's favicon and og sidecar (best-effort, neither
     // throws). The content is immutable, so both compute once and store
@@ -726,7 +651,6 @@ app.post("/api/shorten", async (c) => {
 
 // URL shortening from JSON body — encodes each field to hash-param format
 app.post("/api/shorten/json", async (c) => {
-  const s3 = await getS3Client();
   if (!s3) {
     return c.json({ error: "URL shortening not configured" }, 503);
   }
@@ -752,15 +676,7 @@ app.post("/api/shorten/json", async (c) => {
       .join("");
 
     // Store in S3
-    const key = `j/${sha256}`;
-    const { PutObjectCommand } = await s3Mod();
-    const command = new PutObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-      Body: hashParams,
-      ContentType: "text/plain; charset=utf-8",
-    });
-    await s3.send(command);
+    await s3.put(`j/${sha256}`, hashParams, "text/plain; charset=utf-8");
 
     // Eagerly derive the frame's favicon and og sidecar (best-effort, neither
     // throws). The content is immutable, so both compute once and store
@@ -849,24 +765,21 @@ const exportFetchAsset = (requestOrigin: string): FetchAsset => {
     }
     // Only ever a plain `f/<id>` key: nothing here can name another prefix.
     if (fileId && !/^[A-Za-z0-9._-]+$/.test(fileId)) fileId = undefined;
-    const s3 = fileId ? await getS3Client() : null;
     if (!fileId || !s3) return publicFetch(url, options);
-    const { GetObjectCommand } = await s3Mod();
-    const response = await s3.send(
-      new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `f/${fileId}` }),
+    const response = await s3.get(`f/${fileId}`);
+    if (!response?.body) throw new ExportError(`File ${url} not found`);
+    const contentLength = Number(
+      response.headers.get("content-length") ?? Infinity,
     );
-    if (!response.Body) throw new ExportError(`File ${url} is empty`);
-    if (
-      options?.maxBytes !== undefined &&
-      (response.ContentLength ?? Infinity) > options.maxBytes
-    ) {
-      await response.Body.transformToWebStream().cancel();
+    if (options?.maxBytes !== undefined && contentLength > options.maxBytes) {
+      await response.body.cancel();
       throw new ExportError(`${url} is larger than the export size limit`, 413);
     }
     return {
       url,
-      bytes: await response.Body.transformToByteArray(),
-      contentType: response.ContentType || "application/octet-stream",
+      bytes: new Uint8Array(await response.arrayBuffer()),
+      contentType: response.headers.get("content-type") ||
+        "application/octet-stream",
     };
   };
 };
@@ -875,7 +788,6 @@ const exportHtmlKey = (sha256: string) => `html/${sha256}`;
 let activeExports = 0;
 
 app.post("/api/export/html", async (c) => {
-  const s3 = await getS3Client();
   if (!s3) {
     return c.json({ error: "Export not configured" }, 503);
   }
@@ -914,8 +826,8 @@ app.post("/api/export/html", async (c) => {
   try {
     const html = await buildStandaloneHtml({
       params: decodeHashParamsToJson(hashParams),
-      runtimeHtml: await Deno.readTextFile("./index.html"),
-      faviconSvg: await Deno.readTextFile("./static/favicon.svg").catch(() =>
+      runtimeHtml: await runtime.readTextFile("./index.html"),
+      faviconSvg: await runtime.readTextFile("./static/favicon.svg").catch(() =>
         undefined
       ),
       origin,
@@ -935,24 +847,9 @@ app.post("/api/export/html", async (c) => {
     const key = exportHtmlKey(sha256);
 
     // Content-addressed: if it is there, it is this exact file.
-    const { HeadObjectCommand, PutObjectCommand } = await s3Mod();
-    let existed = true;
-    try {
-      await s3.send(
-        new HeadObjectCommand({ Bucket: S3_BUCKET_NAME, Key: key }),
-      );
-    } catch {
-      existed = false;
-    }
+    const existed = await s3.exists(key).catch(() => false);
     if (!existed) {
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: S3_BUCKET_NAME,
-          Key: key,
-          Body: bytes,
-          ContentType: "text/html; charset=utf-8",
-        }),
-      );
+      await s3.put(key, bytes, "text/html; charset=utf-8");
     }
 
     track(c, { name: "export-html", source: detectSource(c) });
@@ -981,19 +878,14 @@ app.get("/html/:sha256", async (c) => {
   if (!/^[a-f0-9]{64}$/.test(sha256)) {
     return c.json({ error: "Invalid export id" }, 400);
   }
-  const s3 = await getS3Client();
   if (!s3) {
     return c.json({ error: "Export not configured" }, 503);
   }
   try {
-    const { GetObjectCommand } = await s3Mod();
-    const response = await s3.send(
-      new GetObjectCommand({
-        Bucket: S3_BUCKET_NAME,
-        Key: exportHtmlKey(sha256),
-      }),
-    );
-    if (!response.Body) throw new Error("S3 response body is empty");
+    const response = await s3.get(exportHtmlKey(sha256));
+    if (!response) {
+      return c.json({ error: "Export not found" }, 404);
+    }
     const filename = `framejs-${sha256.slice(0, 12)}.html`;
     const headers: Record<string, string> = {
       "Content-Type": "text/html; charset=utf-8",
@@ -1003,17 +895,10 @@ app.get("/html/:sha256", async (c) => {
     if (c.req.query("inline") === undefined) {
       headers["Content-Disposition"] = `attachment; filename="${filename}"`;
     }
-    if (response.ContentLength !== undefined) {
-      headers["Content-Length"] = String(response.ContentLength);
-    }
-    return new Response(
-      response.Body.transformToWebStream() as ReadableStream,
-      { headers },
-    );
-  } catch (error: any) {
-    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") {
-      return c.json({ error: "Export not found" }, 404);
-    }
+    const contentLength = response.headers.get("content-length");
+    if (contentLength !== null) headers["Content-Length"] = contentLength;
+    return new Response(response.body, { headers });
+  } catch (error) {
     console.error("Export download error:", error);
     return c.json({ error: "Failed to download export" }, 500);
   }
@@ -1112,6 +997,15 @@ async function fetchUuidHashParams(
 }
 
 /**
+ * The stored hash-param string of a sha256 short URL (`j/<sha256>`), or null
+ * when there is no such frame. Callers check that S3 is configured first.
+ */
+async function readFrameBlob(sha256: string): Promise<string | null> {
+  const response = await s3!.get(`j/${sha256}`);
+  return response && await response.text();
+}
+
+/**
  * A frame's stored hash params, by uuid (framejs.app, honoring a `?v=` pin) or
  * sha256 (S3). `immutable` is whether they can ever change: a sha256 blob is
  * content-addressed and a pinned version is permanent; a live uuid is not.
@@ -1127,22 +1021,9 @@ async function loadFrameHashParams(
     return fetched &&
       { hashParams: fetched.hashParams, immutable: !!pinnedVersion };
   }
-  const s3 = await getS3Client();
   if (!s3) throw new Error("URL shortening not configured");
-  try {
-    const { GetObjectCommand } = await s3Mod();
-    const response = await s3.send(
-      new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${id}` }),
-    );
-    if (!response.Body) throw new Error("S3 response body is empty");
-    return {
-      hashParams: await response.Body.transformToString(),
-      immutable: true,
-    };
-  } catch (error: any) {
-    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") return null;
-    throw error;
-  }
+  const hashParams = await readFrameBlob(id);
+  return hashParams === null ? null : { hashParams, immutable: true };
 }
 
 /** Cap on a `js=<url>` / `css=<url>` reference fetched for `/j/<id>.js|.css`. */
@@ -1325,7 +1206,6 @@ app.get("/j/:sha256", async (c) => {
   }
 
   // sha256 form: resolve via S3.
-  const s3 = await getS3Client();
   if (!s3) {
     return c.json({ error: "URL shortening not configured" }, 503);
   }
@@ -1353,14 +1233,11 @@ app.get("/j/:sha256", async (c) => {
 
     if (!decoded) {
       // No sidecar: either a frame shortened before sidecars shipped, or no
-      // such frame. Read the blob — which also settles existence, since a
-      // missing one throws NoSuchKey and is handled as a 404 below.
-      const { GetObjectCommand } = await s3Mod();
-      const response = await s3.send(
-        new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${sha256}` }),
-      );
-      if (!response.Body) throw new Error("S3 response body is empty");
-      const hashParams = await response.Body.transformToString();
+      // such frame. Read the blob — which also settles existence.
+      const hashParams = await readFrameBlob(sha256);
+      if (hashParams === null) {
+        return c.json({ error: "Shortened URL not found" }, 404);
+      }
       decoded = decodeHashParamsToJson(hashParams);
       // Backfill so this frame costs the full read once, not forever.
       await writeOgSidecar(sha256, hashParams);
@@ -1378,14 +1255,8 @@ app.get("/j/:sha256", async (c) => {
     const injectedScript = shortUrlInitScript(sha256, FRAMEJS_APP_ORIGIN);
 
     return await serveShortUrlHtml(ogMetaTags, injectedScript, favicon);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Shortened URL error:", error);
-
-    // Handle S3 NoSuchKey error (404)
-    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") {
-      return c.json({ error: "Shortened URL not found" }, 404);
-    }
-
     return c.json({ error: "Failed to retrieve shortened URL" }, 500);
   }
 });
@@ -1402,7 +1273,7 @@ app.get("/j/:sha256/qrcode.png", async (c) => {
     }
 
     // Pin the canonical origin so the QR encodes a stable, public URL
-    // regardless of which host (alias, *.deno.dev, etc.) served the request.
+    // regardless of which host (alias, *.workers.dev, etc.) served the request.
     const target = new URL(`${PUBLIC_ORIGIN}/j/${id}`);
 
     // Forward any extra query params onto the encoded URL.
@@ -1411,15 +1282,13 @@ app.get("/j/:sha256/qrcode.png", async (c) => {
       target.searchParams.append(key, value);
     }
 
-    const { default: QRCode } = await import("qrcode");
-    const png = await QRCode.toBuffer(target.toString(), {
-      type: "png",
+    const png = await qrCodePng(target.toString(), {
       errorCorrectionLevel: "M",
       margin: 2,
       width: 512,
     });
 
-    return new Response(new Blob([png], { type: "image/png" }), {
+    return new Response(png as BodyInit, {
       headers: {
         "Content-Type": "image/png",
         "Access-Control-Allow-Origin": "*",
@@ -1444,23 +1313,13 @@ app.get("/j/:sha256/favicon.png", async (c) => {
   if (!sha256 || !/^[a-f0-9]{64}$/.test(sha256)) {
     return fallback();
   }
-  const s3 = await getS3Client();
   if (!s3) return fallback();
 
   // Load the stored favicon PNG, or null if it doesn't exist yet.
   const loadFavicon = async (): Promise<ArrayBuffer | null> => {
     try {
-      const { GetObjectCommand } = await s3Mod();
-      const response = await s3.send(
-        new GetObjectCommand({
-          Bucket: S3_BUCKET_NAME,
-          Key: `favicon/${sha256}`,
-        }),
-      );
-      if (!response.Body) return null;
-      const bytes = await response.Body.transformToByteArray();
-      // Copy into a fresh ArrayBuffer-backed buffer so the body type is concrete.
-      return new Uint8Array(bytes).buffer;
+      const response = await s3.get(`favicon/${sha256}`);
+      return response && await response.arrayBuffer();
     } catch {
       return null;
     }
@@ -1480,12 +1339,8 @@ app.get("/j/:sha256/favicon.png", async (c) => {
 
   // Miss — generate lazily from the stored hash params (best-effort), then retry.
   try {
-    const { GetObjectCommand } = await s3Mod();
-    const response = await s3.send(
-      new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${sha256}` }),
-    );
-    if (response.Body) {
-      const hashParams = await response.Body.transformToString();
+    const hashParams = await readFrameBlob(sha256);
+    if (hashParams !== null) {
       await generateFaviconForSha256(sha256, hashParams);
       const generated = await loadFavicon();
       if (generated) return serve(generated);
@@ -1515,7 +1370,6 @@ app.get("/j/:sha256/metaframe.json", async (c) => {
       return c.json(computeMetaframeDefinition(hashParams));
     }
 
-    const s3 = await getS3Client();
     if (!s3) {
       return c.json({ error: "URL shortening not configured" }, 503);
     }
@@ -1524,27 +1378,16 @@ app.get("/j/:sha256/metaframe.json", async (c) => {
       return c.json({ error: "Invalid shortened URL ID" }, 400);
     }
 
-    const key = `j/${id}`;
-    const { GetObjectCommand } = await s3Mod();
-    const command = new GetObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-    });
-
-    const response = await s3.send(command);
-    if (!response.Body) throw new Error("S3 response body is empty");
-    const hashParams = await response.Body.transformToString();
+    const hashParams = await readFrameBlob(id);
+    if (hashParams === null) {
+      return c.json({ error: "Shortened URL not found" }, 404);
+    }
 
     const definition = computeMetaframeDefinition(hashParams);
     c.header("Cache-Control", "public, max-age=31536000, immutable");
     return c.json(definition);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Short URL metaframe.json error:", error);
-
-    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") {
-      return c.json({ error: "Shortened URL not found" }, 404);
-    }
-
     return c.json({ error: "Failed to retrieve shortened URL" }, 500);
   }
 });
@@ -1568,7 +1411,6 @@ app.get("/api/j/:sha256", async (c) => {
       return c.json({ id, hashParams: decodeHashParamsToJson(hashParams) });
     }
 
-    const s3 = await getS3Client();
     if (!s3) {
       return c.json({ error: "URL shortening not configured" }, 503);
     }
@@ -1577,28 +1419,17 @@ app.get("/api/j/:sha256", async (c) => {
       return c.json({ error: "Invalid shortened URL ID" }, 400);
     }
 
-    const key = `j/${id}`;
-    const { GetObjectCommand } = await s3Mod();
-    const command = new GetObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-    });
-
-    const response = await s3.send(command);
-    if (!response.Body) throw new Error("S3 response body is empty");
-    const hashParams = await response.Body.transformToString();
+    const hashParams = await readFrameBlob(id);
+    if (hashParams === null) {
+      return c.json({ error: "Shortened URL not found" }, 404);
+    }
 
     track(c, { name: "fetch", source: detectSource(c) });
 
     c.header("Cache-Control", "public, max-age=31536000, immutable");
     return c.json({ id, hashParams: decodeHashParamsToJson(hashParams) });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Short URL API error:", error);
-
-    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") {
-      return c.json({ error: "Shortened URL not found" }, 404);
-    }
-
     return c.json({ error: "Failed to retrieve shortened URL" }, 500);
   }
 });
@@ -1647,22 +1478,16 @@ app.get("/api/j/:sha256/runtime-params", async (c) => {
       return c.json({ error: "Failed to retrieve frame params" }, 502);
     }
   } else if (id && /^[a-f0-9]{64}$/.test(id)) {
-    const s3 = await getS3Client();
     if (!s3) {
       return c.json({ error: "URL shortening not configured" }, 503);
     }
     try {
-      const { GetObjectCommand } = await s3Mod();
-      const response = await s3.send(
-        new GetObjectCommand({ Bucket: S3_BUCKET_NAME, Key: `j/${id}` }),
-      );
-      if (!response.Body) throw new Error("S3 response body is empty");
-      raw = await response.Body.transformToString();
-      immutable = true; // content-addressed
-    } catch (error: any) {
-      if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") {
+      raw = await readFrameBlob(id);
+      if (raw === null) {
         return c.json({ error: "Shortened URL not found" }, 404);
       }
+      immutable = true; // content-addressed
+    } catch (error) {
       console.error("Runtime params (sha256) error:", error);
       return c.json({ error: "Failed to retrieve frame params" }, 500);
     }
@@ -1717,7 +1542,6 @@ app.get("/api/j/:sha256/url", async (c) => {
       return c.text(`${protocol}://${host}/#${hashParams}`);
     }
 
-    const s3 = await getS3Client();
     if (!s3) {
       return c.json({ error: "URL shortening not configured" }, 503);
     }
@@ -1726,16 +1550,10 @@ app.get("/api/j/:sha256/url", async (c) => {
       return c.json({ error: "Invalid shortened URL ID" }, 400);
     }
 
-    const key = `j/${id}`;
-    const { GetObjectCommand } = await s3Mod();
-    const command = new GetObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-    });
-
-    const response = await s3.send(command);
-    if (!response.Body) throw new Error("S3 response body is empty");
-    const hashParams = await response.Body.transformToString();
+    const hashParams = await readFrameBlob(id);
+    if (hashParams === null) {
+      return c.json({ error: "Shortened URL not found" }, 404);
+    }
 
     const protocol = c.req.header("x-forwarded-proto") || "https";
     const host = c.req.header("host");
@@ -1744,13 +1562,8 @@ app.get("/api/j/:sha256/url", async (c) => {
     c.header("Cache-Control", "public, max-age=31536000, immutable");
     c.header("Content-Type", "text/plain; charset=utf-8");
     return c.text(fullUrl);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Short URL API error:", error);
-
-    if (error.name === "NoSuchKey" || error.Code === "NoSuchKey") {
-      return c.json({ error: "Shortened URL not found" }, 404);
-    }
-
     return c.json({ error: "Failed to retrieve shortened URL" }, 500);
   }
 });
@@ -1781,36 +1594,47 @@ app.get("/f/:id", (c) => {
   }
 });
 
-// Static file serving
-app.use("/editor/*", serveStatic({ root: "./" }));
-// /docs (no trailing slash) → /docs/ so VitePress index.html is served
-app.get("/docs", (c) => c.redirect("/docs/", 301));
-// Standalone slide decks live in docs/public/presentations/<deck>/index.html.
-// They are directories, not cleanUrl pages, so a missing trailing slash would
-// otherwise be rewritten to `<deck>.html` and 404.
-app.get(
-  "/docs/presentations/:deck",
-  (c) => c.redirect(`/docs/presentations/${c.req.param("deck")}/`, 301),
-);
-// Docs are built by VitePress with cleanUrls (links have no .html suffix).
-// Serve `foo.html` for a request to `/docs/foo` so those clean URLs resolve.
-// Leave paths with an extension (.html, .js, .css, …) and directory paths
-// (trailing slash → index.html) untouched.
-app.use(
-  "/docs/*",
-  serveStatic({
-    root: "./",
-    rewriteRequestPath: (path) =>
-      path.endsWith("/") || /\.[^/]+$/.test(path) ? path : `${path}.html`,
-  }),
-);
-app.use(
-  "/*",
-  serveStatic({
-    root: "./",
-    rewriteRequestPath: (path) => `/static${path}`,
-  }),
-);
+export { app };
 
-console.log(`🚀 Listening on: http://localhost:${port}`);
-Deno.serve({ port }, app.fetch);
+// Run directly (`deno run server.ts`: the local docker stack), this module also
+// serves the static files and listens. On Cloudflare (cloudflare.ts imports
+// `app`), Workers Static Assets serves editor/, docs/ and static/ instead — and
+// does its own trailing-slash and clean-URL handling for the docs — before a
+// request ever reaches the worker. See scripts/build-cloudflare.ts.
+if (import.meta.main) {
+  // Imported here, not at the top: Hono's Deno adapter reads `Deno` as soon as
+  // it is evaluated, which would crash the module on Workers.
+  const { serveStatic } = await import("@hono/hono/deno");
+  app.use("/editor/*", serveStatic({ root: "./" }));
+  // /docs (no trailing slash) → /docs/ so VitePress index.html is served
+  app.get("/docs", (c) => c.redirect("/docs/", 301));
+  // Standalone slide decks live in docs/public/presentations/<deck>/index.html.
+  // They are directories, not cleanUrl pages, so a missing trailing slash would
+  // otherwise be rewritten to `<deck>.html` and 404.
+  app.get(
+    "/docs/presentations/:deck",
+    (c) => c.redirect(`/docs/presentations/${c.req.param("deck")}/`, 301),
+  );
+  // Docs are built by VitePress with cleanUrls (links have no .html suffix).
+  // Serve `foo.html` for a request to `/docs/foo` so those clean URLs resolve.
+  // Leave paths with an extension (.html, .js, .css, …) and directory paths
+  // (trailing slash → index.html) untouched.
+  app.use(
+    "/docs/*",
+    serveStatic({
+      root: "./",
+      rewriteRequestPath: (path) =>
+        path.endsWith("/") || /\.[^/]+$/.test(path) ? path : `${path}.html`,
+    }),
+  );
+  app.use(
+    "/*",
+    serveStatic({
+      root: "./",
+      rewriteRequestPath: (path) => `/static${path}`,
+    }),
+  );
+
+  console.log(`🚀 Listening on: http://localhost:${port}`);
+  Deno.serve({ port }, app.fetch);
+}

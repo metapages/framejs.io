@@ -8,10 +8,12 @@
 // — into a single output. Import maps (the `modules` hash param can carry one)
 // are applied while resolving, since the export ships no import map of its own.
 //
-// esbuild runs as wasm (no native binary: Deno Deploy cannot spawn one), and is
+// esbuild runs as wasm (no native binary: a Worker cannot spawn one), and is
 // imported lazily so it costs nothing outside the export route.
 
 import type * as Esbuild from "https://deno.land/x/esbuild@v0.25.0/wasm.js";
+
+import { runtime } from "./runtime.ts";
 
 /** One fetched network resource. `url` is the final URL, after redirects. */
 export type FetchedAsset = {
@@ -31,13 +33,16 @@ export type ImportMapImports = Record<string, string>;
 
 // esbuild's wasm, pinned by content. Left to itself, `initialize()` downloads
 // it from deno.land/x on first use, making every export depend on that one
-// host. Instead it is fetched from whichever mirror answers first in this list,
-// checked against the hash (so a mirror cannot serve anything else), compiled
-// once per isolate and handed over as a module.
+// host. On Workers, which cannot compile wasm from bytes, it ships precompiled
+// with the script (scripts/build-cloudflare.ts downloads it from these same
+// mirrors, against this same hash). Under Deno it is fetched from whichever
+// mirror answers first in this list, checked against the hash (so a mirror
+// cannot serve anything else), compiled once per isolate and handed over as a
+// module.
 const ESBUILD_VERSION = "0.25.0";
-const ESBUILD_WASM_SHA256 =
+export const ESBUILD_WASM_SHA256 =
   "92303a29c9d60620a756925939bbb0f60800fa1eed14a29f93b8a3e9394ac0b9";
-const ESBUILD_WASM_MIRRORS = [
+export const ESBUILD_WASM_MIRRORS = [
   `https://cdn.jsdelivr.net/npm/esbuild-wasm@${ESBUILD_VERSION}/esbuild.wasm`,
   `https://unpkg.com/esbuild-wasm@${ESBUILD_VERSION}/esbuild.wasm`,
   `https://deno.land/x/esbuild@v${ESBUILD_VERSION}/esbuild.wasm`,
@@ -51,6 +56,8 @@ const sha256Hex = async (bytes: Uint8Array) =>
   ).map((b) => b.toString(16).padStart(2, "0")).join("");
 
 async function loadEsbuildWasm(): Promise<WebAssembly.Module> {
+  const precompiled = await runtime.loadWasm("esbuild");
+  if (precompiled) return precompiled;
   const failures: string[] = [];
   for (const url of ESBUILD_WASM_MIRRORS) {
     try {
@@ -78,7 +85,8 @@ const esbuild = (): Promise<typeof Esbuild> => {
       import("https://deno.land/x/esbuild@v0.25.0/wasm.js"),
       loadEsbuildWasm(),
     ]);
-    // worker:false — Deno Deploy cannot run esbuild's wasm in a Worker.
+    // worker:false — neither Workers nor a Deno server isolate can run
+    // esbuild's wasm in a Web Worker.
     await mod.initialize({ worker: false, wasmModule });
     return mod;
   })();

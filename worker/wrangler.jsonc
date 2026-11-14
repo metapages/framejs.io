@@ -1,0 +1,64 @@
+// framejs.io on Cloudflare Workers. Deploy with `just deploy` (repo root),
+// which builds dist/cloudflare first (scripts/build-cloudflare.ts) — wrangler
+// does no bundling of its own here (`no_bundle`).
+//
+// Secrets (not in this file): S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY — set
+// with `npx wrangler secret put <NAME>` from worker/.
+{
+  "name": "framejs-io",
+  "account_id": "87fd2334b246ea24741346c2a2140fa8",
+  "main": "dist/cloudflare/worker/cloudflare.mjs",
+  "compatibility_date": "2026-10-01",
+  // process.env (src/runtime.ts env()) is populated from vars and secrets.
+  "compatibility_flags": ["nodejs_compat"],
+
+  "no_bundle": true,
+  "base_dir": "dist/cloudflare/worker",
+  "find_additional_modules": true,
+  "rules": [
+    { "type": "ESModule", "globs": ["**/*.mjs"] },
+    { "type": "CompiledWasm", "globs": ["**/*.wasm"] }
+  ],
+  "upload_source_maps": true,
+
+  "assets": {
+    "directory": "dist/cloudflare/assets",
+    "binding": "ASSETS",
+    // /docs/foo → docs/foo.html, /docs → /docs/ (VitePress cleanUrls)
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none",
+    // Routes the worker owns even where an asset of the same path could match.
+    "run_worker_first": [
+      "/",
+      "/index.html",
+      "/sw.js",
+      "/cache-test-utils.js",
+      "/metaframe.json",
+      "/editor/metaframe.json",
+      "/api/*",
+      "/j/*",
+      "/html/*",
+      "/f/*"
+    ]
+  },
+
+  // The standalone HTML export runs esbuild (wasm) in the request.
+  "limits": { "cpu_ms": 60000 },
+  "observability": { "enabled": true },
+
+  // No routes yet: the worker answers on framejs-io.<account>.workers.dev only
+  // until the DNS cutover moves framejs.io and js.mtfm.io here.
+
+  "vars": {
+    "PUBLIC_ORIGIN": "https://framejs.io",
+    "FRAMEJS_APP_ORIGIN": "https://framejs.app",
+    "S3_ENDPOINT": "https://87fd2334b246ea24741346c2a2140fa8.r2.cloudflarestorage.com",
+    "S3_BUCKET_NAME": "js-mtfm-io",
+    "S3_PUBLIC_URL": "https://files.framejs.io/f",
+    "S3_UPLOAD_MAX_SIZE_MB": "500",
+    // An isolate has 128 MB, and an export holds a few copies of its file.
+    "EXPORT_HTML_MAX_SIZE_MB": "20",
+    "EXPORT_HTML_MAX_CONCURRENT": "1",
+    "UMAMI_WEBSITE_ID": "774a7551-b487-4691-a52a-9b2b79a20872"
+  }
+}

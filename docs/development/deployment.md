@@ -1,23 +1,45 @@
 # Deployment
 
-## Website (Deno Deploy)
+## Website (Cloudflare Workers)
 
-The website at [framejs.io](https://framejs.io) is deployed to [Deno Deploy](https://deno.com/deploy).
+The website at [framejs.io](https://framejs.io) is a Cloudflare Worker,
+`framejs-io` (config: `worker/wrangler.jsonc`). It moved from Deno Deploy,
+which is being retired; until the DNS cutover both are deployed on every push
+to `main`, and Deno Deploy still answers for the domains.
 
 ```bash
-just publish
+just deploy             # build, then deploy to Cloudflare (and Deno Deploy, until the cutover)
+just deploy-cloudflare  # Cloudflare only (after `just build`)
 ```
 
-This command:
-1. Builds the editor frontend (`just editor/build`)
-2. Copies `editor/dist/` and worker files into a `deploy/` directory
-3. Runs `deployctl deploy --project=metaframe-js --prod server.ts`
+`deploy-cloudflare`:
+1. Runs `worker/scripts/build-cloudflare.ts`, which bundles `worker/cloudflare.ts`
+   (esbuild + the Deno plugin) into `worker/dist/cloudflare/worker/` beside the
+   two wasm binaries it loads (resvg, esbuild — Workers cannot compile wasm
+   from fetched bytes), and assembles `worker/dist/cloudflare/assets/`:
+   `worker/static/` at the root, `editor/dist` at `editor/`, the docs at `docs/`.
+2. Runs `wrangler deploy` (no bundling of its own). The assets are served by
+   Workers Static Assets before the worker is invoked, except the paths listed
+   in `run_worker_first`.
 
-Requires `DENO_DEPLOY_TOKEN` env var (or interactive login).
+Auth: `CLOUDFLARE_API_TOKEN` (CI secret; the "Edit Cloudflare Workers"
+template is enough), or `npx wrangler login` locally.
 
-Optional: set `UMAMI_HOST` and `UMAMI_WEBSITE_ID` in the Deno Deploy project
-env to enable cookieless server-side usage analytics
-(see [worker docs](./worker.md#analytics-optional)).
+Requirements:
+- **Workers Paid plan.** The upload is ~4.3 MB gzipped (esbuild.wasm alone is
+  3.2 MB); the free plan's limit is 3 MB.
+- **Secrets**, set once (they persist across deploys), from `worker/`:
+  `npx wrangler secret put S3_ACCESS_KEY_ID` and
+  `npx wrangler secret put S3_SECRET_ACCESS_KEY`.
+  Everything else (R2 endpoint, bucket, public URL, Umami id) is a plain var in
+  `wrangler.jsonc`. Optional: `UMAMI_HOST` (defaults to Umami Cloud) for
+  cookieless server-side analytics (see [worker docs](./worker.md#analytics-optional)).
+- **Domains**: `framejs.io` and `js.mtfm.io` are Workers Custom Domains (or
+  routes) on this worker once the cutover is done.
+
+Limits that differ from Deno Deploy: an isolate has 128 MB of memory, so
+`EXPORT_HTML_MAX_SIZE_MB` is 20 (was 50) and `EXPORT_HTML_MAX_CONCURRENT` is 1;
+the export's CPU budget is `limits.cpu_ms` (60 s).
 
 ## File storage (Cloudflare R2)
 
@@ -27,7 +49,7 @@ Uploaded files live in an R2 bucket exposed at a custom domain
 browser's CORS check lands on R2's response, not ours, so **R2 must be
 configured to serve these files cross-origin**.
 
-Env vars on Deno Deploy: `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`,
+Worker env vars: `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`,
 `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_PUBLIC_URL`,
 `S3_UPLOAD_MAX_SIZE_MB` (see
 [bucket setup steps](../../editor/README-developer.md#production-setup-cloudflare-r2)).
@@ -89,8 +111,8 @@ it reproduces for a user but not with DevTools "Disable cache" checked.
 
 > The alternative fix is to proxy the bytes through `GET /f/:id`
 > (`worker/server.ts`) instead of redirecting, which makes files same-origin and
-> sidesteps CORS entirely — at the cost of routing file traffic through Deno
-> Deploy. We redirect.
+> sidesteps CORS entirely — at the cost of routing file traffic through the
+> worker. We redirect.
 
 ### Edge caching (Cache Rule)
 

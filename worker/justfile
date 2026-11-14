@@ -18,10 +18,21 @@ dev:
 @fmt:
     deno fmt .
 
-# Quick type check
+# Quick type check (the Deno entry/app, and the Cloudflare Workers entry)
 @check:
-    deno check server.ts
+    deno check server.ts cloudflare.ts
     echo "✅ worker typescript compilation"
+
+# Run the production (Cloudflare Workers) build locally in workerd, on :8787.
+# Needs editor + docs built (`just build` at the repo root). S3 is unconfigured
+# unless you pass vars, e.g. --var S3_ACCESS_KEY_ID:... --var S3_SECRET_ACCESS_KEY:...
+cf-dev +args="":
+    deno run -A scripts/build-cloudflare.ts
+    npx -y wrangler@4 dev {{ args }}
+
+# Read-only smoke test of a deployed worker, e.g. https://framejs-io.<account>.workers.dev
+smoke base ref="https://framejs.io":
+    ./scripts/smoke.sh {{ base }} {{ ref }}
 
 # Type check plus unit tests
 test: check
