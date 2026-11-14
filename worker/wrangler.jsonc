@@ -54,6 +54,8 @@
     { "pattern": "framejs.io/*", "zone_name": "framejs.io" },
     { "pattern": "js.mtfm.io/*", "zone_name": "mtfm.io" }
   ],
+  // Keep framejs-io.<account>.workers.dev too: it is the smoke test's reference.
+  "workers_dev": true,
 
   "vars": {
     "PUBLIC_ORIGIN": "https://framejs.io",
