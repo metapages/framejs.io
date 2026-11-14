@@ -46,8 +46,14 @@
   "limits": { "cpu_ms": 60000 },
   "observability": { "enabled": true },
 
-  // No routes yet: the worker answers on framejs-io.<account>.workers.dev only
-  // until the DNS cutover moves framejs.io and js.mtfm.io here.
+  // Routes on the zones' existing A/AAAA records. They take effect only while a
+  // record is Proxied (orange cloud); a DNS-only record bypasses Cloudflare and
+  // goes to the record's IP instead. Rollback of a host = switch it to DNS only.
+  // Both zones must be in this account. See docs/development/deployment.md.
+  "routes": [
+    { "pattern": "framejs.io/*", "zone_name": "framejs.io" },
+    { "pattern": "js.mtfm.io/*", "zone_name": "mtfm.io" }
+  ],
 
   "vars": {
     "PUBLIC_ORIGIN": "https://framejs.io",
