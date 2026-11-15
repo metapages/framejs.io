@@ -34,12 +34,45 @@ Requirements:
   Everything else (R2 endpoint, bucket, public URL, Umami id) is a plain var in
   `wrangler.jsonc`. Optional: `UMAMI_HOST` (defaults to Umami Cloud) for
   cookieless server-side analytics (see [worker docs](./worker.md#analytics-optional)).
-- **Domains**: `framejs.io` and `js.mtfm.io` are Workers Custom Domains (or
-  routes) on this worker once the cutover is done.
+- **Domains**: see [below](#domains-framejs-io-and-js-mtfm-io).
 
 Limits that differ from Deno Deploy: an isolate has 128 MB of memory, so
 `EXPORT_HTML_MAX_SIZE_MB` is 20 (was 50) and `EXPORT_HTML_MAX_CONCURRENT` is 1;
 the export's CPU budget is `limits.cpu_ms` (60 s).
+
+### Domains: `framejs.io` and `js.mtfm.io`
+
+Both hosts reach the worker through **Worker routes** (`routes` in
+`worker/wrangler.jsonc`: `framejs.io/*` on zone `framejs.io`, `js.mtfm.io/*` on
+zone `mtfm.io`) on the zones' existing A/AAAA records. Both zones must be in
+the worker's Cloudflare account (`87fd2334…`); a route cannot attach to a zone
+in another account.
+
+A route only takes effect while the host's records are **Proxied** (orange
+cloud). A proxied request that matches a route goes to the worker, and the
+records' IPs are never contacted. A **DNS only** record bypasses Cloudflare
+and goes straight to its IPs. So:
+
+- **Cutover** of a host: deploy the routes, then switch its apex A and AAAA
+  records to **Proxied**. There is no downtime.
+- **Rollback** of a host: switch its records back to **DNS only**. Until Deno
+  Deploy is removed, the records still point at Deno Deploy (A `69.67.170.170`,
+  AAAA `2602:f70f::1`), which is deployed from `main` alongside the worker.
+
+Verify a host after switching it (the smoke test fails if Deno Deploy answers,
+i.e. the response has `x-deno-trace-id`):
+
+```bash
+just worker/smoke https://framejs.io https://framejs-io.dion19.workers.dev
+just worker/smoke https://js.mtfm.io https://framejs-io.dion19.workers.dev
+```
+
+`www.framejs.io` (proxied, a redirect to `https://framejs.io/`) and
+`files.framejs.io` (R2 custom domain) are not routed to the worker.
+
+After Deno Deploy is removed, the proxied records keep a placeholder origin
+(A `192.0.2.1`, AAAA `100::`). They only exist so the routes have something to
+attach to.
 
 ## File storage (Cloudflare R2)
 
