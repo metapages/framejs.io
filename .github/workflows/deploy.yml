@@ -10,10 +10,8 @@ jobs:
     name: Deploy
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Needed for auth with Deno Deploy
       contents: read # Needed to clone the repository
     env:
-      # Job-level so the Cloudflare step's `if` can see whether it is set.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
     steps:
@@ -49,22 +47,8 @@ jobs:
       - name: Validate framejs skill
         run: just check-skill
 
-      - name: Unignore build output for deploy
-        run: find . -type f -name .gitignore -delete
-
       - name: Build
         run: just build
 
-      # Production is moving from Deno Deploy to Cloudflare Workers. Until the
-      # DNS cutover both are deployed, so either can serve the current version
-      # (and Deno Deploy stays a live rollback target). The Deno step is
-      # removed at the cutover.
       - name: Deploy to Cloudflare Workers
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         run: just deploy-cloudflare
-
-      - name: Deploy to Deno Deploy
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: just deploy-deno
-

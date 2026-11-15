@@ -1,9 +1,5 @@
 {
   "minimumDependencyAge": "0",
-  "deploy": {
-    "org": "metapage",
-    "app": "metaframe-js"
-  },
   "tasks": {
     "dev": "deno run --watch main.ts"
   },

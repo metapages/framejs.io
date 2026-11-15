@@ -105,7 +105,7 @@ export async function frameAssetResponse(
   req: FrameAssetRequest,
   deps: FrameAssetDeps,
 ): Promise<Response> {
-  // Every response varies on this header, so no shared cache (the Deno Deploy
+  // Every response varies on this header, so no shared cache (the Cloudflare
   // edge, a CDN, a proxy) can store a 200 and replay it to a service-worker
   // registration that the check below would have refused.
   const vary = { Vary: "Service-Worker" };

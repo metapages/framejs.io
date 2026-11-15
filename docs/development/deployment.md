@@ -3,13 +3,12 @@
 ## Website (Cloudflare Workers)
 
 The website at [framejs.io](https://framejs.io) is a Cloudflare Worker,
-`framejs-io` (config: `worker/wrangler.jsonc`). It moved from Deno Deploy,
-which is being retired; until the DNS cutover both are deployed on every push
-to `main`, and Deno Deploy still answers for the domains.
+`framejs-io` (config: `worker/wrangler.jsonc`), deployed on every push to
+`main` (`.github/workflows/deploy.yml`).
 
 ```bash
-just deploy             # build, then deploy to Cloudflare (and Deno Deploy, until the cutover)
-just deploy-cloudflare  # Cloudflare only (after `just build`)
+just deploy             # build, then deploy to Cloudflare
+just deploy-cloudflare  # deploy only (after `just build`)
 ```
 
 `deploy-cloudflare`:
@@ -36,9 +35,9 @@ Requirements:
   cookieless server-side analytics (see [worker docs](./worker.md#analytics-optional)).
 - **Domains**: see [below](#domains-framejs-io-and-js-mtfm-io).
 
-Limits that differ from Deno Deploy: an isolate has 128 MB of memory, so
-`EXPORT_HTML_MAX_SIZE_MB` is 20 (was 50) and `EXPORT_HTML_MAX_CONCURRENT` is 1;
-the export's CPU budget is `limits.cpu_ms` (60 s).
+Workers limits: an isolate has 128 MB of memory, so `EXPORT_HTML_MAX_SIZE_MB`
+is 20 (the code default is 50) and `EXPORT_HTML_MAX_CONCURRENT` is 1; the
+export's CPU budget is `limits.cpu_ms` (60 s).
 
 ### Domains: `framejs.io` and `js.mtfm.io`
 
@@ -53,14 +52,13 @@ cloud). A proxied request that matches a route goes to the worker, and the
 records' IPs are never contacted. A **DNS only** record bypasses Cloudflare
 and goes straight to its IPs. So:
 
-- **Cutover** of a host: deploy the routes, then switch its apex A and AAAA
-  records to **Proxied**. There is no downtime.
-- **Rollback** of a host: switch its records back to **DNS only**. Until Deno
-  Deploy is removed, the records still point at Deno Deploy (A `69.67.170.170`,
-  AAAA `2602:f70f::1`), which is deployed from `main` alongside the worker.
+Both hosts' records must therefore stay **Proxied**. Their IPs are never used.
 
-Verify a host after switching it (the smoke test fails if Deno Deploy answers,
-i.e. the response has `x-deno-trace-id`):
+To roll back a bad deploy, `cd worker && npx wrangler rollback` returns to the
+previous version (or pick one in the dashboard under Deployments).
+
+Verify a host (the smoke test fails unless the response is from Cloudflare,
+`server: cloudflare`):
 
 ```bash
 just worker/smoke https://framejs.io https://framejs-io.dion19.workers.dev
@@ -69,10 +67,6 @@ just worker/smoke https://js.mtfm.io https://framejs-io.dion19.workers.dev
 
 `www.framejs.io` (proxied, a redirect to `https://framejs.io/`) and
 `files.framejs.io` (R2 custom domain) are not routed to the worker.
-
-After Deno Deploy is removed, the proxied records keep a placeholder origin
-(A `192.0.2.1`, AAAA `100::`). They only exist so the routes have something to
-attach to.
 
 ## File storage (Cloudflare R2)
 

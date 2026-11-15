@@ -21,7 +21,7 @@
   JavaScript code, modules, inputs, options, styling, OG metadata) is encoded into
   the **URL hash fragment** (`#?js=...&modules=...&inputs=...`). There is no
   per-user data, no sessions, no login, no database tables.
-- The **worker** (Deno/Hono, deployed to Deno Deploy) is a thin layer: it serves
+- The **worker** (Hono, deployed to Cloudflare Workers; runs on Deno locally) is a thin layer: it serves
   one `index.html`, serves the React `editor` and `docs` as static files, proxies
   uploads/short-URLs to **S3** (Cloudflare R2 in prod, SeaweedFS locally), and fires
   fire-and-forget analytics to Umami. **No auth middleware exists anywhere.**
@@ -45,13 +45,13 @@
 
 | System | Tech | Location | Role | Deployed |
 |---|---|---|---|---|
-| **worker** | Deno + Hono | `worker/` | HTTP router, serves `index.html` (the runtime), static host for editor + docs, S3 facade (presign / shorten / fetch), analytics beacon | Deno Deploy (`deno deploy --prod`) → framejs.io / js.mtfm.io |
+| **worker** | Deno + Hono | `worker/` | HTTP router, serves `index.html` (the runtime), static host for editor + docs, S3 facade (presign / shorten / fetch), analytics beacon | Cloudflare Workers (`wrangler deploy`) → framejs.io / js.mtfm.io |
 | **editor** | React 18 + Vite + Chakra UI v2 + Zustand | `editor/` | The code editor / settings UI, built to static assets, served by worker at `/editor`, **runs as an iframe** | Built into `worker`'s static dir at build time |
 | **docs** | VitePress | `docs/` | Static documentation site, served at `/docs` | Built into `worker`'s static dir |
 
 Supporting infra (local dev via `docker-compose.yml`): **traefik** (TLS/routing),
 **seaweedfs** + **seaweedfs-init** (local S3, bucket `uploads`, 7-day expiry). Production
-swaps SeaweedFS for **Cloudflare R2** and routes through Deno Deploy.
+swaps SeaweedFS for **Cloudflare R2** and runs the worker on Cloudflare Workers.
 
 There is **no database container, no auth service, no user store** anywhere in the
 stack today.
@@ -211,7 +211,7 @@ no-op if env unset. **No PII, no user identity** — purely aggregate.
                      │      │                               │
         GET / , /j/<sha>    │  POST /api/upload/presign     │ GET /api/j/<sha>/url
                      │      ▼                               │
-            ┌────────┴───────────── worker (Deno/Hono, Deno Deploy) ──────────┐
+            ┌────────┴───────────── worker (Hono, Cloudflare Workers) ────────┐
             │  static serve · presign · shorten · fetch · qrcode · analytics  │
             └───────┬───────────────────────────┬─────────────────────┬──────┘
                     │ PutObject/GetObject        │ presigned PUT/GET   │ /api/send
@@ -343,7 +343,7 @@ runtime via forwarded token) requests an upload, gets a file id, stores a
 
 | Current (worker) | Target (nhost) |
 |---|---|
-| `GET /` serve runtime | Runtime stays a static asset (Deno Deploy *or* nhost Functions/CDN). Shell is the new authenticated entry app. |
+| `GET /` serve runtime | Runtime stays a static asset (Cloudflare Workers *or* nhost Functions/CDN). Shell is the new authenticated entry app. |
 | `POST /api/shorten` / `/api/shorten/json` | Hasura `insert_frames` mutation (from shell, with JWT). Keep a thin **nhost Function** if you still want server-side sha256 + slug minting + the unauthenticated AI/CLI path. |
 | `GET /j/:sha256` (HTML + OG inject + bootstrap) | A small **nhost Function** (or keep on the runtime host) that resolves slug/hash → `hash_params`, injects OG, serves runtime HTML. Reads via Hasura (admin secret server-side, respecting visibility). |
 | `GET /api/j/:sha256` / `/url` | Hasura query `frames_by_pk` / `frames(where:{slug})`. |
@@ -439,4 +439,4 @@ runtime via forwarded token) requests an upload, gets a file id, stores a
 - `editor/src/hooks/useMetaframeUrl.ts`, `useShortUrlMode.ts` — hash<->editor sync.
 - `editor/src/store.ts` — Zustand (ephemeral UI state only).
 - `docker-compose.yml` — local stack (worker, editor, docs, traefik, seaweedfs).
-- `justfile` — `just dev`, `just check`, `just deploy` (Deno Deploy).
+- `justfile` — `just dev`, `just check`, `just deploy` (Cloudflare Workers).
