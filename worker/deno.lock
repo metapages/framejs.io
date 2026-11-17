@@ -10,7 +10,7 @@
     "jsr:@std/internal@^1.0.6": "1.0.12",
     "jsr:@std/path@^1.1.1": "1.1.6",
     "npm:@aws-sdk/client-s3@*": "3.1044.0",
-    "npm:@metapages/metapage@^1.10.15": "1.10.15_react@19.3.1",
+    "npm:@metapages/metapage@^1.10.17": "1.10.17_react@19.3.1",
     "npm:@resvg/resvg-wasm@^2.6.2": "2.6.2",
     "npm:acorn-walk@^8.3.4": "8.3.5",
     "npm:acorn@^8.15.0": "8.19.0",
@@ -711,8 +711,8 @@
         "react"
       ]
     },
-    "@metapages/metapage@1.10.15_react@19.3.1": {
-      "integrity": "sha512-mwsqkA4CXwhUYfz6jG/wVIXp49HfWx1CHbWUb/ODfmKL6nrVyutMCW1vrMPOjFHrclAr19nGPFbcQyx7rBXiNw==",
+    "@metapages/metapage@1.10.17_react@19.3.1": {
+      "integrity": "sha512-8sRUQeGAGX4H6er+tBEikJvC+3J3TbeFncKJDlQviLw2P7aWJ94cn21TxdxfhPF7FimX1hSAUhb0I6G5w2Xwsg==",
       "dependencies": [
         "@metapages/dataref",
         "@metapages/hash-query",
@@ -1019,7 +1019,8 @@
         "@smithy/types",
         "@smithy/util-stream",
         "tslib"
-      ]
+      ],
+      "deprecated": true
     },
     "@smithy/types@4.14.1": {
       "integrity": "sha512-59b5HtSVrVR/eYNei3BUj3DCPKD/G7EtDDe7OEJE7i7FtQFugYo6MxbotS8mVJkLNVf8gYaAlEBwwtJ9HzhWSg==",
@@ -1438,7 +1439,7 @@
       "jsr:@hono/hono@4",
       "jsr:@std/assert@1",
       "jsr:@std/encoding@1",
-      "npm:@metapages/metapage@^1.10.15",
+      "npm:@metapages/metapage@^1.10.17",
       "npm:@resvg/resvg-wasm@^2.6.2",
       "npm:acorn-walk@^8.3.4",
       "npm:acorn@^8.15.0",

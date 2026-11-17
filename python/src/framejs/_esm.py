@@ -1,5 +1,5 @@
 ESM = """
-const CDN_URL = "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.14/+esm";
+const CDN_URL = "https://cdn.jsdelivr.net/npm/@metapages/metapage@1.10.17/+esm";
 
 let _renderMetapage = null;
 
