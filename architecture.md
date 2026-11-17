@@ -183,7 +183,7 @@ Hasura permissions:
 | Authorization | Hasura JWT claims (`x-hasura-user-id`, roles) + row permissions above |
 | Frames CRUD / read API | Hasura GraphQL from the shell (Bearer JWT) |
 | Uploaded input files | nhost Storage (public bucket for embeddable inputs; permissioned for private) |
-| Short-URL minting (sha256/slug), QR codes, OG injection, `/i` SSR, anonymous AI/CLI create | nhost Functions (or keep on Deno Deploy / Cloudflare at the runtime origin) |
+| Short-URL minting (sha256/slug), QR codes, OG injection, `/i` SSR, anonymous AI/CLI create | nhost Functions (or keep on the Cloudflare Worker at the runtime origin) |
 | Analytics | Umami (independent of nhost), called from shell and/or a Function |
 
 ## Decisions (defaults — revisit if needed)

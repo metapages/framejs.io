@@ -96,7 +96,9 @@ SeaweedFS starts automatically with `just dev`. The S3 API is at `http://localho
    later breaks `fetch()`. You also need a Cloudflare Transform Rule setting the
    header unconditionally — see
    [Deployment → File storage (Cloudflare R2)](../docs/development/deployment.md#file-storage-cloudflare-r2).
-6. **Set environment variables** on Deno Deploy:
+6. **Set the worker's environment** (`worker/wrangler.jsonc` `vars`; the two
+   keys with `npx wrangler secret put` — see
+   [Deployment](../docs/development/deployment.md)):
    - `S3_ENDPOINT` — `https://<account-id>.r2.cloudflarestorage.com`
    - `S3_ACCESS_KEY_ID` — from the API token
    - `S3_SECRET_ACCESS_KEY` — from the API token

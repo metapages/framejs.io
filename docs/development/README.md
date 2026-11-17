@@ -28,7 +28,7 @@ just dev          # start the full dev stack (worker + editor + traefik)
 just check        # type-check editor + worker
 just fmt          # format code
 just test         # run tests
-just deploy       # build + deploy (Cloudflare Workers; Deno Deploy until the DNS cutover)
+just deploy       # build + deploy to Cloudflare Workers
 ```
 
 See [Local Setup](./local-setup.md) to get started.

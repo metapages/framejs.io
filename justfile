@@ -6,7 +6,6 @@ DEFAULT_APP_FQDN := "framejs-io.localhost"
 APP_FQDN := env_var_or_default("APP_FQDN", DEFAULT_APP_FQDN)
 APP_PORT := env_var_or_default("APP_PORT", "4430")
 APP_PORT_BROWSER := env_var_or_default("APP_PORT_BROWSER", "4440")
-DENO_DEPLOY_TOKEN := env_var_or_default("DENO_DEPLOY_TOKEN", "")
 CLOUDFLARE_API_TOKEN := env_var_or_default("CLOUDFLARE_API_TOKEN", "")
 
 # minimal formatting, bold is very useful
@@ -28,7 +27,6 @@ cyan := "\\e[36m"
     echo -e "    Python Package URL 🔗 {{ green }}https://pypi.org/project/framejs/{{ normal }}"
     echo -e "    Local develop URL 🔗  {{ green }}https://{{ APP_FQDN }}:{{ APP_PORT }}/{{ normal }}"
     echo -e "    Deploy Console URL 🔗 {{ green }}https://dash.cloudflare.com/87fd2334b246ea24741346c2a2140fa8/workers/services/view/framejs-io/production{{ normal }}"
-    echo -e "    Old Deno Deploy 🔗    {{ grey }}https://console.deno.com/metapage/metaframe-js (until the DNS cutover){{ normal }}"
     echo -e "    Analytics Dashboard 🔗{{ green }}https://cloud.umami.is/analytics/us/websites/774a7551-b487-4691-a52a-9b2b79a20872{{ normal }}"
     echo -e ""
     echo -e "    Sub-commands: (just <sub-command> <?command>)"
@@ -117,50 +115,13 @@ dev-install-skill dir="~/.claude/skills":
     echo -e "{{ green }}Symlinked{{ normal }} $target/framejs -> $src"
     echo "Restart your agent so it reloads SKILL.md."
 
-# Deploy framejs.io: Cloudflare Workers, plus Deno Deploy until the DNS cutover
-deploy: build deploy-cloudflare deploy-deno
+# Deploy framejs.io to Cloudflare Workers
+deploy: build deploy-cloudflare
 
 # Deploy the built app to Cloudflare Workers (worker/wrangler.jsonc). Needs `just build` first.
 deploy-cloudflare:
     cd worker && deno run -A scripts/build-cloudflare.ts
     cd worker && npx -y wrangler@4 deploy
-
-# Deploy the built app to Deno Deploy (retiring: removed at the DNS cutover). Needs `just build` first.
-deploy-deno:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    deploy=$(mktemp -d)
-    cp -r editor/dist $deploy/editor
-    cp -r docs/.vitepress/dist $deploy/docs
-    cp -r worker/server.ts $deploy/
-    cp -r worker/src $deploy/
-    cp -r worker/deno.json $deploy/
-    cp -r worker/deno.lock $deploy/
-    cp -r worker/index.html $deploy/
-    cp -r worker/sw.js $deploy/
-    cp -r worker/cache-test-utils.js $deploy/
-    cp -r worker/static $deploy/
-    cd $deploy
-    # `deno deploy` (jsr:@deno/deploy) intermittently hangs mid-upload and is then
-    # killed by Deno's top-level-await watchdog with exit 1, even when nothing is
-    # wrong. Deploys create a fresh revision each time, so retry and treat the run
-    # as successful only when the CLI prints its genuine confirmation line.
-    attempts=3
-    for i in $(seq 1 $attempts); do
-      echo -e "{{ blue }}deno deploy attempt $i/$attempts{{ normal }}"
-      set +e
-      timeout 420 deno deploy --prod 2>&1 | tee deploy.log
-      code=${PIPESTATUS[0]}
-      set -e
-      if grep -q "Successfully deployed your application" deploy.log; then
-        echo -e "{{ green }}Deploy succeeded.{{ normal }}"
-        exit 0
-      fi
-      echo -e "{{ yellow }}Deploy attempt $i did not confirm success (exit $code); retrying...{{ normal }}"
-      sleep 5
-    done
-    echo -e "{{ magenta }}Deploy failed after $attempts attempts.{{ normal }}"
-    exit 1
 
 # Checks and tests
 test:
