@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
 import { useFrameSourceForPersist } from "/@/hooks/useFrameSource";
-import { convertMetaframeInputs } from "/@/utils/convertInputs";
-import { withoutReservedInputs } from "/@/utils/frameSource";
+import { useFrameInputs } from "/@/hooks/useFrameInputs";
+import { buildInputsHashParam } from "/@/utils/convertInputs";
 import {
   getAllowedHashParams,
   stripDisallowedHashParamsFromHashString,
@@ -17,7 +17,6 @@ import {
   setHashParamValueJsonInHashString,
 } from "@metapages/hash-query/react-hooks";
 import { MetaframeDefinition } from "@metapages/metapage";
-import { useMetaframe } from "@metapages/metapage-react/hooks";
 
 /**
  * The frame as an immutable snapshot: the hash-param string sent to the
@@ -31,23 +30,11 @@ export const useSnapshotHashParams = (): {
   hasSource: boolean;
   build: () => Promise<string | null>;
 } => {
-  const metaframeBlob = useMetaframe();
   // The source is NOT in the url any more (see useFrameSource), so it has to be
   // injected into the hash this builds — serializing the hash alone would
   // snapshot a frame with no code.
   const source = useFrameSourceForPersist();
-  const [metaframeInputs, setMetaframeInputs] = useState<
-    InputsHashParam | undefined
-  >(undefined);
-
-  useEffect(() => {
-    if (metaframeBlob.metaframe) {
-      setMetaframeInputs(metaframeBlob.metaframe.getInputs());
-      return metaframeBlob.metaframe.onInputs(() => {
-        setMetaframeInputs(metaframeBlob.metaframe.getInputs());
-      });
-    }
-  }, [metaframeBlob.metaframe]);
+  const metaframeInputs = useFrameInputs();
 
   const build = useCallback(async (): Promise<string | null> => {
     if (source === null) return null;
@@ -65,26 +52,17 @@ export const useSnapshotHashParams = (): {
       stringToBase64String(source),
     );
 
-    // Merge metaframe inputs (received via onInputs) into hash params
-    let newInputs = getHashParamValueJsonFromWindow<
-      InputsHashParam | undefined
-    >("inputs");
-    if (metaframeInputs && Object.keys(metaframeInputs).length > 0) {
-      newInputs = await convertMetaframeInputs(
-        metaframeInputs,
-        newInputs || undefined,
-      );
-    }
+    // Merge metaframe inputs (received via onInputs) into hash params.
     // Inputs pointing at http://localhost:<port> are only reachable from the
     // machine that authored the frame. A snapshot is a shared, immutable
     // artifact, so copy that content into the remote file store and rewrite
     // the reference to the canonical /f/<sha256> URL. This must happen before
     // the hash string is built: the snapshot's sha256 is computed from it.
-    newInputs = await uploadLocalUrlInputs(
-      // The reserved source input is the editor's, not the frame's: a snapshot
-      // carrying it hands a stale copy to the next editor
-      // (metapages/framejs.io#146).
-      withoutReservedInputs(newInputs || undefined),
+    const newInputs = await uploadLocalUrlInputs(
+      await buildInputsHashParam(
+        getHashParamValueJsonFromWindow<InputsHashParam | undefined>("inputs"),
+        metaframeInputs,
+      ),
     );
 
     if (newInputs && Object.keys(newInputs).length > 0) {

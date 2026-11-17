@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
 import { useMetaframeUrl } from "/@/hooks/useMetaframeUrl";
-import { convertMetaframeInputs } from "/@/utils/convertInputs";
-import { withoutReservedInputs } from "/@/utils/frameSource";
+import { useFrameInputs } from "/@/hooks/useFrameInputs";
+import { buildInputsHashParam } from "/@/utils/convertInputs";
 import {
   getAllowedHashParams,
   stripDisallowedHashParams,
@@ -16,31 +16,21 @@ import {
   setHashParamValueJsonInHashString,
 } from "@metapages/hash-query/react-hooks";
 import { MetaframeDefinition } from "@metapages/metapage";
-import { useMetaframe } from "@metapages/metapage-react/hooks";
 import { CopyIcon } from "@phosphor-icons/react";
 
 import { HeaderButtonProps, HeaderMenuItem } from "./types";
 
 async function buildExternalShareUrl(
   url: string | undefined,
-  metaframeInputs: InputsHashParam | undefined,
+  metaframeInputs: Record<string, unknown> | undefined,
 ): Promise<string> {
   if (!url) return "";
   let newUrl = setHashParamValueInHashString(url, "edit", undefined);
-  let newInputs: InputsHashParam | undefined = getHashParamValueJsonFromWindow<
-    InputsHashParam | undefined
-  >("inputs");
-  if (metaframeInputs && Object.keys(metaframeInputs).length > 0) {
-    newInputs = await convertMetaframeInputs(
-      metaframeInputs,
-      newInputs || undefined,
-    );
-  }
-  // A url saved by an older editor may already carry the reserved source
-  // input in `inputs`; don't pass it on (metapages/framejs.io#146).
-  newInputs = withoutReservedInputs(newInputs);
-
-  if (newInputs && Object.keys(newInputs).length > 0) {
+  const newInputs = await buildInputsHashParam(
+    getHashParamValueJsonFromWindow<InputsHashParam | undefined>("inputs"),
+    metaframeInputs,
+  );
+  if (newInputs) {
     newUrl = setHashParamValueJsonInHashString(newUrl, "inputs", newInputs);
   }
 
@@ -60,22 +50,7 @@ export const ButtonCopyExternalLink: React.FC<HeaderButtonProps> = ({
   variant = "icon",
 }) => {
   const { url } = useMetaframeUrl();
-  const metaframeBlob = useMetaframe();
-  const [metaframeInputs, setMetaframeInputs] = useState<
-    InputsHashParam | undefined
-  >(undefined);
-  useEffect(() => {
-    if (metaframeBlob.metaframe) {
-      setMetaframeInputs(
-        withoutReservedInputs(metaframeBlob.metaframe.getInputs()),
-      );
-      return metaframeBlob.metaframe.onInputs((inputs: InputsHashParam) => {
-        setMetaframeInputs(
-          withoutReservedInputs(metaframeBlob.metaframe.getInputs()),
-        );
-      });
-    }
-  }, [metaframeBlob.metaframe]);
+  const metaframeInputs = useFrameInputs();
 
   const toast = useToast();
 

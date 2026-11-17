@@ -1,9 +1,13 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
   fetchFrameSource,
   isJsSourceUrl,
   RESERVED_SOURCE_INPUT,
+  RESERVED_SOURCE_OUTPUT,
   withoutReservedInputs,
 } from "/@/utils/frameSource";
 import { stripDisallowedHashParamsFromHashString } from "/@/utils/hashParams";
@@ -233,5 +237,26 @@ describe("the runtime's refuse-to-wipe guard", () => {
     expect(wouldWipe("console.log(2)", "console.log(1)")).toBe(false);
     // Down to a single character is still a real edit.
     expect(wouldWipe("x", "console.log(1)")).toBe(false);
+  });
+});
+
+describe("the reserved source key, runtime vs editor", () => {
+  // worker/index.html is a self-contained runtime (also baked whole into a
+  // standalone HTML export), so it cannot import frameSource.ts and keeps its
+  // own RESERVED_SOURCE_KEY. If the two drift, the editor opens with no code.
+  // Resolved from the working directory: see runtimeShell.test.ts.
+  const indexHtml = ["../worker/index.html", "worker/index.html"]
+    .map((path) => resolve(process.cwd(), path))
+    .find(existsSync);
+
+  it("is the same name on both sides, both ways", () => {
+    expect(indexHtml, "worker/index.html not found").toBeDefined();
+    const match = /const RESERVED_SOURCE_KEY = "([^"]+)";/.exec(
+      readFileSync(indexHtml!, "utf8"),
+    );
+    expect(match, "RESERVED_SOURCE_KEY not found in worker/index.html")
+      .not.toBeNull();
+    expect(RESERVED_SOURCE_INPUT).toBe(match![1]);
+    expect(RESERVED_SOURCE_OUTPUT).toBe(match![1]);
   });
 });
