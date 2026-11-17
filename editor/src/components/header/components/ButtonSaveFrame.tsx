@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
 import { useFrameSourceForPersist } from "/@/hooks/useFrameSource";
 import { convertMetaframeInputs } from "/@/utils/convertInputs";
+import { withoutReservedInputs } from "/@/utils/frameSource";
 import {
   getAllowedHashParams,
   stripDisallowedHashParamsFromHashString,
@@ -104,6 +105,9 @@ export const ButtonSaveFrame: React.FC<HeaderButtonProps> = ({
         newInputs || undefined,
       );
     }
+    // The reserved source input is the editor's, not the frame's: saving it
+    // would hand a stale copy back to the next editor (metapages/framejs.io#146).
+    newInputs = withoutReservedInputs(newInputs);
     if (newInputs && Object.keys(newInputs).length > 0) {
       hash = setHashParamValueJsonInHashString(hash, "inputs", newInputs);
     }

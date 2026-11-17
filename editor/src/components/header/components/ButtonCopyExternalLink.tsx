@@ -36,6 +36,9 @@ async function buildExternalShareUrl(
       newInputs || undefined,
     );
   }
+  // A url saved by an older editor may already carry the reserved source
+  // input in `inputs`; don't pass it on (metapages/framejs.io#146).
+  newInputs = withoutReservedInputs(newInputs);
 
   if (newInputs && Object.keys(newInputs).length > 0) {
     newUrl = setHashParamValueJsonInHashString(newUrl, "inputs", newInputs);

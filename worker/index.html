@@ -2539,6 +2539,22 @@
     let inputsConsumer = null;
     // Whether any code has taken inputs yet (see runJsFromUrl).
     let inputsConsumerHasRun = false;
+
+    // The reserved input the editor pane receives the frame's SOURCE on (see
+    // mountEditor). Keep in step with RESERVED_SOURCE_INPUT in
+    // editor/src/utils/frameSource.ts.
+    //
+    // It is never one of the frame's own inputs, but older editors leaked it
+    // into the saved `inputs` hash param (usually as an empty string). Every
+    // input update is forwarded to the editor below, so a leaked copy would
+    // overwrite the real source on its way in and the pane would open with no
+    // code. metapages/framejs.io#146
+    const RESERVED_SOURCE_INPUT = "__framejs_source";
+    const withoutReservedSourceInput = (inputs) => {
+      if (!inputs || !(RESERVED_SOURCE_INPUT in inputs)) return inputs;
+      const { [RESERVED_SOURCE_INPUT]: _dropped, ...rest } = inputs;
+      return rest;
+    };
     let drainingInputs = false;
 
     const queueInputs = (inputs) => {
@@ -2570,6 +2586,9 @@
       { module, disableDatarefs, disableSmartInputUnpacking },
       inputs,
     ) => {
+      // Neither the frame's code nor the editor may see a leaked copy of the
+      // reserved source input.
+      inputs = withoutReservedSourceInput(inputs);
       if (module.onInputs) {
         try {
           // Check if dataref conversion is disabled
@@ -3246,8 +3265,8 @@
         const inputsUnpacked = await getInputsSmartUnpacked();
         globalThis.metapageEditor.setInputs({
           editor: {
-            ...inputsUnpacked,
-            "__framejs_source": sourceForEditor ?? "",
+            ...withoutReservedSourceInput(inputsUnpacked),
+            [RESERVED_SOURCE_INPUT]: sourceForEditor ?? "",
           },
         });
       } catch (err) {

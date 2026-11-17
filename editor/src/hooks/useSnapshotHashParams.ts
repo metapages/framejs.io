@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
 import { useFrameSourceForPersist } from "/@/hooks/useFrameSource";
 import { convertMetaframeInputs } from "/@/utils/convertInputs";
+import { withoutReservedInputs } from "/@/utils/frameSource";
 import {
   getAllowedHashParams,
   stripDisallowedHashParamsFromHashString,
@@ -79,7 +80,12 @@ export const useSnapshotHashParams = (): {
     // artifact, so copy that content into the remote file store and rewrite
     // the reference to the canonical /f/<sha256> URL. This must happen before
     // the hash string is built: the snapshot's sha256 is computed from it.
-    newInputs = await uploadLocalUrlInputs(newInputs || undefined);
+    newInputs = await uploadLocalUrlInputs(
+      // The reserved source input is the editor's, not the frame's: a snapshot
+      // carrying it hands a stale copy to the next editor
+      // (metapages/framejs.io#146).
+      withoutReservedInputs(newInputs || undefined),
+    );
 
     if (newInputs && Object.keys(newInputs).length > 0) {
       hash = setHashParamValueJsonInHashString(hash, "inputs", newInputs);
