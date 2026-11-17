@@ -534,7 +534,7 @@ const PAGE = /* html */ `<!doctype html>
 </section>
 
 <script type="module">
-import { renderMetaframe } from "https://esm.sh/@metapages/metapage@1.10.15";
+import { renderMetaframe } from "https://esm.sh/@metapages/metapage@1.10.17";
 
 const $ = (id) => document.getElementById(id);
 const qp = () => new URLSearchParams(location.search);

@@ -21,7 +21,7 @@
     "acorn-walk": "npm:acorn-walk@^8.3.4",
     "@std/assert": "jsr:@std/assert@1",
     "@std/encoding": "jsr:@std/encoding@1",
-    "@metapages/metapage": "npm:@metapages/metapage@^1.10.15",
+    "@metapages/metapage": "npm:@metapages/metapage@^1.10.17",
     "@metapages/hash-query": "https://esm.sh/@metapages/hash-query@0.9.12"
   }
 }
