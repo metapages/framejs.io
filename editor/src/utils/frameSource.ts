@@ -23,7 +23,8 @@ export const isJsSourceUrl = (value: string | undefined): boolean => {
  * the pane on `about:blank#blocked`, empty, no console error) and Firefox's url
  * parser throws on past 1 MiB. postMessage has no such limit.
  *
- * Keep this name in step with worker/index.html's `setInputs` call. It is
+ * The runtime's copy is RESERVED_SOURCE_KEY in worker/index.html, which cannot
+ * import this module; test/tests/frameSource.test.ts fails if they drift. It is
  * prefixed so it cannot collide with one of the frame's own input names, and
  * `withoutReservedInputs` strips it before inputs reach the UI or a shared url.
  */
@@ -34,9 +35,9 @@ export const RESERVED_SOURCE_INPUT = "__framejs_source";
  * same channel, and for the same reason. The runtime listens for it and is the
  * one that writes `js` into the page url (which is what framejs.app persists).
  *
- * Keep in step with the output listener in worker/index.html.
+ * Same name as the input; see RESERVED_SOURCE_KEY in worker/index.html.
  */
-export const RESERVED_SOURCE_OUTPUT = "__framejs_source";
+export const RESERVED_SOURCE_OUTPUT = RESERVED_SOURCE_INPUT;
 
 /**
  * The frame's own inputs, with the runtime's reserved keys removed.

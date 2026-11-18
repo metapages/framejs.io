@@ -2539,6 +2539,27 @@
     let inputsConsumer = null;
     // Whether any code has taken inputs yet (see runJsFromUrl).
     let inputsConsumerHasRun = false;
+
+    // The reserved key the frame's SOURCE travels on between this runtime and
+    // the editor pane: the input that hands it to the editor (see mountEditor)
+    // and the output an edit comes back on. Same name both ways.
+    //
+    // The editor's copy is RESERVED_SOURCE_INPUT / RESERVED_SOURCE_OUTPUT in
+    // editor/src/utils/frameSource.ts. This file is a self-contained runtime
+    // (it is also baked whole into a standalone HTML export), so it cannot
+    // import that module; test/tests/frameSource.test.ts fails if they drift.
+    //
+    // It is never one of the frame's own inputs, but older editors leaked it
+    // into the saved `inputs` hash param (usually as an empty string). Every
+    // input update is forwarded to the editor below, so a leaked copy would
+    // overwrite the real source on its way in and the pane would open with no
+    // code. metapages/framejs.io#146
+    const RESERVED_SOURCE_KEY = "__framejs_source";
+    const withoutReservedSourceInput = (inputs) => {
+      if (!inputs || !(RESERVED_SOURCE_KEY in inputs)) return inputs;
+      const { [RESERVED_SOURCE_KEY]: _dropped, ...rest } = inputs;
+      return rest;
+    };
     let drainingInputs = false;
 
     const queueInputs = (inputs) => {
@@ -2570,6 +2591,9 @@
       { module, disableDatarefs, disableSmartInputUnpacking },
       inputs,
     ) => {
+      // Neither the frame's code nor the editor may see a leaked copy of the
+      // reserved source input.
+      inputs = withoutReservedSourceInput(inputs);
       if (module.onInputs) {
         try {
           // Check if dataref conversion is disabled
@@ -3233,10 +3257,9 @@
       // into its own hash, so every other editor feature keeps reading `js`
       // from the hash exactly as before.
       //
-      // Keep this name in step with RESERVED_SOURCE_INPUT in
-      // editor/src/utils/frameSource.ts. It is prefixed so it cannot collide
-      // with one of the frame's own input names, and the editor strips it back
-      // out before inputs reach the UI or a shared url.
+      // RESERVED_SOURCE_KEY is prefixed so it cannot collide with one of the
+      // frame's own input names, and is stripped back out before inputs reach
+      // the frame, the editor's UI or a shared url.
       const sourceForEditor = await resolveJsSource(getJsFromUrl());
       // Remembered so the editor echoing it back is not mistaken for an edit
       // (see the DEFINITION listener below).
@@ -3246,8 +3269,8 @@
         const inputsUnpacked = await getInputsSmartUnpacked();
         globalThis.metapageEditor.setInputs({
           editor: {
-            ...inputsUnpacked,
-            "__framejs_source": sourceForEditor ?? "",
+            ...withoutReservedSourceInput(inputsUnpacked),
+            [RESERVED_SOURCE_KEY]: sourceForEditor ?? "",
           },
         });
       } catch (err) {
@@ -3336,9 +3359,7 @@
 
       // The return leg of the postMessage transport: the editor emits the
       // frame's source as an output, so an edit never has to fit in a url.
-      // Keep "__framejs_source" in step with RESERVED_SOURCE_OUTPUT in
-      // editor/src/utils/frameSource.ts.
-      editorMetaframe.onOutput("__framejs_source", (source) => {
+      editorMetaframe.onOutput(RESERVED_SOURCE_KEY, (source) => {
         if (isReadOnly()) return;
         if (typeof source !== "string") return;
         // The editor echoes back the source we seeded it with; that is not an

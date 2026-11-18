@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useFrameSource } from "/@/hooks/useFrameSource";
+import { withoutReservedInputs } from "/@/utils/frameSource";
 
 import { useToast } from "@chakra-ui/react";
 import {
@@ -118,6 +119,10 @@ export const useAiText = (): {
           allInputs[key] = value;
         }
       }
+
+      // The reserved source input is the editor's copy of the code (already
+      // in the prompt), not one of the frame's inputs.
+      allInputs = withoutReservedInputs(allInputs) ?? {};
 
       if (Object.keys(allInputs).length > 0) {
         let inputsString = "";

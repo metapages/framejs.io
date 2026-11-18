@@ -1,6 +1,7 @@
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
 import { DataRef } from "/@/components/sections/settings/SectionInputs";
 import { uploadString, uploadJson, uploadBlob } from "/@/hooks/useFileUpload";
+import { withoutReservedInputs } from "/@/utils/frameSource";
 import { urlDataUrlToUrl } from "/@/utils/urlDataRef";
 
 // const UPLOAD_SIZE_THRESHOLD = 10_000; // 10KB
@@ -150,4 +151,28 @@ export async function convertMetaframeInputs(
   );
 
   return result;
+}
+
+/**
+ * The `inputs` hash param for a url the editor writes out (save, snapshot,
+ * export, copy link): the url's own `inputs` with the live metaframe inputs
+ * laid over them. Undefined when there are none.
+ *
+ * The reserved source input is the editor's, never the frame's, so it is
+ * dropped from both sides. From the live inputs it is dropped BEFORE they are
+ * converted, because it holds the whole frame source and conversion would
+ * upload it to the file store only for the result to be thrown away. From the
+ * url's inputs it is dropped because an older editor leaked it there, and a
+ * stale copy handed to the next editor blanks it (metapages/framejs.io#146).
+ */
+export async function buildInputsHashParam(
+  hashInputs: InputsHashParam | undefined,
+  metaframeInputs: Record<string, unknown> | undefined,
+): Promise<InputsHashParam | undefined> {
+  const live = withoutReservedInputs(metaframeInputs);
+  let inputs = withoutReservedInputs(hashInputs || undefined);
+  if (live && Object.keys(live).length > 0) {
+    inputs = await convertMetaframeInputs(live, inputs);
+  }
+  return inputs && Object.keys(inputs).length > 0 ? inputs : undefined;
 }

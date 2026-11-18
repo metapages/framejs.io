@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 import { InputsHashParam } from "/@/components/sections/settings/SectionInputs";
 import { useFrameSourceForPersist } from "/@/hooks/useFrameSource";
-import { convertMetaframeInputs } from "/@/utils/convertInputs";
+import { useFrameInputs } from "/@/hooks/useFrameInputs";
+import { buildInputsHashParam } from "/@/utils/convertInputs";
 import {
   getAllowedHashParams,
   stripDisallowedHashParamsFromHashString,
@@ -17,7 +18,6 @@ import {
   setHashParamValueJsonInHashString,
 } from "@metapages/hash-query/react-hooks";
 import { MetaframeDefinition } from "@metapages/metapage";
-import { useMetaframe } from "@metapages/metapage-react/hooks";
 import { FloppyDiskIcon } from "@phosphor-icons/react";
 
 import { HeaderButtonProps, HeaderMenuItem } from "./types";
@@ -64,19 +64,7 @@ export const ButtonSaveFrame: React.FC<HeaderButtonProps> = ({
   // frame with no code.
   const source = useFrameSourceForPersist();
   const toast = useToast();
-  const metaframeBlob = useMetaframe();
-  const [metaframeInputs, setMetaframeInputs] = useState<
-    InputsHashParam | undefined
-  >(undefined);
-
-  useEffect(() => {
-    if (metaframeBlob.metaframe) {
-      setMetaframeInputs(metaframeBlob.metaframe.getInputs());
-      return metaframeBlob.metaframe.onInputs(() => {
-        setMetaframeInputs(metaframeBlob.metaframe.getInputs());
-      });
-    }
-  }, [metaframeBlob.metaframe]);
+  const metaframeInputs = useFrameInputs();
 
   // Build the cleaned hash-param string to persist (same logic as
   // ButtonShortenUrl): drop edit/hm, merge live metaframe inputs, strip any
@@ -95,16 +83,11 @@ export const ButtonSaveFrame: React.FC<HeaderButtonProps> = ({
       stringToBase64String(source as string),
     );
 
-    let newInputs = getHashParamValueJsonFromWindow<
-      InputsHashParam | undefined
-    >("inputs");
-    if (metaframeInputs && Object.keys(metaframeInputs).length > 0) {
-      newInputs = await convertMetaframeInputs(
-        metaframeInputs,
-        newInputs || undefined,
-      );
-    }
-    if (newInputs && Object.keys(newInputs).length > 0) {
+    const newInputs = await buildInputsHashParam(
+      getHashParamValueJsonFromWindow<InputsHashParam | undefined>("inputs"),
+      metaframeInputs,
+    );
+    if (newInputs) {
       hash = setHashParamValueJsonInHashString(hash, "inputs", newInputs);
     }
 
